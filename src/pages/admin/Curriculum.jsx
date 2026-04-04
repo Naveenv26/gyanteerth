@@ -64,8 +64,8 @@ const AdminCurriculum = () => {
           course_title: rawCourse.course_title || rawCourse.title,
         };
         setCourse(mappedCourse);
-        
-        const sortedModules = (rawCourse.modules || []).sort((a, b) => (a.position || 0) - (b.position || 0)).map(m => {
+
+        const sortedModules = (rawCourse.modules || []).sort((a, b) => (a.position || a.Position || 0) - (b.position || b.Position || 0)).map(m => {
           const content = m.content || {};
           return {
             ...m,
@@ -76,30 +76,35 @@ const AdminCurriculum = () => {
               video_url: v.video_url || v.Video_URL || v.url,
               course_description: v.description || v.course_description || v.Course_Description || v.title
             })),
-            assessments: (content.assessments || m.assessments || []).map(a => ({
-              ...a,
-              assessment_id: a.assessment_id || a.Assessment_ID,
-              questions: (a.questions || a.Questions || []).map(q => ({
-                ...q,
-                question_id: q.question_id || q.Question_ID,
-                question_txt: q.question_text || q.question_txt || q.Question_Txt || q.text,
-                options: (q.options || q.Options || []).map(o => ({
-                  ...o,
-                  option_id: o.option_id || o.Option_ID,
-                  option_txt: o.text || o.option_txt || o.Option_Txt || o.option,
-                  is_correct: o.is_correct !== undefined ? o.is_correct : o.Is_Correct
+            assessments: (content.assessments || m.assessments || []).map(a => {
+              const rawQuestions = a.questions || a.Questions || [];
+              const sortedQuestions = [...rawQuestions].sort((qx, qy) => (qx.position || qx.Position || 0) - (qy.position || qy.Position || 0));
+
+              return {
+                ...a,
+                assessment_id: a.assessment_id || a.Assessment_ID,
+                questions: sortedQuestions.map(q => ({
+                  ...q,
+                  question_id: q.question_id || q.Question_ID,
+                  question_txt: q.question_text || q.question_txt || q.Question_Txt || q.text,
+                  options: (q.options || q.Options || []).map(o => ({
+                    ...o,
+                    option_id: o.option_id || o.Option_ID,
+                    option_txt: o.text || o.option_txt || o.Option_Txt || o.option,
+                    is_correct: o.is_correct !== undefined ? o.is_correct : o.Is_Correct
+                  }))
                 }))
-              }))
-            })),
+              };
+            }),
             live_sessions: (content.live_sessions || m.live_sessions || []).map(l => ({
-               ...l,
-               live_id: l.live_id || l.Live_ID,
-               meeting_url: l.meeting_url || l.Meeting_URL
+              ...l,
+              live_id: l.live_id || l.Live_ID,
+              meeting_url: l.meeting_url || l.Meeting_URL
             })),
             notes: (content.notes || m.notes || []).map(n => ({
-               ...n,
-               note_id: n.note_id || n.Notes_ID || n.notes_id,
-               note_url: n.file_url || n.note_url || n.File_URL || n.Note_URL
+              ...n,
+              note_id: n.note_id || n.Notes_ID || n.notes_id,
+              note_url: n.file_url || n.note_url || n.File_URL || n.Note_URL
             }))
           };
         });
@@ -199,7 +204,7 @@ const AdminCurriculum = () => {
       {/* REFINED COMMAND HEADER */}
       <header style={{ backgroundColor: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', padding: '1.25rem var(--page-padding)', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="mobile-only-btn" style={{ padding: '0.5rem', background: 'var(--color-surface-muted)', border: 'none', borderRadius: '0.75rem', cursor: 'pointer' }}><Menu size={20}/></button>
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="mobile-only-btn" style={{ padding: '0.5rem', background: 'var(--color-surface-muted)', border: 'none', borderRadius: '0.75rem', cursor: 'pointer' }}><Menu size={20} /></button>
           <button onClick={() => navigate(user?.role === 'admin' ? '/admin/courses' : '/trainer/courses')} style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.85rem', background: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}><ArrowLeft size={18} /></button>
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-primary)', marginBottom: '0.15rem' }}>
@@ -209,7 +214,14 @@ const AdminCurriculum = () => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <button onClick={() => { setModuleForm({ Title: '', Description: '', Position: modules.length + 1, editingId: null }); setShowModuleForm(true); }} className="btn btn-primary" style={{ padding: '0.65rem 1.25rem', borderRadius: '1rem', fontSize: '0.85rem' }}>
+          <button onClick={() => {
+            // Gap-aware: find the first unused position (e.g. 1,2,4 → next is 3, not 5)
+            const usedPositions = new Set(modules.map(m => m.position || m.Position || 0));
+            let nextPos = 1;
+            while (usedPositions.has(nextPos)) nextPos++;
+            setModuleForm({ Title: '', Description: '', Position: nextPos, editingId: null });
+            setShowModuleForm(true);
+          }} className="btn btn-primary" style={{ padding: '0.65rem 1.25rem', borderRadius: '1rem', fontSize: '0.85rem' }}>
             <Plus size={16} /> <span className="hide-on-mobile">New Chapter</span>
           </button>
           <button onClick={() => navigate(user?.role === 'admin' ? '/admin/courses' : '/trainer/courses')} className="btn btn-ghost hide-on-mobile" style={{ padding: '0.65rem 1.5rem', borderRadius: '1rem', border: '1px solid var(--color-border-strong)', fontSize: '0.85rem' }}>Exit Editor</button>
@@ -220,30 +232,30 @@ const AdminCurriculum = () => {
 
         <AnimatePresence>
           {isSidebarOpen && (
-            <motion.aside 
+            <motion.aside
               initial={{ x: -240 }} animate={{ x: 0 }} exit={{ x: -240 }}
               style={{ width: '240px', backgroundColor: 'var(--color-surface)', borderRight: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 50 }}
               className="curriculum-sidebar"
             >
               <div style={{ padding: '2rem', flex: 1, overflowY: 'auto' }} className="no-scrollbar">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem' }}>
-                   <h3 style={{ fontSize: '0.65rem', fontWeight: 950, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.1rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Grid size={12} /> Chapters</h3>
+                  <h3 style={{ fontSize: '0.65rem', fontWeight: 950, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.1rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Grid size={12} /> Chapters</h3>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {modules.map((m, idx) => (
-                      <motion.div
-                       key={m.module_id}
-                       onClick={() => { setActiveModule(m); if(window.innerWidth < 1024) setIsSidebarOpen(false); }}
-                       whileHover={{ scale: 1.01 }}
-                       whileTap={{ scale: 0.99 }}
-                       style={{
-                         padding: '1rem', borderRadius: '1.25rem', cursor: 'pointer', transition: 'all 0.2s',
-                         backgroundColor: activeModule?.module_id === m.module_id ? 'var(--color-bg)' : 'transparent',
-                         border: '1px solid',
-                         borderColor: activeModule?.module_id === m.module_id ? 'var(--color-primary-light)20' : 'transparent',
-                         display: 'flex', alignItems: 'center', gap: '0.85rem'
-                       }}
-                     >
+                    <motion.div
+                      key={m.module_id}
+                      onClick={() => { setActiveModule(m); if (window.innerWidth < 1024) setIsSidebarOpen(false); }}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      style={{
+                        padding: '1rem', borderRadius: '1.25rem', cursor: 'pointer', transition: 'all 0.2s',
+                        backgroundColor: activeModule?.module_id === m.module_id ? 'var(--color-bg)' : 'transparent',
+                        border: '1px solid',
+                        borderColor: activeModule?.module_id === m.module_id ? 'var(--color-primary-light)20' : 'transparent',
+                        display: 'flex', alignItems: 'center', gap: '0.85rem'
+                      }}
+                    >
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                         <button onClick={(e) => { e.stopPropagation(); swapPositions('swap-module-position', m.module_id, modules[idx - 1].module_id); }} disabled={idx === 0} style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer' }}><ArrowUp size={12} /></button>
                         <button onClick={(e) => { e.stopPropagation(); swapPositions('swap-module-position', m.module_id, modules[idx + 1].module_id); }} disabled={idx === modules.length - 1} style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer' }}><ArrowDown size={12} /></button>
@@ -267,12 +279,12 @@ const AdminCurriculum = () => {
         <main style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-surface)', padding: 'clamp(1rem, 5vw, 3.5rem)', position: 'relative' }}>
           {!activeModule ? (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontWeight: 950, fontSize: '0.9rem', letterSpacing: '0.1em', textAlign: 'center', padding: '2rem' }}>
-               CHOOSE A CHAPTER TO BEGIN CRAFTING KNOWLEDGE
+              CHOOSE A CHAPTER TO BEGIN CRAFTING KNOWLEDGE
             </div>
           ) : (
-            <motion.div 
-               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-               style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}
             >
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1.5rem' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', padding: '0.25rem', background: 'var(--color-surface-muted)', borderRadius: '1.25rem', border: '1px solid var(--color-border)' }}>
@@ -282,11 +294,11 @@ const AdminCurriculum = () => {
                   <SubTab active={activeTab === 'assessments'} icon={<Award size={12} />} label="Assessments" onClick={() => setActiveTab('assessments')} color="#f97316" />
                   {activeAssessment && <SubTab active={activeTab === 'builder'} icon={<Settings2 size={12} />} label="Builder" onClick={() => setActiveTab('builder')} color="#854dff" />}
                 </div>
-                <button 
-                  onClick={() => setEditModal({ show: true, type: activeTab === 'assessments' ? 'assessment' : activeTab === 'notes' ? 'notes' : activeTab === 'live' ? 'live' : 'video', data: activeTab === 'assessments' ? { Title: '', Description: '', Total_Mark: 100, Passing_Mark: 40, Duration: 30, Attempt_Limit: 3, Status: 'active' } : activeTab === 'notes' ? { Title: '', Note_URL: '' } : activeTab === 'live' ? { Meeting_URL: '', Provider: 'Zoom', Start_time: '', End_time: '', Status: 'scheduled' } : { video_url: '', course_description: '' } })} 
+                <button
+                  onClick={() => setEditModal({ show: true, type: activeTab === 'assessments' ? 'assessment' : activeTab === 'notes' ? 'notes' : activeTab === 'live' ? 'live' : 'video', data: activeTab === 'assessments' ? { Title: '', Description: '', Total_Mark: 100, Passing_Mark: 40, Duration: 30, Attempt_Limit: 3, Status: 'active' } : activeTab === 'notes' ? { Title: '', Note_URL: '' } : activeTab === 'live' ? { Meeting_URL: '', Provider: 'Zoom', Start_time: '', End_time: '', Status: 'scheduled' } : { video_url: '', course_description: '' } })}
                   className="btn btn-primary" style={{ padding: '0.75rem 1.5rem', borderRadius: '1.25rem', fontSize: '0.85rem' }}
                 >
-                   <Plus size={16} /> Add {activeTab === 'lessons' ? 'Lesson' : activeTab === 'assessments' ? 'Exam' : 'Asset'}
+                  <Plus size={16} /> Add {activeTab === 'lessons' ? 'Lesson' : activeTab === 'assessments' ? 'Exam' : 'Asset'}
                 </button>
               </div>
 
@@ -331,28 +343,32 @@ const AdminCurriculum = () => {
                     <motion.div key="builder" initial={{ opacity: 0, x: 5 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -5 }} style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1.5rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '1.5rem' }}>
                         <div>
-                           <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{activeAssessment.title} Builder</h2>
-                           <p style={{ margin: '0.25rem 0 0 0', color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: 700 }}>Curating {activeAssessment.questions?.length || 0} evaluation nodes</p>
+                          <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{activeAssessment.title} Builder</h2>
+                          <p style={{ margin: '0.25rem 0 0 0', color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: 700 }}>Curating {activeAssessment.questions?.length || 0} evaluation nodes</p>
                         </div>
                         <div style={{ display: 'flex', gap: '0.75rem' }}>
-                           <button onClick={() => setShowQuestionForm(true)} className="btn btn-primary" style={{ padding: '0.75rem 1.5rem', borderRadius: '1.25rem', fontSize: '0.85rem', background: '#854dff', border: 'none' }}>+ New Question</button>
-                           <button onClick={() => setActiveTab('assessments')} className="btn btn-ghost" style={{ padding: '0.75rem 1.5rem', borderRadius: '1.25rem', fontSize: '0.85rem', border: '1px solid var(--color-border-strong)' }}>Close Builder</button>
+                          <button onClick={() => setShowQuestionForm(true)} className="btn btn-primary" style={{ padding: '0.75rem 1.5rem', borderRadius: '1.25rem', fontSize: '0.85rem', background: '#854dff', border: 'none' }}>+ New Question</button>
+                          <button onClick={() => setActiveTab('assessments')} className="btn btn-ghost" style={{ padding: '0.75rem 1.5rem', borderRadius: '1.25rem', fontSize: '0.85rem', border: '1px solid var(--color-border-strong)' }}>Close Builder</button>
                         </div>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 550px), 1fr))', gap: '2rem' }}>
                         {activeAssessment.questions?.map((q, idx) => (
-                          <motion.div 
+                          <motion.div
                             key={q.question_id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
-                            style={{ padding: '2rem', borderRadius: '2.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '1.75rem', position: 'relative', boxShadow: 'var(--shadow-sm)' }} 
+                            style={{ padding: '2rem', borderRadius: '2.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '1.75rem', position: 'relative', boxShadow: 'var(--shadow-sm)' }}
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                              <div style={{ display: 'flex', gap: '1.25rem' }}>
-                                <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '1rem', backgroundColor: 'var(--color-primary-bg)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 950 }}>{idx + 1}</div>
+                              <div style={{ display: 'flex', gap: '1.25rem', flex: 1 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', marginTop: '0.25rem' }}>
+                                  <button onClick={() => swapPositions('swap-questions-position', q.question_id, activeAssessment.questions[idx - 1].question_id)} disabled={idx === 0} style={{ border: 'none', background: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 0 }}><ArrowUp size={14} /></button>
+                                  <button onClick={() => swapPositions('swap-questions-position', q.question_id, activeAssessment.questions[idx + 1].question_id)} disabled={idx === activeAssessment.questions.length - 1} style={{ border: 'none', background: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 0 }}><ArrowDown size={14} /></button>
+                                </div>
+                                <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '1rem', backgroundColor: 'var(--color-primary-bg)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 950, flexShrink: 0 }}>{idx + 1}</div>
                                 <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 950, color: 'var(--color-text)', lineHeight: 1.5 }}>{q.question_txt}</p>
                               </div>
                               <button onClick={() => genericDelete('question', q.question_id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem' }}><Trash2 size={18} /></button>
                             </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginLeft: '3.75rem' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginLeft: '5.25rem' }}>
                               {q.options.map(o => (
                                 <div key={o.option_id} style={{ padding: '0.5rem 1.25rem', borderRadius: '1rem', background: o.is_correct ? 'var(--color-primary-bg)' : 'var(--color-bg)', border: '1px solid', borderColor: o.is_correct ? 'var(--color-primary)' : 'var(--color-border-strong)', fontSize: '0.8rem', fontWeight: 900, color: o.is_correct ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>
                                   {o.option_txt}
@@ -375,61 +391,61 @@ const AdminCurriculum = () => {
       <AnimatePresence>
         {editModal.show && (
           <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--page-padding)' }}>
-             <motion.div 
-               initial={{ opacity: 0, scale: 0.95, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 30 }}
-               style={{ width: 'clamp(320px, 95vw, 650px)', backgroundColor: 'var(--color-surface)', borderRadius: '3.5rem', padding: '3.5rem', boxShadow: 'var(--shadow-xl)', border: '1px solid var(--color-border)', position: 'relative' }}
-               className="no-scrollbar"
-             >
-                <button onClick={() => setEditModal({ show: false, type: '', data: null })} style={{ position: 'absolute', top: '2.5rem', right: '2.5rem', padding: '0.75rem', borderRadius: '1.25rem', background: 'var(--color-surface-muted)', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}><X size={24} /></button>
-                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', marginBottom: '3.5rem' }}>
-                   <div style={{ width: '4rem', height: '4rem', borderRadius: '1.25rem', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text)' }}>
-                      {editModal.type === 'video' ? <Video size={24} /> : editModal.type === 'live' ? <Monitor size={24} /> : editModal.type === 'notes' ? <FileText size={24} /> : <Award size={24} />}
-                   </div>
-                   <div>
-                      <h2 style={{ margin: 0 }}>{editModal.data?.editingId ? 'Modify Content' : 'New Content'}</h2>
-                      <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 950, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Architecting Wisdom</p>
-                   </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 30 }}
+              style={{ width: 'clamp(320px, 95vw, 650px)', backgroundColor: 'var(--color-surface)', borderRadius: '3.5rem', padding: '3.5rem', boxShadow: 'var(--shadow-xl)', border: '1px solid var(--color-border)', position: 'relative' }}
+              className="no-scrollbar"
+            >
+              <button onClick={() => setEditModal({ show: false, type: '', data: null })} style={{ position: 'absolute', top: '2.5rem', right: '2.5rem', padding: '0.75rem', borderRadius: '1.25rem', background: 'var(--color-surface-muted)', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}><X size={24} /></button>
+              <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', marginBottom: '3.5rem' }}>
+                <div style={{ width: '4rem', height: '4rem', borderRadius: '1.25rem', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text)' }}>
+                  {editModal.type === 'video' ? <Video size={24} /> : editModal.type === 'live' ? <Monitor size={24} /> : editModal.type === 'notes' ? <FileText size={24} /> : <Award size={24} />}
                 </div>
+                <div>
+                  <h2 style={{ margin: 0 }}>{editModal.data?.editingId ? 'Modify Content' : 'New Content'}</h2>
+                  <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 950, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Architecting Wisdom</p>
+                </div>
+              </div>
 
-                <form onSubmit={(e) => { e.preventDefault(); genericSubmit(editModal.type, editModal.data); }} style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-                  {editModal.type === 'video' && (
-                    <>
-                      <AMInput label="Lesson Title" value={editModal.data.course_description} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, course_description: e.target.value } })} required placeholder="e.g. Masterclass Introduction" />
-                      <AMInput label="Content Stream URL" value={editModal.data.video_url} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, video_url: e.target.value } })} required placeholder="https://..." />
-                    </>
-                  )}
-                  {editModal.type === 'live' && (
-                    <>
-                      <AMInput label="Meeting Link" value={editModal.data.Meeting_URL} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Meeting_URL: e.target.value } })} required />
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                        <AMSelect label="Platform" value={editModal.data.Provider} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Provider: e.target.value } })} options={['Zoom', 'Google Meet', 'Teams']} />
-                        <AMSelect label="Session Status" value={editModal.data.Status} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Status: e.target.value } })} options={[{ label: 'Scheduled', val: 'scheduled' }, { label: 'Live Now', val: 'live' }]} />
-                      </div>
-                      <AMInput label="Commencement Time" type="datetime-local" value={editModal.data.Start_time} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Start_time: e.target.value } })} required />
-                    </>
-                  )}
-                  {editModal.type === 'notes' && (
-                    <>
-                      <AMInput label="Resource Label" value={editModal.data.Title} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Title: e.target.value } })} required placeholder="e.g. Reference Guide" />
-                      <AMInput label="Asset Reference Link" value={editModal.data.Note_URL} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Note_URL: e.target.value } })} required />
-                    </>
-                  )}
-                  {editModal.type === 'assessment' && (
-                    <>
-                      <AMInput label="Evaluation Title" value={editModal.data.Title} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Title: e.target.value } })} required />
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                        <AMInput label="Reward Threshold" type="number" value={editModal.data.Total_Mark} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Total_Mark: e.target.value } })} />
-                        <AMInput label="Minutes Allowed" type="number" value={editModal.data.Duration} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Duration: e.target.value } })} />
-                      </div>
-                    </>
-                  )}
+              <form onSubmit={(e) => { e.preventDefault(); genericSubmit(editModal.type, editModal.data); }} style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+                {editModal.type === 'video' && (
+                  <>
+                    <AMInput label="Lesson Title" value={editModal.data.course_description} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, course_description: e.target.value } })} required placeholder="e.g. Masterclass Introduction" />
+                    <AMInput label="Content Stream URL" value={editModal.data.video_url} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, video_url: e.target.value } })} required placeholder="https://..." />
+                  </>
+                )}
+                {editModal.type === 'live' && (
+                  <>
+                    <AMInput label="Meeting Link" value={editModal.data.Meeting_URL} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Meeting_URL: e.target.value } })} required />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                      <AMSelect label="Platform" value={editModal.data.Provider} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Provider: e.target.value } })} options={['Zoom', 'Google Meet', 'Teams']} />
+                      <AMSelect label="Session Status" value={editModal.data.Status} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Status: e.target.value } })} options={[{ label: 'Scheduled', val: 'scheduled' }, { label: 'Live Now', val: 'live' }]} />
+                    </div>
+                    <AMInput label="Commencement Time" type="datetime-local" value={editModal.data.Start_time} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Start_time: e.target.value } })} required />
+                  </>
+                )}
+                {editModal.type === 'notes' && (
+                  <>
+                    <AMInput label="Resource Label" value={editModal.data.Title} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Title: e.target.value } })} required placeholder="e.g. Reference Guide" />
+                    <AMInput label="Asset Reference Link" value={editModal.data.Note_URL} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Note_URL: e.target.value } })} required />
+                  </>
+                )}
+                {editModal.type === 'assessment' && (
+                  <>
+                    <AMInput label="Evaluation Title" value={editModal.data.Title} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Title: e.target.value } })} required />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                      <AMInput label="Reward Threshold" type="number" value={editModal.data.Total_Mark} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Total_Mark: e.target.value } })} />
+                      <AMInput label="Minutes Allowed" type="number" value={editModal.data.Duration} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Duration: e.target.value } })} />
+                    </div>
+                  </>
+                )}
 
-                  <button type="submit" disabled={actionLoading} className="btn btn-primary" style={{ marginTop: '1.5rem', padding: '1.25rem', borderRadius: '1.5rem', fontSize: '1rem' }}>
-                    {actionLoading ? <Loader2 className="animate-spin" size={24} /> : <Save size={24} />}
-                    {editModal.data?.editingId ? 'Update Evolution' : 'Initialize Content'}
-                  </button>
-                </form>
-             </motion.div>
+                <button type="submit" disabled={actionLoading} className="btn btn-primary" style={{ marginTop: '1.5rem', padding: '1.25rem', borderRadius: '1.5rem', fontSize: '1rem' }}>
+                  {actionLoading ? <Loader2 className="animate-spin" size={24} /> : <Save size={24} />}
+                  {editModal.data?.editingId ? 'Update Evolution' : 'Initialize Content'}
+                </button>
+              </form>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
@@ -443,7 +459,11 @@ const AdminCurriculum = () => {
               <h2 style={{ margin: '0 0 3rem 0' }}>{moduleForm.editingId ? 'Modify Chapter' : 'New Chapter'}</h2>
               <form onSubmit={handleModuleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                 <AMInput label="Chapter Designation" value={moduleForm.Title} onChange={e => setModuleForm({ ...moduleForm, Title: e.target.value })} required placeholder="e.g. Introduction to Design" />
-                <AMInput label="Logical Position" type="number" value={moduleForm.Position} onChange={e => setModuleForm({ ...moduleForm, Position: e.target.value })} required />
+                {/* Position is auto-calculated — no manual input */}
+                <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', fontWeight: 800, padding: '0.5rem 1.5rem', background: 'var(--color-bg)', borderRadius: '1rem', border: '1px solid var(--color-border)' }}>
+                  📌 Auto-assigned position: <strong>#{moduleForm.Position}</strong>
+                  {moduleForm.editingId && ' (locked — use arrows to reorder)'}
+                </div>
                 <button type="submit" disabled={actionLoading} className="btn btn-primary" style={{ padding: '1.25rem', borderRadius: '1.5rem', fontSize: '1rem', marginTop: '1.5rem' }}>Confirm Chapter</button>
               </form>
             </motion.div>
@@ -459,70 +479,70 @@ const AdminCurriculum = () => {
               <button onClick={() => setShowQuestionForm(false)} style={{ position: 'absolute', top: '2.5rem', right: '2.5rem', background: 'var(--color-surface-muted)', border: 'none', color: 'var(--color-text-muted)', padding: '0.75rem', borderRadius: '1.25rem' }}><X size={24} /></button>
               <h2 style={{ margin: '0 0 3rem 0' }}>Forge Evaluation Node</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-                <AMInput label="Question Premise" value={questionForm.Question_Txt} onChange={e => setQuestionForm({...questionForm, Question_Txt: e.target.value})} placeholder="What is being evaluated?" />
+                <AMInput label="Question Premise" value={questionForm.Question_Txt} onChange={e => setQuestionForm({ ...questionForm, Question_Txt: e.target.value })} placeholder="What is being evaluated?" />
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem' }}>
-                   <AMSelect label="Evaluation Model" value={questionForm.Question_Type} onChange={e => {
-                      const type = e.target.value;
-                      setQuestionForm({...questionForm, Question_Type: type});
-                      if (type === 'True/False') setOptions([{ Option_Txt: 'True', Is_Correct: true, Position: 1 }, { Option_Txt: 'False', Is_Correct: false, Position: 2 }]);
-                      else setOptions([{ Option_Txt: '', Is_Correct: false, Position: 1 }, { Option_Txt: '', Is_Correct: false, Position: 2 }]);
-                   }} options={['MCQ', 'True/False']} />
-                   <AMInput label="Point Value" type="number" value={questionForm.Mark} onChange={e => setQuestionForm({...questionForm, Mark: e.target.value})} />
+                  <AMSelect label="Evaluation Model" value={questionForm.Question_Type} onChange={e => {
+                    const type = e.target.value;
+                    setQuestionForm({ ...questionForm, Question_Type: type });
+                    if (type === 'True/False') setOptions([{ Option_Txt: 'True', Is_Correct: true, Position: 1 }, { Option_Txt: 'False', Is_Correct: false, Position: 2 }]);
+                    else setOptions([{ Option_Txt: '', Is_Correct: false, Position: 1 }, { Option_Txt: '', Is_Correct: false, Position: 2 }]);
+                  }} options={['MCQ', 'True/False']} />
+                  <AMInput label="Point Value" type="number" value={questionForm.Mark} onChange={e => setQuestionForm({ ...questionForm, Mark: e.target.value })} />
                 </div>
-                <AMInput label="Enlightenment Context (Optional)" value={questionForm.Explanation} onChange={e => setQuestionForm({...questionForm, Explanation: e.target.value})} placeholder="Explain the correct answer..." />
-                
+                <AMInput label="Enlightenment Context (Optional)" value={questionForm.Explanation} onChange={e => setQuestionForm({ ...questionForm, Explanation: e.target.value })} placeholder="Explain the correct answer..." />
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   <label style={{ fontSize: '0.7rem', fontWeight: 950, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Option nodes</label>
                   {options.map((opt, idx) => (
                     <div key={idx} style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
                       <input type="radio" checked={opt.Is_Correct} onChange={() => setOptions(options.map((o, i) => ({ ...o, Is_Correct: i === idx })))} style={{ accentColor: 'var(--color-primary)', width: '1.5rem', height: '1.5rem' }} />
                       <input placeholder={`Option ${idx + 1}`} value={opt.Option_Txt} onChange={e => setOptions(options.map((o, i) => i === idx ? { ...o, Option_Txt: e.target.value } : o))} style={{ flex: 1, padding: '1rem 1.5rem', borderRadius: '1.25rem', border: '1px solid var(--color-border-strong)', background: 'var(--color-bg)', fontWeight: 800, color: 'var(--color-text)', outline: 'none' }} />
-                      {options.length > 2 && <button onClick={() => setOptions(options.filter((_, i) => i !== idx))} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}><Trash size={18}/></button>}
+                      {options.length > 2 && <button onClick={() => setOptions(options.filter((_, i) => i !== idx))} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}><Trash size={18} /></button>}
                     </div>
                   ))}
                   <button onClick={() => setOptions([...options, { Option_Txt: '', Is_Correct: false, Position: options.length + 1 }])} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 950, fontSize: '0.8rem', cursor: 'pointer', padding: '0.5rem' }}>+ Add Option Node</button>
                 </div>
                 <button onClick={async () => {
-                   setActionLoading(true); try {
-                      const maxPos = (activeAssessment.questions || []).reduce((max, q) => Math.max(max, parseInt(q.position || q.Position || 0)), 0);
-                      const res = await fetch(`${ADMIN_API}/create_question`, { 
-                        method: 'POST', 
-                        headers: headers(), 
-                        body: JSON.stringify({ 
-                           Assessment_ID: activeAssessment.assessment_id, 
-                           Question_Txt: questionForm.Question_Txt, 
-                           Mark: parseInt(questionForm.Mark) || 10, 
-                           Question_Type: questionForm.Question_Type || 'MCQ', 
-                           Explanation: questionForm.Explanation || '', 
-                           Position: maxPos + 1
-                        }) 
-                      });
-                      if (res.ok) {
-                        const qData = await res.json();
-                        const qId = qData.Question_ID || qData.question_id || qData.id || 
-                                   (qData.data && (qData.data.Question_ID || qData.data.id));
-                        if (!qId) throw new Error('Registry Sync Error');
-                        
-                        for (const [idx, o] of options.entries()) {
-                           await fetch(`${ADMIN_API}/create_option`, { 
-                              method: 'POST', 
-                              headers: headers(), 
-                              body: JSON.stringify({ 
-                                Question_ID: qId, 
-                                Option_Txt: o.Option_Txt, 
-                                Is_Correct: o.Is_Correct, 
-                                Position: idx + 1 
-                              }) 
-                           });
-                        }
-                        showToast('Question Forged'); await fetchCurriculum(); setShowQuestionForm(false); 
-                        setQuestionForm({ Question_Txt: '', Mark: 10, Question_Type: 'MCQ', Explanation: '', editingId: null }); 
-                        setOptions([{ Option_Txt: '', Is_Correct: false, Position: 1 }, { Option_Txt: '', Is_Correct: false, Position: 2 }]);
-                      } else { 
-                        const err = await res.json();
-                        showToast(err.message || 'Sync Refused', 'error'); 
+                  setActionLoading(true); try {
+                    const maxPos = (activeAssessment.questions || []).reduce((max, q) => Math.max(max, parseInt(q.position || q.Position || 0)), 0);
+                    const res = await fetch(`${ADMIN_API}/create_question`, {
+                      method: 'POST',
+                      headers: headers(),
+                      body: JSON.stringify({
+                        Assessment_ID: activeAssessment.assessment_id,
+                        Question_Txt: questionForm.Question_Txt,
+                        Mark: parseInt(questionForm.Mark) || 10,
+                        Question_Type: questionForm.Question_Type || 'MCQ',
+                        Explanation: questionForm.Explanation || '',
+                        Position: maxPos + 1
+                      })
+                    });
+                    if (res.ok) {
+                      const qData = await res.json();
+                      const qId = qData.Question_ID || qData.question_id || qData.id ||
+                        (qData.data && (qData.data.Question_ID || qData.data.id));
+                      if (!qId) throw new Error('Registry Sync Error');
+
+                      for (const [idx, o] of options.entries()) {
+                        await fetch(`${ADMIN_API}/create_option`, {
+                          method: 'POST',
+                          headers: headers(),
+                          body: JSON.stringify({
+                            Question_ID: qId,
+                            Option_Txt: o.Option_Txt,
+                            Is_Correct: o.Is_Correct,
+                            Position: idx + 1
+                          })
+                        });
                       }
-                   } finally { setActionLoading(false); }
+                      showToast('Question Forged'); await fetchCurriculum(); setShowQuestionForm(false);
+                      setQuestionForm({ Question_Txt: '', Mark: 10, Question_Type: 'MCQ', Explanation: '', editingId: null });
+                      setOptions([{ Option_Txt: '', Is_Correct: false, Position: 1 }, { Option_Txt: '', Is_Correct: false, Position: 2 }]);
+                    } else {
+                      const err = await res.json();
+                      showToast(err.message || 'Sync Refused', 'error');
+                    }
+                  } finally { setActionLoading(false); }
                 }} className="btn btn-primary" style={{ padding: '1.25rem', borderRadius: '1.5rem', fontSize: '1rem', marginTop: '1.5rem' }}>Commit Question</button>
               </div>
             </motion.div>
@@ -561,7 +581,7 @@ const SubTab = ({ active, icon, label, onClick, color }) => (
 );
 
 const ContentItem = ({ icon, title, sub, color, onEdit, onDelete, index }) => (
-  <motion.div 
+  <motion.div
     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
     style={{ padding: '1.25rem 1.75rem', borderRadius: '2rem', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '1.25rem', boxShadow: 'var(--shadow-sm)' }}
     className="premium-card"
