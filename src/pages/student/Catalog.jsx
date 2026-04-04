@@ -6,6 +6,7 @@ import {
   Zap, Video, Layers
 } from 'lucide-react';
 import { useEnrollment } from '../../shared/EnrollmentContext';
+import { useAuth } from '../../shared/AuthContext';
 import { ADMIN_API, STUDENT_API } from '../../config';
 
 /* ── Enrollment Confirmation Modal ── */
@@ -218,6 +219,7 @@ const Catalog = () => {
   const navigate = useNavigate();
   const { enroll, isEnrolled } = useEnrollment();
 
+  const { accessToken } = useAuth();
   const [activeCategory, setActiveCategory] = useState('All');
   const [courses, setCourses] = useState([]);
   const [categories, setCategories] = useState(['All']);
@@ -231,21 +233,47 @@ const Catalog = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!accessToken) return;
+      const headers = { 
+        'Authorization': `Bearer ${accessToken}`, 
+        'Accept': 'application/json' 
+      };
+
       try {
-        const [courseRes, catRes] = await Promise.all([
-          fetch(`${ADMIN_API}/get-active-courses`),
-          fetch(`${ADMIN_API}/get-categories`)
-        ]);
-
-        if (courseRes.ok) {
-          const data = await courseRes.json();
-          setCourses(data.courses || []);
-        }
-
+        // ✅ Fetch categories with auth token (was 401 — no token sent before)
+        const catRes = await fetch(`${ADMIN_API}/get-categories`, { headers });
         if (catRes.ok) {
           const data = await catRes.json();
           const names = (data.categories || []).map(c => c.Category_Name);
           setCategories(['All', ...names]);
+        }
+
+        // ✅ Correct endpoint — get-active-courses doesn't exist (404)
+        // Use ids-by-status, filter active, then fetch full details for each
+        const statusRes = await fetch(`${ADMIN_API}/courses/ids-by-status`, { headers });
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          const activeIds = statusData.courses?.active || [];
+
+          const courseDetails = [];
+          for (const id of activeIds) {
+            try {
+              const res = await fetch(`${ADMIN_API}/course/${id}/full-details`, { headers });
+              if (res.ok) {
+                const data = await res.json();
+                const c = data.course || data;
+                courseDetails.push({
+                  ...c,
+                  id: c.course_id || id,
+                  course_id: c.course_id || id,
+                  title: c.course_title || c.title || 'Untitled',
+                  type: c.type || c.course_Type || 'recorded',
+                  thumbnail: c.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800'
+                });
+              }
+            } catch (e) { console.error(`Failed to fetch course ${id}`, e); }
+          }
+          setCourses(courseDetails);
         }
       } catch (err) {
         console.error("Failed to sync catalog", err);
@@ -254,7 +282,7 @@ const Catalog = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [accessToken]);
 
   const filteredCourses = courses.filter(c => {
     const matchesCategory = activeCategory === 'All' || c.category_name === activeCategory;

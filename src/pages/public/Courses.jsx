@@ -12,11 +12,35 @@ export default function Courses() {
 
   useEffect(() => {
     const fetchCourses = async () => {
+      const headers = {
+        'Accept': 'application/json'
+      };
+
       try {
-        const res = await fetch(`${ADMIN_API}/get-active-courses`);
-        if (res.ok) {
-          const data = await res.json();
-          setCourses(data.courses || []);
+        const statusRes = await fetch(`${ADMIN_API}/courses/ids-by-status`, { headers });
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          const activeIds = statusData.courses?.active || [];
+
+          const courseDetails = [];
+          for (const id of activeIds) {
+            try {
+              const res = await fetch(`${ADMIN_API}/course/${id}/full-details`, { headers });
+              if (res.ok) {
+                const data = await res.json();
+                const c = data.course || data;
+                courseDetails.push({
+                  ...c,
+                  id: c.course_id || id,
+                  course_id: c.course_id || id,
+                  title: c.course_title || c.title || 'Untitled',
+                  type: c.type || c.course_Type || 'recorded',
+                  thumbnail: c.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800'
+                });
+              }
+            } catch (e) { console.error(`Failed to fetch course ${id}`, e); }
+          }
+          setCourses(courseDetails);
         }
       } catch (err) {
         console.error("Failed to sync architecture", err);

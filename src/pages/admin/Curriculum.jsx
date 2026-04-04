@@ -62,8 +62,16 @@ const AdminCurriculum = () => {
           ...rawCourse,
           course_id: rawCourse.course_id || rawCourse.id,
           course_title: rawCourse.course_title || rawCourse.title,
+          course_type: rawCourse.type || rawCourse.course_type || rawCourse.course_Type || 'recorded'
         };
         setCourse(mappedCourse);
+        
+        // Auto-switch tab based on type if current tab is not applicable
+        if (mappedCourse.course_type === 'live' && activeTab === 'lessons') {
+          setActiveTab('live');
+        } else if (mappedCourse.course_type === 'recorded' && activeTab === 'live') {
+          setActiveTab('lessons');
+        }
 
         const courseLevelNotes = (rawCourse.notes || []);
         const sortedModules = (rawCourse.modules || []).sort((a, b) => (a.position || a.Position || 0) - (b.position || b.Position || 0)).map(m => {
@@ -291,14 +299,18 @@ const AdminCurriculum = () => {
             >
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1.5rem' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', padding: '0.25rem', background: 'var(--color-surface-muted)', borderRadius: '1.25rem', border: '1px solid var(--color-border)' }}>
-                  <SubTab active={activeTab === 'lessons'} icon={<Video size={12} />} label="Lessons" onClick={() => setActiveTab('lessons')} color="var(--color-primary)" />
-                  <SubTab active={activeTab === 'live'} icon={<Monitor size={12} />} label="Live Sessions" onClick={() => setActiveTab('live')} color="#3b82f6" />
+                  {(course?.course_type === 'recorded') && (
+                    <SubTab active={activeTab === 'lessons'} icon={<Video size={12} />} label="Lessons" onClick={() => setActiveTab('lessons')} color="var(--color-primary)" />
+                  )}
+                  {(course?.course_type === 'live') && (
+                    <SubTab active={activeTab === 'live'} icon={<Monitor size={12} />} label="Live Sessions" onClick={() => setActiveTab('live')} color="#3b82f6" />
+                  )}
                   <SubTab active={activeTab === 'notes'} icon={<FileText size={12} />} label="Resources" onClick={() => setActiveTab('notes')} color="#ef4444" />
                   <SubTab active={activeTab === 'assessments'} icon={<Award size={12} />} label="Assessments" onClick={() => setActiveTab('assessments')} color="#f97316" />
                   {activeAssessment && <SubTab active={activeTab === 'builder'} icon={<Settings2 size={12} />} label="Builder" onClick={() => setActiveTab('builder')} color="#854dff" />}
                 </div>
                 <button
-                  onClick={() => setEditModal({ show: true, type: activeTab === 'assessments' ? 'assessment' : activeTab === 'notes' ? 'notes' : activeTab === 'live' ? 'live' : 'video', data: activeTab === 'assessments' ? { Title: '', Description: '', Total_Mark: 100, Passing_Mark: 40, Duration: 30, Attempt_Limit: 3, Status: 'active' } : activeTab === 'notes' ? { Title: '', Note_URL: '' } : activeTab === 'live' ? { Meeting_URL: '', Provider: 'Zoom', Start_time: '', End_time: '', Status: 'scheduled' } : { video_url: '', course_description: '' } })}
+                  onClick={() => setEditModal({ show: true, type: activeTab === 'assessments' ? 'assessment' : activeTab === 'notes' ? 'notes' : activeTab === 'live' ? 'live' : 'video', data: activeTab === 'assessments' ? { Title: '', Description: '', Total_Mark: 100, Passing_Mark: 40, Duration: 30, Attempt_Limit: 3, Status: 'active' } : activeTab === 'notes' ? { Title: '', Note_URL: '' } : activeTab === 'live' ? { Title: '', Meeting_URL: '', Provider: 'Zoom', Start_time: '', End_time: '', Status: 'scheduled' } : { video_url: '', course_description: '' } })}
                   className="btn btn-primary" style={{ padding: '0.75rem 1.5rem', borderRadius: '1.25rem', fontSize: '0.85rem' }}
                 >
                   <Plus size={16} /> Add {activeTab === 'lessons' ? 'Lesson' : activeTab === 'assessments' ? 'Exam' : 'Asset'}
@@ -317,8 +329,8 @@ const AdminCurriculum = () => {
                           />
                         ))}
                         {activeTab === 'live' && (activeModule.live_sessions || []).map((l, i) => (
-                          <ContentItem key={l.live_id} index={i} icon={<Activity size={14} />} title={`${l.provider} Interaction`} sub={l.meeting_url} color="#3b82f6"
-                            onEdit={() => setEditModal({ show: true, type: 'live', data: { editingId: l.live_id, Meeting_URL: l.meeting_url, Provider: l.provider, Start_time: l.start_time, End_time: l.end_time, Status: l.status } })}
+                          <ContentItem key={l.live_id} index={i} icon={<Activity size={14} />} title={l.title || `${l.provider} Interaction`} sub={l.meeting_url} color="#3b82f6"
+                            onEdit={() => setEditModal({ show: true, type: 'live', data: { editingId: l.live_id, Title: l.title, Meeting_URL: l.meeting_url, Provider: l.provider, Start_time: l.start_time, End_time: l.end_time, Status: l.status } })}
                             onDelete={() => genericDelete('live', l.live_id)}
                           />
                         ))}
@@ -419,12 +431,15 @@ const AdminCurriculum = () => {
                 )}
                 {editModal.type === 'live' && (
                   <>
-                    <AMInput label="Meeting Link" value={editModal.data.Meeting_URL} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Meeting_URL: e.target.value } })} required />
+                    <AMInput label="Session Topic" value={editModal.data.Title} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Title: e.target.value } })} required placeholder="e.g. Q&A Session" />
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                       <AMSelect label="Platform" value={editModal.data.Provider} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Provider: e.target.value } })} options={['Zoom', 'Google Meet', 'Teams']} />
                       <AMSelect label="Session Status" value={editModal.data.Status} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Status: e.target.value } })} options={[{ label: 'Scheduled', val: 'scheduled' }, { label: 'Live Now', val: 'live' }]} />
                     </div>
-                    <AMInput label="Commencement Time" type="datetime-local" value={editModal.data.Start_time} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Start_time: e.target.value } })} required />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                       <AMInput label="Starting Time" type="datetime-local" value={editModal.data.Start_time} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Start_time: e.target.value } })} required />
+                       <AMInput label="Ending Time" type="datetime-local" value={editModal.data.End_time} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, End_time: e.target.value } })} required />
+                    </div>
                   </>
                 )}
                 {editModal.type === 'notes' && (

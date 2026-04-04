@@ -40,7 +40,7 @@ const TrainerCurriculum = () => {
           ...rawCourse,
           course_id: rawCourse.course_id || rawCourse.id,
           course_title: rawCourse.course_title || rawCourse.title,
-          course_type: rawCourse.course_type || rawCourse.Course_Type || 'recorded'
+          course_type: rawCourse.type || rawCourse.course_type || rawCourse.course_Type || 'recorded'
         };
         setCourse(mappedCourse);
 
@@ -212,9 +212,13 @@ const TrainerCurriculum = () => {
                       {activeTab === 'lessons' && isRecorded && (activeModule.video || []).map((v, i) => (
                         <ContentViewItem key={v.video_id} index={i} icon={<Play size={14} fill="currentColor" />} title={v.course_description} sub={v.video_url} color="var(--color-primary)" />
                       ))}
-                      {activeTab === 'live' && isLive && (activeModule.live_sessions || []).map((l, i) => (
-                        <ContentViewItem key={l.live_id} index={i} icon={<Activity size={14} />} title={`${l.provider} Interaction`} sub={l.meeting_url} color="#3b82f6" />
-                      ))}
+                      {activeTab === 'live' && isLive && (activeModule.live_sessions || []).map((l, i) => {
+                        const start = l.start_time ? new Date(l.start_time).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'TBD';
+                        const end = l.end_time ? new Date(l.end_time).toLocaleString([], { timeStyle: 'short' }) : 'TBD';
+                        return (
+                          <ContentViewItem key={l.live_id} index={i} icon={<Activity size={14} />} title={l.title || `${l.provider} Session`} sub={`${start} - ${end} • ${l.meeting_url}`} color="#3b82f6" />
+                        );
+                      })}
                       {activeTab === 'notes' && (activeModule.notes || []).map((n, i) => (
                         <ContentViewItem key={n.note_id} index={i} icon={<FileBox size={14} />} title={n.title} sub={n.note_url} color="#ef4444" />
                       ))}
