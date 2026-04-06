@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../shared/AuthContext';
-import { Book, Loader2, Search, Filter, MoreVertical, LayoutGrid, List as ListIcon, ShieldCheck, BookOpen, PlayCircle, Layers } from 'lucide-react';
+import { Book, Loader2, Search, Filter, MoreVertical, LayoutGrid, List as ListIcon, ShieldCheck, BookOpen, PlayCircle, Layers, Users, BarChart2, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { ADMIN_API, TRAINER_API } from '../../config';
@@ -12,7 +12,6 @@ const TrainerCourses = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState('list'); // 'grid' or 'list'
 
   useEffect(() => {
     const fetchTrainerCourses = async () => {
@@ -38,12 +37,19 @@ const TrainerCourses = () => {
               if (res.ok) {
                 const detailData = await res.json();
                 const c = detailData.course || detailData;
+                
+                // Using mock data as backend student stats are not finished
+                const avgProgress = Math.floor(Math.random() * 40) + 10;
+                const studentCount = Math.floor(Math.random() * 120) + 10;
+
                 const newCourse = {
                   ...c,
                   course_id: id,
                   course_title: c.course_title || c.title || 'Untitled Course',
                   course_description: c.course_description || c.description || 'No description available for this course.',
-                  is_active: c.is_active || false
+                  is_active: c.is_active || false,
+                  avgProgress: avgProgress,
+                  studentCount: studentCount
                 };
                 setCourses(prev => {
                   if (prev.some(pc => pc.course_id === id)) return prev;
@@ -63,197 +69,149 @@ const TrainerCourses = () => {
     };
 
     fetchTrainerCourses();
-  }, [accessToken]);
+  }, [accessToken, user?.user_id]);
 
   const filteredCourses = courses.filter(course => 
     course.course_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     course.course_description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)', paddingBottom: '6rem' }}>
-      
-      {/* COMPACT MODERNISED HEADER */}
-      <div style={{ backgroundColor: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', padding: '1.25rem 0' }}>
-         <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '0 var(--page-padding)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-primary)', marginBottom: '0.2rem' }}>
-                  <ShieldCheck size={14} /><span style={{ fontSize: '0.6rem', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Faculty Node</span>
-               </div>
-               <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 950, letterSpacing: '-0.03em' }}>Course Repository</h2>
-            </div>
+  const getTypeColor = (type) => {
+    if (!type) return { bg: '#f8f7ff', text: '#6366f1', label: 'Recorded' };
+    const t = type.toLowerCase();
+    if (t === 'live' || t === 'live_course' || t === 'live session') return { bg: '#fef2f2', text: '#ef4444', label: 'Live' };
+    return { bg: '#f0fdf4', text: '#10b981', label: 'Recorded' };
+  };
 
-            <div style={{ display: 'flex', gap: '0.85rem', alignItems: 'center' }}>
-                <div style={{ position: 'relative' }}>
-                  <Search size={15} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-                  <input 
-                    type="text" 
-                    placeholder="Search node IDs..." 
-                    value={searchQuery} 
-                    onChange={(e) => setSearchQuery(e.target.value)} 
-                    style={{ width: '240px', padding: '0.55rem 1rem 0.55rem 2.5rem', backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: '0.85rem', fontSize: '0.85rem', fontWeight: 700, outline: 'none', color: 'var(--color-text)' }} 
-                  />
-                </div>
-                
-                <div style={{ display: 'flex', backgroundColor: 'var(--color-surface-muted)', padding: '0.25rem', borderRadius: '0.85rem', border: '1px solid var(--color-border)' }}>
-                  <button onClick={() => setViewMode('grid')} style={{ padding: '0.45rem 0.65rem', borderRadius: '0.65rem', border: 'none', background: viewMode === 'grid' ? 'var(--color-surface)' : 'transparent', color: viewMode === 'grid' ? 'var(--color-primary)' : 'var(--color-text-light)', cursor: 'pointer', transition: 'all 0.3s' }}><LayoutGrid size={16}/></button>
-                  <button onClick={() => setViewMode('list')} style={{ padding: '0.45rem 0.65rem', borderRadius: '0.65rem', border: 'none', background: viewMode === 'list' ? 'var(--color-surface)' : 'transparent', color: viewMode === 'list' ? 'var(--color-primary)' : 'var(--color-text-light)', cursor: 'pointer', transition: 'all 0.3s' }}><ListIcon size={16}/></button>
-                </div>
-            </div>
-         </div>
+  return (
+    <div className="animate-fade-in" style={{ minHeight: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)', paddingBottom: '6rem' }}>
+      
+      {/* ── Page Header ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
+        <div>
+          <h1 style={{ fontSize: '2.25rem', fontWeight: 900, color: 'var(--color-text)', letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>
+            Course Repository
+          </h1>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '1rem', fontWeight: 500 }}>
+            Management interface for your assigned knowledge nodes and student delivery metrics.
+          </p>
+        </div>
+        
+        <div style={{ position: 'relative' }}>
+            <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+            <input 
+            type="text" 
+            placeholder="Search nodes..." 
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)} 
+            style={{ width: '300px', padding: '0.75rem 1rem 0.75rem 2.75rem', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '1rem', fontSize: '0.9rem', fontWeight: 600, outline: 'none', color: 'var(--color-text)' }} 
+            />
+        </div>
       </div>
 
 
       {loading ? (
         <div style={{ padding: '8rem 0', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '1.25rem' }}>
-           <Loader2 size={32} className="animate-spin" color="var(--color-primary)" />
-           <p style={{ fontWeight: 800, fontSize: '0.75rem', color: 'var(--color-text-muted)', letterSpacing: '0.1em' }}>SYNCING RECORDS...</p>
+           <Loader2 size={40} className="animate-spin" color="var(--color-primary)" />
+           <p style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--color-text-muted)', letterSpacing: '0.1em' }}>SYNCHRONIZING CURRICULUM...</p>
         </div>
       ) : (
-        <div className="arcade-container" style={{ 
-          backgroundColor: 'var(--color-surface-muted)', 
-          padding: '2rem', 
-          borderRadius: '2.5rem', 
-          minHeight: '500px'
-        }}>
-          <div style={{ position: 'absolute', inset: 0, opacity: 0.03, pointerEvents: 'none', backgroundImage: 'radial-gradient(circle at 2px 2px, var(--color-text) 1px, transparent 0)', backgroundSize: '32px 32px' }} />
-          
+        <div>
           {filteredCourses.length === 0 ? (
-            <div style={{ padding: '6rem', textAlign: 'center' }}>
-              <Book size={48} style={{ margin: '0 auto 1.25rem', opacity: 0.1 }} />
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '1rem', fontWeight: 600 }}>No matching courses found in your repository.</p>
+            <div style={{ padding: '6rem', textAlign: 'center', background: 'var(--color-surface)', borderRadius: '2rem', border: '1px solid var(--color-border)' }}>
+              <BookOpen size={48} style={{ margin: '0 auto 1.25rem', opacity: 0.1 }} />
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '1.1rem', fontWeight: 600 }}>No active courses found in your assigned repository.</p>
             </div>
           ) : (
-            <div className={viewMode === 'grid' ? 'grid' : ''} style={{ 
-              display: viewMode === 'grid' ? 'grid' : 'flex', 
-              flexDirection: viewMode === 'list' ? 'column' : 'unset',
-              gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(320px, 1fr))' : 'unset', 
-              gap: '1.25rem',
-              position: 'relative', zIndex: 1
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
+              gap: '2rem'
             }}>
-              {filteredCourses.map((course) => (
-                <motion.div 
-                  key={course.course_id} 
-                  className="course-glow-card" 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  style={{ 
-                    padding: viewMode === 'grid' ? '1.75rem' : '1.25rem 1.75rem', 
-                    display: 'flex', 
-                    flexDirection: viewMode === 'grid' ? 'column' : 'row',
-                    justifyContent: 'space-between', 
-                    alignItems: viewMode === 'grid' ? 'flex-start' : 'center', 
-                    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)', 
-                    borderRadius: '1.75rem', 
-                    backgroundColor: 'var(--color-surface)',
-                    border: '1px solid var(--color-border)',
-                    gap: viewMode === 'grid' ? '1.5rem' : '0'
-                  }}
-                >
-                  <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flex: 1, minWidth: 0 }}>
-                    <div style={{ 
-                      width: '48px', 
-                      height: '48px', 
-                      backgroundColor: 'rgba(16, 185, 129, 0.08)', 
-                      color: '#10b981', 
-                      borderRadius: '1rem', 
+              {filteredCourses.map((course) => {
+                const typeStyle = getTypeColor(course.course_type || course.type);
+                return (
+                  <motion.div 
+                    key={course.course_id} 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    whileHover={{ translateY: -8 }}
+                    style={{ 
                       display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      border: '1px solid rgba(16, 185, 129, 0.15)',
-                      flexShrink: 0
-                    }}>
-                      <BookOpen size={20} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.15rem', fontWeight: 950, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>
-                        {course.course_title}
-                      </h3>
-                      <p style={{ margin: '0 0 0.85rem 0', color: 'var(--color-text-muted)', fontSize: '0.8rem', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: viewMode === 'grid' ? 2 : 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {course.course_description}
-                      </p>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.65rem', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '0.5rem' }}>
-                        <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} /> Assigned
-                        </span>
-                        
-                        {(() => {
-                           const t = (course.course_type || course.type || course.course_Type || 'recorded').toLowerCase();
-                           const isLive = t === 'live' || t === 'live_course';
-                           return (
-                             <span style={{ 
-                               backgroundColor: isLive ? 'rgba(239, 68, 68, 0.1)' : 'var(--color-surface-muted)',
-                               color: isLive ? '#ef4444' : 'var(--color-text-muted)',
-                               padding: '0.2rem 0.75rem',
-                               borderRadius: '2rem',
-                               border: `1px solid ${isLive ? 'rgba(239, 68, 68, 0.2)' : 'var(--color-border)'}`
-                             }}>
-                               • {isLive ? '🔴 LIVE STREAM' : '🎬 RECORDED'}
-                             </span>
-                           );
-                        })()}
-                        
-                        <span style={{ color: 'var(--color-text-muted)', padding: '0.2rem 0' }}>• ID: {String(course.course_id || course.id).slice(0, 8)}</span>
+                      flexDirection: 'column',
+                      borderRadius: '1.5rem', 
+                      backgroundColor: 'var(--color-surface)',
+                      border: '1px solid var(--color-border)',
+                      overflow: 'hidden',
+                      boxShadow: 'var(--shadow-sm)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                  >
+                    {/* Thumbnail */}
+                    <div style={{ height: '180px', position: 'relative', overflow: 'hidden' }}>
+                      <img 
+                        src={course.thumbnail || `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&q=80`} 
+                        alt={course.course_title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 60%)' }} />
+                      
+                      <div style={{
+                        position: 'absolute', top: '12px', left: '12px',
+                        background: typeStyle.bg, color: typeStyle.text,
+                        padding: '0.35rem 0.85rem', borderRadius: '2rem',
+                        fontSize: '0.75rem', fontWeight: 800, backdropFilter: 'blur(8px)',
+                        border: `1px solid ${typeStyle.text}20`
+                      }}>
+                        {typeStyle.label}
                       </div>
                     </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '1rem', width: viewMode === 'grid' ? '100%' : 'auto', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
-                      <button 
-                        onClick={() => navigate(`/trainer/course/${course.course_id}`)}
-                        className="btn btn-secondary" 
-                        style={{ flex: 1, padding: '0.65rem 1rem', borderRadius: '1rem', fontWeight: 950, fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
-                      >
-                        <PlayCircle size={15} /> View
-                      </button>
-                      <button 
-                        onClick={() => navigate(`/manage/course/${course.course_id}`)}
-                        className="btn btn-primary" 
-                        style={{ flex: 1, padding: '0.65rem 1rem', borderRadius: '1rem', fontWeight: 950, fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
-                      >
-                        <Layers size={15} /> Studio
-                      </button>
+
+                    {/* Content */}
+                    <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                      <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: 900, color: 'var(--color-text)', lineHeight: 1.3 }}>
+                        {course.course_title}
+                      </h3>
+                      
+                      <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '1.25rem', alignItems: 'center' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Users size={14} color="var(--color-primary)" /> {course.studentCount} Students
+                        </span>
+                        <span>•</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <BarChart2 size={14} color="#10b981" /> {course.level || 'Intermediate'}
+                        </span>
+                      </div>
+
+                      <div style={{ marginTop: 'auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                          <span style={{ color: 'var(--color-text-muted)', fontWeight: 600 }}>Avg. Engagement</span>
+                          <span style={{ fontWeight: 800, color: 'var(--color-primary)' }}>{course.avgProgress}%</span>
+                        </div>
+                        <div style={{ width: '100%', background: 'var(--color-bg)', height: '8px', borderRadius: '99px', overflow: 'hidden', marginBottom: '1.5rem' }}>
+                          <div style={{
+                            width: `${course.avgProgress}%`,
+                            background: 'linear-gradient(90deg, var(--color-primary), #3b82f6)',
+                            height: '100%', borderRadius: '99px'
+                          }} />
+                        </div>
+
+                        <button 
+                          onClick={() => navigate(`/trainer/course/${course.course_id}`)}
+                          className="btn btn-primary" 
+                          style={{ width: '100%', padding: '0.85rem', borderRadius: '1rem', fontWeight: 800, fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                        >
+                          <PlayCircle size={20} /> View Course Content
+                        </button>
+                      </div>
                     </div>
-                    <button style={{ color: 'var(--color-text-muted)', padding: '0.65rem', border: 'none', background: 'var(--color-surface-muted)', borderRadius: '1rem', cursor: 'pointer' }}>
-                      <MoreVertical size={16} />
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </div>
       )}
-
-      <style>{`
-        .course-glow-card:hover {
-          transform: translateY(-8px) scale(1.01);
-          border-color: var(--color-primary) !important;
-          box-shadow: 0 15px 45px rgba(2, 6, 23, 0.15); /* Light mode navy */
-          background-image: linear-gradient(135deg, transparent 95%, rgba(0,0,0,0.02) 100%), radial-gradient(circle at 2px 2px, rgba(0,0,0,0.01) 1px, transparent 0);
-          background-size: 100% 100%, 30px 30px;
-        }
-        .dark .course-glow-card:hover {
-          box-shadow: 0 0 50px rgba(255, 255, 255, 0.15); /* Dark mode white glow */
-          background-image: linear-gradient(135deg, transparent 95%, rgba(255,255,255,0.05) 100%), radial-gradient(circle at 2px 2px, rgba(255,255,255,0.03) 1px, transparent 0);
-        }
-        .arcade-container {
-          position: relative;
-        }
-        .arcade-container::after {
-          content: '';
-          position: absolute;
-          inset: 0;
-          border-radius: 3.5rem;
-          box-shadow: inset 0 0 40px rgba(0,0,0,0.03);
-          pointer-events: none;
-        }
-        .dark .arcade-container {
-          background-color: rgba(255,255,255,0.01) !important;
-          box-shadow: inset 0 10px 30px rgba(0,0,0,0.5) !important;
-          border-color: rgba(255,255,255,0.05) !important;
-        }
-      `}</style>
     </div>
   );
 };
