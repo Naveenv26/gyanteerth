@@ -14,6 +14,8 @@ import {
   Trophy,
   Zap
 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { USER_API } from '../../config';
 
 const FeatureCard = ({ icon, title, desc, delay, accentColor = "emerald" }) => {
   const accentClasses = {
@@ -45,6 +47,23 @@ const FeatureCard = ({ icon, title, desc, delay, accentColor = "emerald" }) => {
 };
 
 const Home = () => {
+  const [feedbacks, setFeedbacks] = useState([]);
+
+  useEffect(() => {
+    const fetchFeedback = async () => {
+      try {
+        const res = await fetch(`${USER_API}/public-feedback`);
+        if (res.ok) {
+          const json = await res.json();
+          setFeedbacks(json.data || []);
+        }
+      } catch (err) {
+        console.error("Home feed fetch error", err);
+      }
+    };
+    fetchFeedback();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[var(--color-bg)] w-full overflow-hidden relative">
 
@@ -278,40 +297,45 @@ const Home = () => {
           </div>
         </section>
 
-        {/* Testimonial Section - Theme Aware */}
-        <section className="py-32 bg-[var(--color-surface-muted)] overflow-hidden relative border-t border-[var(--color-border)]">
-          <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-[var(--color-primary)]/5 rounded-full blur-[120px] -mr-40 -mt-40 pointer-events-none" />
-          <div className="max-w-7xl mx-auto px-6 relative z-10 font-bold">
-            <div className="grid lg:grid-cols-2 gap-24 items-center">
-              <div>
-                <h3 className="text-[var(--color-accent)] font-black uppercase text-[10px] tracking-widest mb-6">Student Success</h3>
-                <p className="text-4xl md:text-5xl text-[var(--color-text)] font-black leading-tight tracking-tight mb-10 italic">
-                  "Gyanteerth didn't just teach me Python. They taught me how to architect systems at scale. Within 3 months, I landed my dream role."
-                </p>
-                <div className="flex items-center gap-4">
-                  <img className="w-16 h-16 rounded-3xl object-cover border-2 border-[var(--color-primary)]/20 shadow-sm" src="https://i.pravatar.cc/100?img=17" alt="Sarah J" />
-                  <div>
-                    <p className="text-[var(--color-text)] font-black text-xl">Sarah Jenkins</p>
-                    <p className="text-[var(--color-primary)] font-bold uppercase text-[10px] tracking-widest">Lead Engineer @ Cloud9</p>
-                  </div>
-                </div>
+        {/* Testimonial Section - Dynamic */}
+        {feedbacks.length > 0 && (
+          <section className="py-32 bg-[var(--color-surface-muted)] overflow-hidden relative border-t border-[var(--color-border)]">
+            <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-[var(--color-primary)]/5 rounded-full blur-[120px] -mr-40 -mt-40 pointer-events-none" />
+            <div className="max-w-7xl mx-auto px-6 relative z-10 font-bold">
+              <div className="text-center mb-16">
+                 <h3 className="text-[var(--color-accent)] font-black uppercase text-[10px] tracking-widest mb-4">Student Success</h3>
+                 <h2 className="text-4xl md:text-6xl font-black text-[var(--color-text)] tracking-tight leading-none">See what they're saying</h2>
               </div>
-              <div className="grid grid-cols-2 gap-6 pb-20">
-                {[
-                  { val: "94%", label: "Course Completion" },
-                  { val: "15K+", label: "Success Stories" },
-                  { val: "220+", label: "Industry Partners" },
-                  { val: "24/7", label: "Expert Support" }
-                ].map((stat, i) => (
-                  <div key={i} className="p-8 bg-[var(--color-surface)] shadow-sm rounded-[2.5rem] border border-[var(--color-border)]">
-                    <p className="text-4xl font-black text-[var(--color-primary)] mb-2 tracking-tighter">{stat.val}</p>
-                    <p className="text-xs font-black text-[var(--color-text-light)] uppercase tracking-widest">{stat.label}</p>
-                  </div>
+              <div className="flex gap-6 overflow-x-auto pb-8 snap-x no-scrollbar" style={{ scrollSnapType: 'x mandatory' }}>
+                {feedbacks.slice(0, 6).map((item, idx) => (
+                  <motion.div 
+                    key={idx}
+                    initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
+                    className="min-w-[350px] md:min-w-[450px] p-8 md:p-10 bg-[var(--color-surface)] shadow-sm rounded-[2.5rem] border border-[var(--color-border)] snap-center flex flex-col justify-between whitespace-normal"
+                  >
+                     <div className="flex items-center gap-1 mb-6">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} size={16} fill={i < Math.round(parseFloat(item.course_rating || 0)) ? "var(--color-accent)" : "transparent"} stroke={i < Math.round(parseFloat(item.course_rating || 0)) ? "var(--color-accent)" : "var(--color-border-strong)"} />
+                        ))}
+                     </div>
+                     <p className="text-lg md:text-2xl text-[var(--color-text)] font-black leading-tight tracking-tight mb-10 italic">
+                       "{item.review}"
+                     </p>
+                     <div className="flex items-center gap-4 mt-auto border-t border-[var(--color-border)] pt-6">
+                       <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[var(--color-primary)]/20 shadow-sm bg-[var(--color-primary-bg)] flex items-center justify-center font-black text-[var(--color-primary)]">
+                         {item.user_pic ? <img src={item.user_pic} className="w-full h-full object-cover" alt={item.user_name} /> : (item.user_name?.charAt(0) || 'S')}
+                       </div>
+                       <div>
+                         <p className="text-[var(--color-text)] font-black text-lg">{item.user_name}</p>
+                         <p className="text-[var(--color-primary)] font-bold uppercase text-[10px] tracking-widest">{item.course_title}</p>
+                       </div>
+                     </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
       </div>
     </div>
   );

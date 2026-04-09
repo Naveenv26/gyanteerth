@@ -183,7 +183,7 @@ const AdminAssessments = () => {
                       index={index}
                       onDelete={() => handleDelete(a.assessment_id)}
                       onEdit={() => setEditingAsm(a)}
-                      onManage={() => navigate(`/admin/courses/manage/${a.course_id}`)}
+                      onManage={() => navigate(`/manage/course/${a.course_id}`)}
                    />
                  ))}
               </motion.div>
@@ -200,7 +200,7 @@ const AdminAssessments = () => {
                       index={index}
                       onDelete={() => handleDelete(a.assessment_id)}
                       onEdit={() => setEditingAsm(a)}
-                      onManage={() => navigate(`/admin/courses/manage/${a.course_id}`)}
+                      onManage={() => navigate(`/manage/course/${a.course_id}`)}
                    />
                  ))}
               </motion.div>
@@ -344,7 +344,7 @@ const PremiumAssessmentListRow = ({ asm, onDelete, onEdit, onManage, index }) =>
      </div>
 
      <div style={{ display: 'flex', gap: '0.75rem' }}>
-        <button onClick={onManage} style={{ padding: '0.65rem 1.5rem', borderRadius: '1rem', background: 'var(--color-primary-bg)', color: 'var(--color-primary)', border: 'none', fontWeight: 800, cursor: 'pointer' }}>Manage</button>
+         <button onClick={onManage} style={{ padding: '0.65rem 1.5rem', borderRadius: '1rem', background: 'var(--color-primary-bg)', color: 'var(--color-primary)', border: 'none', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.filter = 'brightness(0.9)'} onMouseLeave={e => e.currentTarget.style.filter = 'none'}>Manage</button>
         <button onClick={onEdit} style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.85rem', background: 'var(--color-surface)', border: '1px solid var(--color-border-strong)', color: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Edit size={16}/></button>
         <button onClick={onDelete} style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.85rem', background: '#fff1f2', border: 'none', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={16}/></button>
      </div>

@@ -37,10 +37,22 @@ const TrainerCourses = () => {
               if (res.ok) {
                 const detailData = await res.json();
                 const c = detailData.course || detailData;
-                
-                // Using mock data as backend student stats are not finished
-                const avgProgress = Math.floor(Math.random() * 40) + 10;
-                const studentCount = Math.floor(Math.random() * 120) + 10;
+                let studentCount = 0;
+                let avgProgress = 0;
+                try {
+                  const pRes = await fetch(`${TRAINER_API}/course/${id}/students-progress`, { headers });
+                  if (pRes.ok) {
+                    const pData = await pRes.json();
+                    const studentsList = pData.data || [];
+                    studentCount = studentsList.length;
+                    if (studentCount > 0) {
+                      const totalProgress = studentsList.reduce((sum, s) => sum + (s.progress_percentage || 0), 0);
+                      avgProgress = Math.round(totalProgress / studentCount);
+                    }
+                  }
+                } catch(e) {
+                  console.error("Progress fetch issue", e);
+                }
 
                 const newCourse = {
                   ...c,

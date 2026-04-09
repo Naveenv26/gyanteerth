@@ -299,3 +299,115 @@ p { color: var(--color-text-muted); line-height: 1.6; font-weight: 500; font-siz
 .animate-fade-in {
   animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Dashboard Layout Core */
+.dashboard-container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.dashboard-sidebar {
+  width: 260px;
+  background-color: var(--color-navy-sidebar);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 20;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.dashboard-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--color-bg);
+  /* z-index removed — let the stacking context be handled by modals with portal-level z-index */
+}
+
+.dashboard-content-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.dashboard-header-desktop {
+  height: 64px;
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  z-index: 35;
+}
+
+.dashboard-header-mobile {
+  display: none;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  z-index: 50;
+}
+
+.mobile-overlay {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+    transform: translateX(-100%);
+  }
+  .dashboard-sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: var(--shadow-xl);
+  }
+  .dashboard-header-desktop {
+    display: none !important;
+  }
+  .dashboard-header-mobile {
+    display: flex;
+  }
+  .mobile-overlay.active {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 90;
+  }
+}
+
+/* ===== GLOBAL MODAL OVERLAY SYSTEM =====
+   All modals use position: fixed so they escape overflow:hidden containers.
+   They must have a z-index higher than the sidebar (z-index: 100 on mobile).
+   Use z-index: 1000+ for modals to always cover everything including sidebar. */
+.modal-overlay,
+[style*="position: fixed"][style*="inset: 0"] {
+  z-index: 1100 !important;
+}
+
+/* Make tables scrollable smoothly on mobile */
+.table-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  min-width: max-content;
+}

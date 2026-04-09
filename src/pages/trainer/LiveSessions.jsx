@@ -11,11 +11,17 @@ const LiveSessions = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchSessions = useCallback(async () => {
-    if (!user?.user_id || !accessToken) return;
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const headers = { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' };
     try {
-      const response = await fetch(`${ADMIN_API}/instructor/${user.user_id}/live-sessions`, { headers });
+      const identifier = user?.user_id || user?.id || user?.email;
+      if (!identifier) throw new Error("No valid user identifier found");
+      
+      const response = await fetch(`${ADMIN_API}/instructor/${identifier}/live-sessions`, { headers });
       if (response.ok) {
         const data = await response.json();
         setSessions(data.live_sessions || []);

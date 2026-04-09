@@ -190,7 +190,7 @@ const AdminCourses = () => {
                <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--color-text)' }}>Workspace Empty</h2>
             </div>
          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                {filteredCourses.map(course => (
                  <PremiumCourseCardSmall 
                    key={course.course_id} 
@@ -266,46 +266,44 @@ const PremiumCourseCardSmall = ({ course, onEdit, onDelete, onManage, onPublish,
   const isLive = course.status === 'active';
 
   return (
-    <div style={{ backgroundColor: 'var(--color-surface)', borderRadius: '2rem', overflow: 'hidden', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', transition: 'all 0.4s', position: 'relative' }} className="premium-glow-card">
-       <div style={{ height: '220px', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ backgroundColor: 'var(--color-surface)', borderRadius: '1.5rem', overflow: 'hidden', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', transition: 'all 0.4s', position: 'relative' }} className="premium-glow-card">
+       <div style={{ height: '160px', position: 'relative', overflow: 'hidden' }}>
           <img src={course.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.3), transparent)' }} />
           
-          <div style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', display: 'flex', gap: '0.65rem', zIndex: 10 }}>
-             <button onClick={(e) => { e.stopPropagation(); onEdit(); }} style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.75rem', backgroundColor: 'rgba(255,255,255,0.95)', border: 'none', color: '#111827', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Settings size={16}/></button>
-             <button onClick={(e) => { e.stopPropagation(); onDelete(); }} style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.75rem', backgroundColor: 'rgba(255,255,255,0.95)', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16}/></button>
+          <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', display: 'flex', gap: '0.5rem', zIndex: 10 }}>
+             <button onClick={(e) => { e.stopPropagation(); onEdit(); }} style={{ width: '2.25rem', height: '2.25rem', borderRadius: '0.65rem', backgroundColor: 'rgba(255,255,255,0.95)', border: 'none', color: '#111827', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Settings size={14}/></button>
+             <button onClick={(e) => { e.stopPropagation(); onDelete(); }} style={{ width: '2.25rem', height: '2.25rem', borderRadius: '0.65rem', backgroundColor: 'rgba(255,255,255,0.95)', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={14}/></button>
           </div>
-
-          <div style={{ position: 'absolute', bottom: '1.25rem', left: '1.25rem' }}>
+ 
+          <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem' }}>
              {isDraft ? (
-                <button onClick={onPublish} disabled={isPublishing} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '0.55rem 1.25rem', borderRadius: '1rem', fontWeight: 950, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                   <ShieldCheck size={14} /> GO LIVE
+                <button onClick={onPublish} disabled={isPublishing} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '0.45rem 1rem', borderRadius: '0.75rem', fontWeight: 950, fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                   <ShieldCheck size={12} /> GO LIVE
                 </button>
              ) : (
-                <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', color: 'white', padding: '0.55rem 1.25rem', borderRadius: '1rem', fontWeight: 950, fontSize: '0.75rem', letterSpacing: '0.05em' }}>
+                <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', color: 'white', padding: '0.45rem 1rem', borderRadius: '0.75rem', fontWeight: 950, fontSize: '0.65rem', letterSpacing: '0.05em' }}>
                    {isLive ? 'ACTIVE' : 'ARCHIVED'}
                 </div>
              )}
           </div>
        </div>
-
-       <div style={{ padding: '2rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+ 
+       <div style={{ padding: '1.25rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
-             <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 950, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>{course.course_title}</h3>
-             <p style={{ margin: '0.4rem 0 0 0', color: 'var(--color-text-muted)', fontSize: '0.85rem', lineHeight: 1.4, height: '2.5rem', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{course.course_description}</p>
+             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 950, color: 'var(--color-text)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{course.course_title}</h3>
+             <p style={{ margin: '0.25rem 0 0 0', color: 'var(--color-text-muted)', fontSize: '0.75rem', lineHeight: 1.4, height: '2rem', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{course.course_description}</p>
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', padding: '1.25rem', backgroundColor: 'var(--color-surface-muted)', borderRadius: '1.25rem', border: '1px solid var(--color-border)' }}>
-             <MinStat icon={<Users size={14} color="#3b82f6"/>} value={course.students_count || 0} />
-             <MinStat icon={<Layers size={14} color="#f97316"/>} value={`${course.modules?.length || 0} Layers`} />
+ 
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', padding: '1rem', backgroundColor: 'var(--color-surface-muted)', borderRadius: '1rem', border: '1px solid var(--color-border)' }}>
+             <MinStat icon={<Users size={12} color="#3b82f6"/>} value={course.students_count || 0} />
+             <MinStat icon={<Layers size={12} color="#f97316"/>} value={`${course.modules?.length || 0} Layers`} />
           </div>
-
-          <button onClick={onManage} style={{ width: '100%', padding: '0.85rem', borderRadius: '1.25rem', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', fontSize: '0.9rem', fontWeight: 950, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.65rem', marginTop: 'auto', boxShadow: 'var(--shadow-sm)' }}>
-             Studio Architect <ArrowRight size={16} />
+ 
+          <button onClick={onManage} style={{ marginTop: 'auto', backgroundColor: '#10b981', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '1rem', fontWeight: 950, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', transition: 'all 0.3s' }}>
+             Studio Architect <ArrowRight size={14} />
           </button>
        </div>
-
-       <style>{` .course-card-p:hover { transform: translateY(-6px); box-shadow: 0 40px 80px rgba(0,0,0,0.06); border-color: #10b98120; } `}</style>
     </div>
   );
 };

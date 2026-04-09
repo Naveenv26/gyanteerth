@@ -101,6 +101,7 @@ const AdminDashboard = () => {
         
         let courseCount = 0;
         let trainerCount = 0;
+        let studentCount = 0;
         
         if (courseRes.ok) {
           const data = await courseRes.json();
@@ -113,7 +114,17 @@ const AdminDashboard = () => {
           trainerCount = (tData.active_trainer_email?.length || 0) + (tData.inactive_trainer_email?.length || 0);
         }
 
-        setStats({ courses: courseCount, trainers: trainerCount, students: 'N/A', assessments: '...' });
+        try {
+          const statRes = await fetch(`${ADMIN_API}/enrollment-stats`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+          if (statRes.ok) {
+            const statData = await statRes.json();
+            if (statData && statData.data) {
+              studentCount = statData.data.reduce((sum, course) => sum + (course.enrolled_students || 0), 0);
+            }
+          }
+        } catch (e) {}
+
+        setStats({ courses: courseCount, trainers: trainerCount, students: studentCount, assessments: '...' });
       } catch (err) {
         console.error("Dashboard sync error");
       } finally {

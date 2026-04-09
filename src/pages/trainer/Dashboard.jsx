@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../shared/AuthContext';
-import { Book, Users, Video, Clock, Loader2, Activity, ArrowRight, Grid, Calendar, Shield, BookOpen, FastForward, Award } from 'lucide-react';
+import { Book, Users, Video, Clock, Loader2, Activity, ArrowRight, Grid, Calendar, Shield, BookOpen, FastForward, Award, CalendarDays, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ADMIN_API } from '../../config';
+import { ADMIN_API, TRAINER_API } from '../../config';
 
 // Reusable compact StatCard inspired by Student Portal
 const StatCard = ({ title, value, icon, color, delay }) => (
@@ -39,55 +39,91 @@ const TrainerDashboard = () => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [students, setStudents] = useState([]);
+  const [liveSessions, setLiveSessions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchTrainerData = useCallback(async () => {
-    if (!user?.user_id || !accessToken) return;
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const headers = { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' };
     try {
-      const courseRes = await fetch(`${ADMIN_API}/trainer_course_ids`, { headers });
+      const courseRes = await fetch(`${TRAINER_API}/trainer_course_ids`, { headers });
       if (courseRes.ok) {
         const data = await courseRes.json();
         const ids = data?.course_ids || [];
         const fullCourses = [];
+        let allStudents = [];
         for (const id of ids) {
+          let c = {};
+          let courseDataLoaded = false;
+          
           try {
             const res = await fetch(`${ADMIN_API}/course/${id}/full-details`, { headers });
             if (res.ok) {
               const detailData = await res.json();
-              const c = detailData.course || detailData;
-              
-              // Using mock data as backend student stats are not finished
-              const avgProgress = Math.floor(Math.random() * 40) + 10;
-              const studentCount = Math.floor(Math.random() * 120) + 10;
-
-              const newCourse = {
-                ...c,
-                course_id: id,
-                course_title: c.course_title || c.title || 'Untitled Course',
-                course_description: c.course_description || c.description || 'No description available for this course.',
-                is_active: c.is_active || false,
-                avgProgress: avgProgress,
-                studentCount: studentCount,
-                status: c.is_active ? 'live' : 'draft',
-                progress: avgProgress
-              };
-              fullCourses.push(newCourse);
+              c = detailData.course || detailData;
+              courseDataLoaded = true;
             }
           } catch (e) {}
+          
+          let studentCount = 0;
+          let avgProgress = 0;
+          try {
+            const pRes = await fetch(`${TRAINER_API}/course/${id}/students-progress`, { headers });
+            if (pRes.ok) {
+              const pData = await pRes.json();
+              const studentsList = pData.data || [];
+              studentCount = studentsList.length;
+              if (studentCount > 0) {
+                const totalProgress = studentsList.reduce((sum, s) => sum + (s.progress_percentage || 0), 0);
+                avgProgress = Math.round(totalProgress / studentCount);
+              }
+              
+              // Add mapped students to combined list
+              const mappedStudents = studentsList.map(st => ({
+                 name: st.user_name,
+                 email: st.email || st.user_id, // Fix email mapping
+                 progress: st.progress_percentage || 0
+              }));
+              allStudents = [...allStudents, ...mappedStudents];
+            }
+          } catch(e) {}
+
+          const newCourse = {
+            ...c,
+            course_id: id,
+            course_title: c.course_title || c.title || `Course ID: ${id.split('-')[1] || id}`,
+            course_description: c.course_description || c.description || 'No description available for this course.',
+            is_active: c.is_active || courseDataLoaded,
+            avgProgress: avgProgress,
+            studentCount: studentCount,
+            status: (c.is_active || courseDataLoaded) ? 'live' : 'draft',
+            progress: avgProgress
+          };
+          fullCourses.push(newCourse);
         }
         setCourses(fullCourses);
+        // sort by most recently active or high progress mapping (optional)
+        setStudents(allStudents.sort((a,b) => b.progress - a.progress));
       }
       
-      // Mock Student Data instead of backend
-      setStudents([
-        { name: 'Arjun Sharma', email: 'arjun@example.com', progress: 85 },
-        { name: 'Priya Patel', email: 'priya@example.com', progress: 42 },
-        { name: 'Rahul Varma', email: 'rahul@example.com', progress: 100 },
-        { name: 'Sneha Rao', email: 'sneha@example.com', progress: 12 },
-        { name: 'Karthik S', email: 'karthik@example.com', progress: 67 }
-      ]);
+      // Fetch upcoming live sessions - best-effort, silently skip if it fails
+      const identifier = user?.user_id || user?.id;
+      if (identifier) {
+        try {
+          const liveRes = await fetch(`${ADMIN_API}/instructor/${identifier}/live-sessions`, { headers });
+          if (liveRes.ok) {
+            const liveData = await liveRes.json();
+            const allLive = liveData.live_sessions || [];
+            const upcoming = allLive.filter(s => new Date(s.start_time) > new Date() || s.status === 'live');
+            setLiveSessions(upcoming.sort((a,b) => new Date(a.start_time) - new Date(b.start_time)));
+          }
+        } catch (err) { /* Live sessions optional — skip silently */ }
+      }
+
     } catch (err) {
       console.error("Critical architecture sync failure", err);
     } finally {
@@ -109,11 +145,24 @@ const TrainerDashboard = () => {
       </div>
 
       {/* METRICS GRID */}
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
         <StatCard title="Assigned Courses" value={courses.length} icon={<BookOpen size={24} />} color="var(--color-primary)" delay={0.1} />
         <StatCard title="Total Students" value={students.length} icon={<Users size={24} />} color="#3b82f6" delay={0.2} />
-        <StatCard title="Active Classes" value={courses.filter(c => c.status === 'live').length} icon={<Video size={24} />} color="#10b981" delay={0.3} />
+        <StatCard title="Upcoming Lives" value={liveSessions.length} icon={<Video size={24} />} color="#10b981" delay={0.3} />
         <StatCard title="Overall Impact" value="84%" icon={<Award size={24} />} color="#f59e0b" delay={0.4} />
+      </div>
+
+      {/* QUICK QUICK ACTIONS SECTION */}
+      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '3rem' }}>
+          <button onClick={() => navigate('/trainer/courses')} className="btn btn-primary" style={{ flex: 1, minWidth: '200px', display: 'flex', justifyContent: 'center', backgroundColor: 'var(--navy-900)', color: 'white', padding: '1rem' }}>
+            <Book size={18} /> Course Repository
+          </button>
+          <button onClick={() => navigate('/trainer/students')} className="btn" style={{ flex: 1, minWidth: '200px', display: 'flex', justifyContent: 'center', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)', padding: '1rem' }}>
+             <Users size={18} /> Student Roster
+          </button>
+          <button onClick={() => navigate('/trainer/live-sessions')} className="btn" style={{ flex: 1, minWidth: '200px', display: 'flex', justifyContent: 'center', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '1rem' }}>
+             <CalendarDays size={18} /> Scheduling Node
+          </button>
       </div>
 
       {loading ? (
@@ -163,48 +212,88 @@ const TrainerDashboard = () => {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: RECENT STUDENTS */}
-        <div className="premium-card" style={{ padding: '2rem' }}>
-           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-               <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Recent Student Activity</h3>
-               <button onClick={() => navigate('/trainer/students')} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>Full Roster</button>
+        {/* RIGHT COLUMN: LIVE SESSIONS & STUDENTS */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            
+            {/* UPCOMING LIVE SESSIONS */}
+            <div className="premium-card" style={{ padding: '2rem' }}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                     <Video size={18} style={{ color: '#ef4444' }} />
+                     <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Upcoming Lives</h3>
+                   </div>
+                   <button onClick={() => navigate('/trainer/live-sessions')} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>Schedule</button>
+                </div>
+                
+                {liveSessions.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem 1rem', background: 'var(--color-surface-muted)', borderRadius: '1rem' }}>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>You have no upcoming live sessions scheduled.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                     {liveSessions.slice(0, 3).map(session => (
+                       <div key={session.live_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pading: '1rem', background: 'var(--color-surface-muted)', borderRadius: '1rem', border: '1px solid var(--color-border)', padding: '1rem' }}>
+                          <div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '0.2rem' }}>{session.title || 'Live Broadcast'}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 700 }}>
+                              {session.status === 'live' ? '🟢 HAPPENING NOW' : new Date(session.start_time).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                          <a href={session.meeting_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', background: session.status === 'live' ? '#ef4444' : 'var(--color-primary)', color: 'white' }}>
+                            <ExternalLink size={14} />
+                          </a>
+                       </div>
+                     ))}
+                  </div>
+                )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {students.length === 0 && <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', fontSize: '0.9rem' }}>Waiting for student enrollment sync...</p>}
-              {students.slice(0, 6).map(student => (
-                <div 
-                  key={student.email} 
-                  style={{ 
-                    display: 'flex', gap: '1rem', alignItems: 'center',
-                    paddingBottom: '1rem', borderBottom: '1px solid var(--color-border)'
-                  }}
-                >
-                  <div style={{ 
-                    width: '40px', height: '40px', borderRadius: '12px', 
-                    backgroundColor: 'var(--color-primary-bg)', color: 'var(--color-primary)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '1rem', fontWeight: 900
-                  }}>
-                    {(student.name || 'S').charAt(0)}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-text)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{student.name || student.username}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Progress: {student.progress || 0}%</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                     <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>ID</div>
-                     <div style={{ fontSize: '0.65rem', fontWeight: 800, fontFamily: 'monospace' }}>{student.email.split('@')[0]}</div>
-                  </div>
+            {/* RECENT STUDENTS */}
+            <div className="premium-card" style={{ padding: '2rem' }}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Users size={18} style={{ color: '#3b82f6' }} />
+                      <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Student Roster preview</h3>
+                   </div>
+                   <button onClick={() => navigate('/trainer/students')} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>Full Roster</button>
                 </div>
-              ))}
-            </div>
-            
-            <div style={{ marginTop: '2.5rem', padding: '1.5rem', background: 'var(--color-bg)', borderRadius: '1.5rem', border: '1px solid var(--color-border)' }}>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-muted)', lineHeight: 1.6, fontWeight: 500 }}>
-                    <Shield size={14} style={{ marginRight: '0.5rem', verticalAlign: 'middle', color: 'var(--color-primary)' }} />
-                    You are viewing the trainer console. All course delivery is currently synchronized with the learning system.
-                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {students.length === 0 && <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', fontSize: '0.9rem' }}>Waiting for student enrollment sync...</p>}
+                  {students.slice(0, 4).map(student => (
+                    <div 
+                      key={student.email} 
+                      style={{ 
+                        display: 'flex', gap: '1rem', alignItems: 'center',
+                        paddingBottom: '1rem', borderBottom: '1px solid var(--color-border)'
+                      }}
+                    >
+                      <div style={{ 
+                        width: '40px', height: '40px', borderRadius: '12px', 
+                        backgroundColor: 'var(--color-primary-bg)', color: 'var(--color-primary)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '1rem', fontWeight: 900
+                      }}>
+                        {(student.name || 'S').charAt(0)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-text)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{student.name || student.username}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Progress: {student.progress || 0}%</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Email</div>
+                         <div style={{ fontSize: '0.7rem', fontWeight: 800 }}>{student.email.length > 15 ? student.email.slice(0, 15) + '...' : student.email}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div style={{ marginTop: '2.5rem', padding: '1.5rem', background: 'var(--color-surface-muted)', borderRadius: '1.5rem', border: '1px solid var(--color-border)' }}>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-muted)', lineHeight: 1.6, fontWeight: 500 }}>
+                        <Shield size={14} style={{ marginRight: '0.5rem', verticalAlign: 'middle', color: 'var(--color-primary)' }} />
+                        You are viewing the trainer console. All course delivery is directly synchronized with the LMS architecture.
+                    </p>
+                </div>
             </div>
         </div>
       </div>

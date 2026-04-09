@@ -1,31 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import {
-   X, XCircle, CheckCircle2, Loader2, ArrowRight, PlusCircle, Edit, Info, FolderPlus, Play, Trash2, Video, Layers, FileText, Calendar, Clock, Link, Monitor, Film, Timer, HelpCircle, Award, Target, Hash
+   X, XCircle, CheckCircle2, Loader2, ArrowRight, PlusCircle, Edit, Info, FolderPlus, Play, Trash2, Video, Layers, FileText, Clock, Link, Monitor, Film, Timer, HelpCircle, Award, Hash, Book, Globe, User, Users, Zap
 } from 'lucide-react';
 import { useAuth } from '../../shared/AuthContext';
-
+import { BookOpen, ShieldCheck, Target, Calendar, BookOpen as BookIcon } from 'lucide-react';
 import { ADMIN_API } from '../../config';
 
-const Section = ({ title, children }) => (
-   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-      <h4 style={{ margin: 0, color: '#fb923c', fontSize: '0.85rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.15em', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-         <ArrowRight size={14} /> {title}
+const Section = ({ title, children, icon: Icon }) => (
+   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.5rem', backgroundColor: 'var(--color-surface-muted)', borderRadius: '1.5rem', border: '1px solid var(--color-border)' }}>
+      <h4 style={{ margin: 0, color: 'var(--color-primary)', fontSize: '0.75rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+         {Icon && <Icon size={16} />} {title}
       </h4>
-      {children}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+         {children}
+      </div>
    </div>
 );
 
 const FormInput = ({ label, ...props }) => (
-   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', boxSizing: 'border-box' }}>
-      <label style={{ fontSize: '0.875rem', fontWeight: '800', color: 'var(--color-text-muted)' }}>{label}</label>
-      <input {...props} style={{ backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: '1.25rem', padding: '1.15rem', color: 'var(--color-text)', fontWeight: '600', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+      <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--color-text-muted)', marginLeft: '0.25rem' }}>{label}</label>
+      <input {...props} style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '0.75rem', padding: '0.85rem 1rem', color: 'var(--color-text)', fontWeight: '600', outline: 'none', transition: 'all 0.2s', fontSize: '0.9rem' }} onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'} onBlur={(e) => e.target.style.borderColor = 'var(--color-border)'}/>
    </div>
 );
 
 const FormTextArea = ({ label, ...props }) => (
-   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', boxSizing: 'border-box' }}>
-      <label style={{ fontSize: '0.875rem', fontWeight: '800', color: 'var(--color-text-muted)' }}>{label}</label>
-      <textarea {...props} style={{ backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: '1.5rem', padding: '1.5rem', color: 'var(--color-text)', fontWeight: '600', outline: 'none', resize: 'none', width: '100%', boxSizing: 'border-box' }} />
+   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%', gridColumn: '1 / -1' }}>
+      <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--color-text-muted)', marginLeft: '0.25rem' }}>{label}</label>
+      <textarea {...props} style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '1rem', padding: '1rem', color: 'var(--color-text)', fontWeight: '600', outline: 'none', resize: 'none', minHeight: '80px', transition: 'all 0.2s', fontSize: '0.9rem' }} onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'} onBlur={(e) => e.target.style.borderColor = 'var(--color-border)'}/>
+   </div>
+);
+
+const FormSelect = ({ label, children, ...props }) => (
+   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+      <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--color-text-muted)', marginLeft: '0.25rem' }}>{label}</label>
+      <select {...props} style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '0.75rem', padding: '0.85rem 1rem', color: 'var(--color-text)', fontWeight: '600', outline: 'none', cursor: 'pointer', fontSize: '0.9rem' }}>
+         {children}
+      </select>
    </div>
 );
 
@@ -185,98 +196,83 @@ export const CreateCourseModal = ({ onClose, trainers, categories, showToast, re
    };
 
    return (
-      <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(30px)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+      <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(20px)', zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
          <form onSubmit={handleSubmit} style={{
-            width: '95%', maxWidth: '1100px', backgroundColor: 'var(--color-surface)',
-            borderRadius: '3.5rem', overflow: 'hidden', display: 'flex', flexDirection: 'column',
-            boxShadow: '0 50px 150px rgba(0,0,0,0.3)', position: 'relative'
+            width: '100%', maxWidth: '1200px', backgroundColor: 'var(--color-surface)',
+            borderRadius: '2.5rem', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+            boxShadow: 'var(--shadow-2xl)', border: '1px solid var(--color-border)', maxHeight: '95vh'
          }}>
-            <div style={{ padding: '3rem 4rem', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                  <div style={{ width: '4rem', height: '4rem', borderRadius: '1.5rem', backgroundColor: 'var(--color-primary)15', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                     <PlusCircle size={32} />
+            <div style={{ padding: '2rem 2.5rem', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--color-surface-muted)' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ width: '3.5rem', height: '3.5rem', borderRadius: '1rem', backgroundColor: 'var(--color-primary-bg)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--color-primary)20' }}>
+                     <PlusCircle size={24} />
                   </div>
                   <div>
-                     <h2 style={{ margin: 0, fontSize: '2.25rem', fontWeight: '900', color: 'var(--color-text)', letterSpacing: '-0.03em' }}>Create Course</h2>
-                     <p style={{ margin: 0, fontWeight: '700', color: 'var(--color-text-muted)' }}>Define the core parameters and metadata</p>
+                     <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '950', color: 'var(--color-text)', letterSpacing: '-0.02em' }}>Create Course</h2>
+                     <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: '700', color: 'var(--color-text-muted)' }}>Configure core parameters and curriculum</p>
                   </div>
                </div>
-               <button type="button" onClick={onClose} style={{ width: '4rem', height: '4rem', borderRadius: '1.5rem', backgroundColor: 'var(--color-surface-muted)', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
-                  <X size={28} />
+               <button type="button" onClick={onClose} style={{ width: '3.5rem', height: '3.5rem', borderRadius: '1rem', backgroundColor: 'white', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = '#fef2f2'} onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}>
+                  <X size={20} />
                </button>
             </div>
 
-            <div style={{ padding: '3rem 4rem', maxHeight: '70vh', overflowY: 'auto', overflowX: 'hidden', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '4rem', boxSizing: 'border-box' }}>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-                  <Section title="Identity & Placement">
-                     <FormInput label="Course Name" value={formData.course_title} onChange={e => setFormData({ ...formData, course_title: e.target.value })} required />
-                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                           <label style={{ fontSize: '0.875rem', fontWeight: '800', color: 'var(--color-text-muted)' }}>Instructor Portfolio</label>
-                           <select value={formData.instructor_id} onChange={e => setFormData({ ...formData, instructor_id: e.target.value })} style={{ backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: '1.25rem', padding: '1.15rem' }}>
-                              <option value="">Select Faculty</option>
-                              {trainers.map(t => <option key={t.id} value={t.id}>{t.email}</option>)}
-                           </select>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                           <label style={{ fontSize: '0.875rem', fontWeight: '800', color: 'var(--color-text-muted)' }}>Target Domain</label>
-                           <select value={formData.category_id} onChange={e => setFormData({ ...formData, category_id: e.target.value })} style={{ backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: '1.25rem', padding: '1.15rem' }}>
-                              <option value="">Select Category</option>
-                              {categories.map(c => <option key={c.Category_ID} value={c.Category_ID}>{c.Category_Name}</option>)}
-                           </select>
-                        </div>
-                     </div>
-                  </Section>
-                  <Section title="Learning Framework">
-                     <FormTextArea label="Curriculum Narrative (Max 500)" value={formData.course_description} onChange={e => setFormData({ ...formData, course_description: e.target.value })} rows={3} maxLength={500} />
-                     <FormTextArea label="Strategic Benefits (Max 200)" value={formData.benefits} onChange={e => setFormData({ ...formData, benefits: e.target.value })} rows={3} maxLength={200} placeholder="What will students gain?" />
-                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
-                        <FormInput label="Tools (Max 200)" value={formData.skill_set} onChange={e => setFormData({ ...formData, skill_set: e.target.value })} maxLength={200} />
-                        <FormInput label="Gap Knowledge (Max 200)" value={formData.required_knowledge} onChange={e => setFormData({ ...formData, required_knowledge: e.target.value })} maxLength={200} />
-                     </div>
-                  </Section>
-                  <Section title="Visual Asset">
-                     <FormInput label="Thumbnail URL" value={formData.thumbnail} onChange={e => setFormData({ ...formData, thumbnail: e.target.value })} placeholder="https://images.unsplash.com/..." />
-                  </Section>
-               </div>
+            <div style={{ padding: '2rem 2.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '2rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                     <Section title="Identity & Categorization" icon={Target}>
+                        <FormInput label="Strategic Course Title" value={formData.course_title} onChange={e => setFormData({ ...formData, course_title: e.target.value })} placeholder="e.g. Advanced System Engineering" required />
+                        <FormSelect label="Assign Expert Instructor" value={formData.instructor_id} onChange={e => setFormData({ ...formData, instructor_id: e.target.value })}>
+                           <option value="">Select Faculty</option>
+                           {trainers.map(t => <option key={t.id} value={t.id}>{t.name || t.email}</option>)}
+                        </FormSelect>
+                        <FormSelect label="Course Domain / Category" value={formData.category_id} onChange={e => setFormData({ ...formData, category_id: e.target.value })}>
+                           <option value="">Select Category</option>
+                           {categories.map(c => <option key={c.Category_ID} value={c.Category_ID}>{c.Category_Name}</option>)}
+                        </FormSelect>
+                     </Section>
 
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-                  <Section title="Pricing & Economics">
-                     <div style={{ display: 'flex', gap: '2rem' }}>
-                        <FormInput label="Base Rate (₹)" type="number" value={formData.original_pay} onChange={e => setFormData({ ...formData, original_pay: e.target.value })} />
-                        <FormInput label="Access Price (₹)" type="number" value={formData.discount_pay} onChange={e => setFormData({ ...formData, discount_pay: e.target.value })} />
-                     </div>
-                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                           <label style={{ fontSize: '0.875rem', fontWeight: '800', color: 'var(--color-text-muted)' }}>Course Format</label>
-                           <select value={formData.course_Type} onChange={e => setFormData({ ...formData, course_Type: e.target.value })} style={{ backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: '1.25rem', padding: '1.15rem' }}>
-                              <option value="recorded">Recorded Content</option>
-                              <option value="live">Live Interactive</option>
-                           </select>
+                     <Section title="Learning Blueprint" icon={BookOpen}>
+                        <FormTextArea label="Curriculum Narrative (Max 500)" value={formData.course_description} onChange={e => setFormData({ ...formData, course_description: e.target.value })} placeholder="Describe the core learning journey..." required />
+                        <FormTextArea label="Strategic Outcomes & Benefits" value={formData.benefits} onChange={e => setFormData({ ...formData, benefits: e.target.value })} placeholder="What will the student master?" />
+                        <FormInput label="Primary Skill Set (Comma separated)" value={formData.skill_set} onChange={e => setFormData({ ...formData, skill_set: e.target.value })} placeholder="Python, AWS, Architecture..." />
+                     </Section>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                     <Section title="Economics & Format" icon={ShieldCheck}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                           <FormInput label="Base Price (₹)" type="number" value={formData.original_pay} onChange={e => setFormData({ ...formData, original_pay: e.target.value })} />
+                           <FormInput label="Discounted (₹)" type="number" value={formData.discount_pay} onChange={e => setFormData({ ...formData, discount_pay: e.target.value })} />
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                           <label style={{ fontSize: '0.875rem', fontWeight: '800', color: 'var(--color-text-muted)' }}>Difficulty Tier</label>
-                           <select value={formData.level} onChange={e => setFormData({ ...formData, level: e.target.value })} style={{ backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: '1.25rem', padding: '1.15rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                           <FormSelect label="Session Format" value={formData.course_Type} onChange={e => setFormData({ ...formData, course_Type: e.target.value })}>
+                              <option value="recorded">On-Demand Recorded</option>
+                              <option value="live">Interactive Live</option>
+                           </FormSelect>
+                           <FormSelect label="Complexity Level" value={formData.level} onChange={e => setFormData({ ...formData, level: e.target.value })}>
                               {['Beginner', 'Intermediate', 'Advanced', 'Expert'].map(l => <option key={l} value={l}>{l}</option>)}
-                           </select>
+                           </FormSelect>
                         </div>
-                     </div>
-                  </Section>
-                  <Section title="Logistics">
-                     <FormInput label="Total Duration" value={formData.duration} onChange={e => setFormData({ ...formData, duration: e.target.value })} placeholder="e.g. 40 Hours" />
-                     <FormInput label="Instruction Language" value={formData.language} onChange={e => setFormData({ ...formData, language: e.target.value })} />
-                  </Section>
+                     </Section>
+
+                     <Section title="Metadata & Logistics" icon={Calendar}>
+                        <FormInput label="Estimated Duration" value={formData.duration} onChange={e => setFormData({ ...formData, duration: e.target.value })} placeholder="e.g. 45 Hours" />
+                        <FormInput label="Instruction Language" value={formData.language} onChange={e => setFormData({ ...formData, language: e.target.value })} />
+                        <FormInput label="Banner/Thumbnail URL" value={formData.thumbnail} onChange={e => setFormData({ ...formData, thumbnail: e.target.value })} placeholder="https://unsplash.com/..." />
+                     </Section>
+                  </div>
                </div>
             </div>
 
-            <div style={{ padding: '3rem 4rem', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', gap: '1.5rem', backgroundColor: 'var(--color-surface-muted)' }}>
-               <button type="button" onClick={onClose} style={{ padding: '1rem 2.5rem', borderRadius: '1.25rem', border: '1px solid var(--color-border)', fontWeight: '800', color: 'var(--color-text-muted)', cursor: 'pointer' }}>Cancel</button>
+            <div style={{ padding: '1.5rem 2.5rem', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', gap: '1rem', backgroundColor: 'var(--color-surface-muted)' }}>
+               <button type="button" onClick={onClose} style={{ padding: '0.85rem 2rem', borderRadius: '1rem', border: '1px solid var(--color-border)', fontWeight: '800', color: 'var(--color-text-muted)', cursor: 'pointer', backgroundColor: 'white' }}>Cancel</button>
                <button type="submit" disabled={loading} style={{
-                  padding: '1rem 4rem', borderRadius: '1.25rem', background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                  color: 'white', fontWeight: '900', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem'
+                  padding: '0.85rem 3rem', borderRadius: '1rem', background: 'var(--color-primary)',
+                  color: 'white', fontWeight: '900', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 10px 20px -5px var(--color-primary-bg)'
                }}>
-                  {loading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                  Initiate Course
+                  {loading ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+                  Initialize Architecture
                </button>
             </div>
          </form>
@@ -336,98 +332,82 @@ export const EditCourseModal = ({ course, onClose, trainers, categories, showToa
    };
 
    return (
-      <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(30px)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+      <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(20px)', zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
          <form onSubmit={handleSubmit} style={{
-            width: '95%', maxWidth: '1100px', backgroundColor: 'var(--color-surface)',
-            borderRadius: '3.5rem', overflow: 'hidden', display: 'flex', flexDirection: 'column',
-            boxShadow: '0 50px 150px rgba(0,0,0,0.3)', position: 'relative'
+            width: '100%', maxWidth: '1200px', backgroundColor: 'var(--color-surface)',
+            borderRadius: '2.5rem', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+            boxShadow: 'var(--shadow-2xl)', border: '1px solid var(--color-border)', maxHeight: '95vh'
          }}>
-            <div style={{ padding: '3rem 4rem', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                  <div style={{ width: '4rem', height: '4rem', borderRadius: '1.5rem', backgroundColor: '#fff7ed', color: '#fb923c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                     <Edit size={32} />
+            <div style={{ padding: '2rem 2.5rem', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--color-surface-muted)' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ width: '3.5rem', height: '3.5rem', borderRadius: '1rem', backgroundColor: '#fff7ed', color: '#fb923c', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #ffedd5' }}>
+                     <Edit size={24} />
                   </div>
                   <div>
-                     <h2 style={{ margin: 0, fontSize: '2.25rem', fontWeight: '900', color: 'var(--color-text)', letterSpacing: '-0.03em' }}>Edit Course</h2>
-                     <p style={{ margin: 0, fontWeight: '700', color: 'var(--color-text-muted)' }}>Update the core parameters and metadata</p>
+                     <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '950', color: 'var(--color-text)', letterSpacing: '-0.02em' }}>Edit Information</h2>
+                     <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: '700', color: 'var(--color-text-muted)' }}>{course.course_title}</p>
                   </div>
                </div>
-               <button type="button" onClick={onClose} style={{ width: '4rem', height: '4rem', borderRadius: '1.5rem', backgroundColor: 'var(--color-surface-muted)', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
-                  <XCircle size={28} />
+               <button type="button" onClick={onClose} style={{ width: '3.5rem', height: '3.5rem', borderRadius: '1rem', backgroundColor: 'white', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <X size={20} />
                </button>
             </div>
 
-            <div style={{ padding: '3rem 4rem', maxHeight: '70vh', overflowY: 'auto', overflowX: 'hidden', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '4rem', boxSizing: 'border-box' }}>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-                  <Section title="Identity & Placement">
-                     <FormInput label="Course Name" value={formData.course_title} onChange={e => setFormData({ ...formData, course_title: e.target.value })} required />
-                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                           <label style={{ fontSize: '0.875rem', fontWeight: '800', color: 'var(--color-text-muted)' }}>Instructor Portfolio</label>
-                           <select value={formData.instructor_id} onChange={e => setFormData({ ...formData, instructor_id: e.target.value })} style={{ backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: '1.25rem', padding: '1.15rem' }}>
-                              <option value="">Select Faculty</option>
-                              {trainers.map(t => <option key={t.id} value={t.id}>{t.email}</option>)}
-                           </select>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                           <label style={{ fontSize: '0.875rem', fontWeight: '800', color: 'var(--color-text-muted)' }}>Target Domain</label>
-                           <select value={formData.category_id} onChange={e => setFormData({ ...formData, category_id: e.target.value })} style={{ backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: '1.25rem', padding: '1.15rem' }}>
-                              <option value="">Select Category</option>
-                              {categories.map(c => <option key={c.Category_ID} value={c.Category_ID}>{c.Category_Name}</option>)}
-                           </select>
-                        </div>
-                     </div>
-                  </Section>
-                  <Section title="Learning Framework">
-                     <FormTextArea label="Curriculum Narrative (Max 500)" value={formData.course_description} onChange={e => setFormData({ ...formData, course_description: e.target.value })} rows={3} maxLength={500} />
-                     <FormTextArea label="Strategic Benefits (Max 200)" value={formData.benefits} onChange={e => setFormData({ ...formData, benefits: e.target.value })} rows={3} maxLength={200} />
-                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
-                        <FormInput label="Tools (Max 200)" value={formData.skill_set} onChange={e => setFormData({ ...formData, skill_set: e.target.value })} maxLength={200} />
-                        <FormInput label="Gap Knowledge (Max 200)" value={formData.required_knowledge} onChange={e => setFormData({ ...formData, required_knowledge: e.target.value })} maxLength={200} />
-                     </div>
-                  </Section>
-                  <Section title="Visual Asset">
-                     <FormInput label="Thumbnail URL" value={formData.thumbnail} onChange={e => setFormData({ ...formData, thumbnail: e.target.value })} />
-                  </Section>
-               </div>
+            <div style={{ padding: '2rem 2.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '2rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                     <Section title="Asset Details" icon={Target}>
+                        <FormInput label="Update Title" value={formData.course_title} onChange={e => setFormData({ ...formData, course_title: e.target.value })} required />
+                        <FormSelect label="Assigned Faculty" value={formData.instructor_id} onChange={e => setFormData({ ...formData, instructor_id: e.target.value })}>
+                           <option value="">Select Faculty</option>
+                           {trainers.map(t => <option key={t.id} value={t.id}>{t.email}</option>)}
+                        </FormSelect>
+                        <FormSelect label="Primary Domain" value={formData.category_id} onChange={e => setFormData({ ...formData, category_id: e.target.value })}>
+                           {categories.map(c => <option key={c.Category_ID} value={c.Category_ID}>{c.Category_Name}</option>)}
+                        </FormSelect>
+                     </Section>
 
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-                  <Section title="Pricing & Economics">
-                     <div style={{ display: 'flex', gap: '2rem' }}>
-                        <FormInput label="Base Rate (₹)" type="number" value={formData.original_pay} onChange={e => setFormData({ ...formData, original_pay: e.target.value })} />
-                        <FormInput label="Access Price (₹)" type="number" value={formData.discount_pay} onChange={e => setFormData({ ...formData, discount_pay: e.target.value })} />
-                     </div>
-                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                           <label style={{ fontSize: '0.875rem', fontWeight: '800', color: 'var(--color-text-muted)' }}>Course Format</label>
-                           <select value={formData.course_Type} onChange={e => setFormData({ ...formData, course_Type: e.target.value })} style={{ backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: '1.25rem', padding: '1.15rem' }}>
+                     <Section title="Strategic Content" icon={BookOpen}>
+                        <FormTextArea label="Course Description Narrative" value={formData.course_description} onChange={e => setFormData({ ...formData, course_description: e.target.value })} />
+                        <FormTextArea label="Global Benefits & Outcomes" value={formData.benefits} onChange={e => setFormData({ ...formData, benefits: e.target.value })} />
+                        <FormInput label="Tools & Frameworks" value={formData.skill_set} onChange={e => setFormData({ ...formData, skill_set: e.target.value })} />
+                     </Section>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                     <Section title="Economics & Delivery" icon={ShieldCheck}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                           <FormInput label="Original Pay (₹)" type="number" value={formData.original_pay} onChange={e => setFormData({ ...formData, original_pay: e.target.value })} />
+                           <FormInput label="Discounted Pay (₹)" type="number" value={formData.discount_pay} onChange={e => setFormData({ ...formData, discount_pay: e.target.value })} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                           <FormSelect label="Content Delivery" value={formData.course_Type} onChange={e => setFormData({ ...formData, course_Type: e.target.value })}>
                               <option value="recorded">Recorded Content</option>
-                              <option value="live">Live Interactive</option>
-                           </select>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                           <label style={{ fontSize: '0.875rem', fontWeight: '800', color: 'var(--color-text-muted)' }}>Difficulty Tier</label>
-                           <select value={formData.level} onChange={e => setFormData({ ...formData, level: e.target.value })} style={{ backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: '1.25rem', padding: '1.15rem' }}>
+                              <option value="live">Live Transmission</option>
+                           </FormSelect>
+                           <FormSelect label="Difficulty Tier" value={formData.level} onChange={e => setFormData({ ...formData, level: e.target.value })}>
                               {['Beginner', 'Intermediate', 'Advanced', 'Expert'].map(l => <option key={l} value={l}>{l}</option>)}
-                           </select>
+                           </FormSelect>
                         </div>
-                     </div>
-                  </Section>
-                  <Section title="Logistics">
-                     <FormInput label="Total Duration" value={formData.duration} onChange={e => setFormData({ ...formData, duration: e.target.value })} placeholder="e.g. 40 Hours" />
-                     <FormInput label="Instruction Language" value={formData.language} onChange={e => setFormData({ ...formData, language: e.target.value })} />
-                  </Section>
+                     </Section>
+
+                     <Section title="Logistics & Assets" icon={Calendar}>
+                        <FormInput label="Architecture Duration" value={formData.duration} onChange={e => setFormData({ ...formData, duration: e.target.value })} />
+                        <FormInput label="Primary Language" value={formData.language} onChange={e => setFormData({ ...formData, language: e.target.value })} />
+                        <FormInput label="Strategic Banner URL" value={formData.thumbnail} onChange={e => setFormData({ ...formData, thumbnail: e.target.value })} />
+                     </Section>
+                  </div>
                </div>
             </div>
 
-            <div style={{ padding: '3rem 4rem', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', gap: '1.5rem', backgroundColor: 'var(--color-surface-muted)' }}>
-               <button type="button" onClick={onClose} style={{ padding: '1rem 2.5rem', borderRadius: '1.25rem', border: '1px solid var(--color-border)', fontWeight: '800', color: 'var(--color-text-muted)', cursor: 'pointer' }}>Cancel</button>
+            <div style={{ padding: '1.5rem 2.5rem', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', gap: '1rem', backgroundColor: 'var(--color-surface-muted)' }}>
+               <button type="button" onClick={onClose} style={{ padding: '0.85rem 2rem', borderRadius: '1rem', border: '1px solid var(--color-border)', fontWeight: '800', color: 'var(--color-text-muted)', cursor: 'pointer', backgroundColor: 'white' }}>Cancel</button>
                <button type="submit" disabled={loading} style={{
-                  padding: '1rem 4rem', borderRadius: '1.25rem', background: 'linear-gradient(135deg, #fb923c 0%, #f97316 100%)',
-                  color: 'white', fontWeight: '900', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem'
+                  padding: '0.85rem 3rem', borderRadius: '1rem', background: '#f97316',
+                  color: 'white', fontWeight: '900', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 10px 20px -5px rgba(249, 115, 22, 0.3)'
                }}>
                   {loading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                  Update Course
+                  Commit Update
                </button>
             </div>
          </form>

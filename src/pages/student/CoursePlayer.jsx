@@ -138,7 +138,7 @@ function LivePanel({ lesson, onJoin }) {
           {lesson.url && (isOngoing || isUpcoming) && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
               {canJoin ? (
-                <a href={lesson.url} target="_blank" rel="noopener noreferrer" onClick={onJoin} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', background: `linear-gradient(135deg, ${accent}, ${accent}cc)`, color: 'white', padding: '1rem 2.5rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 800, fontSize: '1rem', boxShadow: `0 8px 25px ${accent}40` }}>
+                <a href={lesson.url} target="_blank" rel="noopener noreferrer" onClick={() => onJoin(lesson.id, lesson.moduleId)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', background: `linear-gradient(135deg, ${accent}, ${accent}cc)`, color: 'white', padding: '1rem 2.5rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 800, fontSize: '1rem', boxShadow: `0 8px 25px ${accent}40` }}>
                   <ExternalLink size={20} /> {isOngoing ? 'Join Session Now' : 'Enter Waiting Room'}
                 </a>
               ) : (
@@ -157,7 +157,7 @@ function LivePanel({ lesson, onJoin }) {
         <div style={{ background: 'white', borderRadius: '12px', padding: '1.5rem', border: '1px solid #f1f5f9' }}>
           <h3 style={{ fontWeight: 800, marginBottom: '1rem', fontSize: '0.95rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Video size={16} color="#10b981" /> Session Recordings</h3>
           {lesson.recordings.map((rec, i) => (
-            <a key={rec.rec_video_id} href={rec.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '8px', background: '#f0fdf4', border: '1px solid rgba(16,185,129,0.2)', textDecoration: 'none', marginBottom: '0.5rem' }}>
+            <a key={rec.rec_video_id} href={rec.url} target="_blank" rel="noopener noreferrer" onClick={() => onJoin(lesson.id, lesson.moduleId, true)} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '8px', background: '#f0fdf4', border: '1px solid rgba(16,185,129,0.2)', textDecoration: 'none', marginBottom: '0.5rem' }}>
               <PlayCircle size={18} color="#10b981" />
               <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.875rem' }}>Recording {i + 1}{rec.duration ? ` · ${rec.duration}` : ''}</span>
               <ExternalLink size={13} color="#10b981" style={{ marginLeft: 'auto' }} />
@@ -175,17 +175,25 @@ function AssessmentPanel({ lesson, onComplete }) {
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore]         = useState(0);
 
-  const handleSubmit = () => {
-    let total = 0;
-    (lesson.questions || []).forEach(q => {
-      const ans     = selected[q.question_id];
-      const correct = q.options?.find(o => o.is_correct);
-      if (ans && correct && ans === correct.option_id) total += (q.mark || 1);
-    });
-    setScore(total);
-    setSubmitted(true);
-    const passed = total >= (lesson.passingMark || 0);
-    if (passed) onComplete?.();
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      // 1. Send to Backend
+      const result = await onComplete(selected);
+      
+      // 2. Local State Sync (using backend results if provided)
+      setScore(result?.score ?? 0);
+      setSubmitted(true);
+      
+      // If we don't have a specific onComplete result from backend, we fall back to local calc
+      // but usually the backend will return mark complete status.
+    } catch (err) {
+      console.error("Assessment submission error:", err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const passed = score >= (lesson.passingMark || 0);
@@ -236,7 +244,16 @@ function AssessmentPanel({ lesson, onComplete }) {
           </div>
         </div>
       ))}
-      {!submitted && lesson.questions?.length > 0 && <button onClick={handleSubmit} style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', padding: '1rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}><Award size={18} /> Submit Assessment</button>}
+      {!submitted && lesson.questions?.length > 0 && (
+        <button 
+          onClick={handleSubmit} 
+          disabled={submitting}
+          style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', padding: '1rem', fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', opacity: submitting ? 0.7 : 1 }}
+        >
+          {submitting ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Award size={18} />} 
+          {submitting ? 'Submitting...' : 'Submit Assessment'}
+        </button>
+      )}
     </div>
   );
 }
@@ -266,6 +283,11 @@ const CoursePlayer = ({ isTrainer = false }) => {
   const getCompletedCount = isTrainer ? () => 0 : enrollment?.getCompletedCount;
   const enrolledCourses = isTrainer ? [] : enrollment?.enrolledCourses;
   const registerLessonCount = isTrainer ? () => {} : enrollment?.registerLessonCount;
+  
+  const markLiveAttendance = isTrainer ? async () => ({}) : enrollment?.markLiveAttendance;
+  const markVideoProgress = isTrainer ? async () => ({}) : enrollment?.markVideoProgress;
+  const submitAssessment = isTrainer ? async () => ({}) : enrollment?.submitAssessment;
+  const fetchCourseProgress = isTrainer ? async () => ({}) : enrollment?.fetchCourseProgress;
 
   const [course, setCourse]               = useState(null);
   const [lessons, setLessons]             = useState([]);
@@ -314,7 +336,11 @@ const CoursePlayer = ({ isTrainer = false }) => {
           }
 
           // Register total so progress % computes correctly on My Learning page
-          if (!isTrainer) registerLessonCount(id, built.length);
+          if (!isTrainer) {
+            registerLessonCount(id, built.length);
+            // Sync progress from backend
+            fetchCourseProgress(id);
+          }
           const exp = {};
           (c.modules || []).forEach(m => { exp[m.module_id] = true; });
           setExpandedModules(exp);
@@ -341,14 +367,31 @@ const CoursePlayer = ({ isTrainer = false }) => {
     : false;
 
   /* Mark current lesson complete */
-  const handleMarkComplete = useCallback(() => {
+  const handleMarkComplete = useCallback(async () => {
     if (isTrainer || !currentLesson) return;
     const sId = courseId;
-    const lessonId = currentLesson.id;
-    const isCurrentlyDone = isLessonComplete(sId, lessonId);
-    markLessonComplete(sId, lessonId, totalLessons);
+    const lId = currentLesson.id;
+    const mid = currentLesson.moduleId;
+    const isCurrentlyDone = isLessonComplete(sId, lId);
+    
+    // 1. Sync Backend
+    if (!isCurrentlyDone) {
+      if (currentLesson.type === 'video') {
+        await markVideoProgress(sId, mid, lId);
+      } else if (currentLesson.type === 'live') {
+        // Attendance logic: Manual completion implies they attended/watched
+        await markLiveAttendance(sId, lId, mid, true, true);
+      } else if (currentLesson.type === 'assessment') {
+        // Assessment completion is usually handled inside the AssessmentPanel,
+        // but if they click the header button on a passed exam, we sync it.
+        await fetchCourseProgress(sId);
+      }
+    }
+    
+    // 2. Update Local UI
+    markLessonComplete(sId, lId, totalLessons);
     if (!isCurrentlyDone) setJustCompleted(true);
-  }, [currentLesson, courseId, totalLessons, markLessonComplete, isLessonComplete, isTrainer]);
+  }, [currentLesson, courseId, totalLessons, markLessonComplete, isLessonComplete, markVideoProgress, markLiveAttendance, fetchCourseProgress, isTrainer]);
 
   const go = idx => setCurrentIdx(Math.max(0, Math.min(lessons.length - 1, idx)));
   const toggleModule = mid => setExpandedModules(p => ({ ...p, [mid]: !p[mid] }));
@@ -585,14 +628,23 @@ const CoursePlayer = ({ isTrainer = false }) => {
                     <LivePanel 
                       lesson={currentLesson} 
                       courseId={courseId}
-                      onJoin={() => markLessonComplete(courseId, currentLesson.id, totalLessons)}
+                      onJoin={async (liveId, mid, isRecording = false) => {
+                         await markLiveAttendance(courseId, liveId, mid, !isRecording, isRecording);
+                         markLessonComplete(courseId, liveId, totalLessons);
+                      }}
                     />
                   )}
                   {currentLesson.type === 'assessment' && (
                     <AssessmentPanel
                       lesson={currentLesson}
                       courseId={courseId}
-                      onComplete={() => markLessonComplete(courseId, currentLesson.id, totalLessons)}
+                      onComplete={async (answers) => {
+                        const res = await submitAssessment(courseId, currentLesson.moduleId, currentLesson.id, answers);
+                        if (res?.passed) {
+                          markLessonComplete(courseId, currentLesson.id, totalLessons);
+                        }
+                        return res;
+                      }}
                     />
                   )}
 

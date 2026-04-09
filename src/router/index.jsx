@@ -34,6 +34,8 @@ import AdminCategories from '../pages/admin/Categories';
 import AdminUsers from '../pages/admin/Users';
 import AdminAssessments from '../pages/admin/Assessments';
 import AdminCurriculum from '../pages/admin/Curriculum';
+import AdminFeedbacks from '../pages/admin/Feedbacks';
+import AdminStudents from '../pages/admin/Students';
 
 export const router = createBrowserRouter([
   {
@@ -95,6 +97,7 @@ export const router = createBrowserRouter([
           { index: true, element: <TrainerDashboard /> },
           { path: 'courses', element: <TrainerCourses /> },
           { path: 'students', element: <TrainerStudents /> },
+          { path: 'live-sessions', element: <TrainerLiveSessions /> },
         ]
       },
       // Full-screen trainer preview
@@ -112,7 +115,9 @@ export const router = createBrowserRouter([
           { path: 'categories', element: <AdminCategories /> },
           { path: 'courses', element: <AdminCourses /> },
           { path: 'users', element: <AdminUsers /> },
+          { path: 'students', element: <AdminStudents /> },
           { path: 'assessments', element: <AdminAssessments /> },
+          { path: 'feedbacks', element: <AdminFeedbacks /> },
         ]
       }
     ]

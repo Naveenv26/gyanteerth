@@ -81,13 +81,16 @@ const DashboardLayout = () => {
           { index: 0, to: '/admin', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
           { index: 1, to: '/admin/categories', icon: <Folder size={20} />, label: 'Categories' },
           { index: 2, to: '/admin/users', icon: <Users size={20} />, label: 'Trainers' },
-          { index: 3, to: '/admin/assessments', icon: <FileText size={20} />, label: 'Assessments' },
+          { index: 3, to: '/admin/students', icon: <Users size={20} />, label: 'Students' },
+          { index: 4, to: '/admin/assessments', icon: <FileText size={20} />, label: 'Assessments' },
+          { index: 5, to: '/admin/feedbacks', icon: <MessageSquare size={20} />, label: 'Feedbacks' },
         ];
       case 'trainer':
         return [
           { to: '/trainer', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
           { to: '/trainer/courses', icon: <Book size={20} />, label: 'My Courses' },
           { to: '/trainer/students', icon: <Users size={20} />, label: 'Students' },
+          { to: '/trainer/live-sessions', icon: <Video size={20} />, label: 'Live Sessions' },
         ];
       case 'student':
       default:
@@ -103,31 +106,19 @@ const DashboardLayout = () => {
   const navItems = getNavItems();
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100%', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)', overflow: 'hidden' }}>
+    <div className="dashboard-container">
       
-      {/* Sidebar - Coursera inspired high contrast */}
-      <aside 
-        style={{ 
-          width: '220px', 
-          backgroundColor: 'var(--color-navy-sidebar)', 
-          borderRight: '1px solid var(--color-border)',
-          display: 'flex',
-          flexDirection: 'column',
-          transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-          zIndex: 100,
-          position: 'relative',
-        }}
-        className={`sidebar ${mobileMenuOpen ? 'mobile-open' : 'mobile-closed'}`}
-      >
-        <div style={{ padding: '1.25rem 1rem', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Logo scale={0.6} showTagline={false} isDark={useTheme().isDark} />
+      {/* Sidebar - Responsive */}
+      <aside className={`dashboard-sidebar ${mobileMenuOpen ? 'mobile-open' : 'mobile-closed'}`}>
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Logo scale={0.65} showTagline={false} isDark={useTheme().isDark} />
         </div>
         
-        <div style={{ padding: '1rem 0.75rem', flex: 1, overflowY: 'auto' }}>
-          <div style={{ marginBottom: '1rem', fontSize: '0.65rem', fontWeight: 900, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.1rem' }}>
+        <div style={{ padding: '1.5rem 1rem', flex: 1, overflowY: 'auto' }} className="no-scrollbar">
+          <div style={{ marginBottom: '1.25rem', paddingLeft: '0.5rem', fontSize: '0.65rem', fontWeight: 900, color: 'var(--color-text-light)', textTransform: 'uppercase', letterSpacing: '0.15rem' }}>
             {user?.role} Portal
           </div>
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             {navItems.map((item) => (
               <SidebarLink
                 key={item.to}
@@ -265,19 +256,10 @@ const DashboardLayout = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden', position: 'relative', backgroundColor: 'var(--color-bg)' }}>
+      <main className="dashboard-main">
         
         {/* Top Header - Desktop Only */}
-        <header style={{ 
-          height: '56px', 
-          backgroundColor: 'var(--color-surface)', 
-          borderBottom: '1px solid var(--color-border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 1.5rem',
-          zIndex: 40
-        }} className="hidden md:flex">
+        <header className="dashboard-header-desktop">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
             <div style={{ position: 'relative', maxWidth: '400px', width: '100%' }}>
                <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-light)' }} />
@@ -303,25 +285,25 @@ const DashboardLayout = () => {
         </header>
 
         {/* Mobile Header */}
-        <header className="mobile-header" style={{ display: 'none', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', backgroundColor: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', zIndex: 50 }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-             <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} style={{ background: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', color: 'var(--color-text)', cursor: 'pointer', display: 'flex', padding: '0.5rem', borderRadius: '0.75rem' }}>
-               <Menu size={22} />
+        <header className="dashboard-header-mobile">
+           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+             <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} style={{ background: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', color: 'var(--color-text)', cursor: 'pointer', display: 'flex', padding: '0.65rem', borderRadius: '0.75rem' }}>
+               <Menu size={20} />
              </button>
-             <span style={{ fontWeight: 950, fontSize: '1rem', color: 'var(--color-text)', letterSpacing: '-0.02em' }}>Gyanteerth</span>
+             <Logo scale={0.5} showTagline={false} isDark={useTheme().isDark} />
            </div>
            <ThemeToggle />
         </header>
 
         {/* Page Content with Motion Orchestration */}
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: 'var(--page-padding)' }}>
+        <div className="dashboard-content-scroll" style={{ padding: 'var(--page-padding)' }}>
           <div className="max-container" style={{ maxWidth: '1600px', margin: '0 auto', width: '100%' }}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname}
-                initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
               >
                 <Outlet />
@@ -332,17 +314,10 @@ const DashboardLayout = () => {
       </main>
       
       {/* Mobile Overlay */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setMobileMenuOpen(false)}
-            style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)', zIndex: 90 }}
-          />
-        )}
-      </AnimatePresence>
+      <div 
+        className={`mobile-overlay ${mobileMenuOpen ? 'active' : ''}`} 
+        onClick={() => setMobileMenuOpen(false)}
+      />
     </div>
   );
 };

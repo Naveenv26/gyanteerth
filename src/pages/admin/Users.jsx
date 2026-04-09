@@ -409,6 +409,28 @@ const CInfo = ({ icon, label, value }) => (
 );
 
 const ViewTrainerModal = ({ trainer, onClose, origin }) => {
+  const [liveSessions, setLiveSessions] = useState(null);
+  const { accessToken } = useAuth();
+  
+  useEffect(() => {
+    const fetchLiveSessions = async () => {
+      try {
+        const res = await fetch(`${ADMIN_API}/instructor/${trainer.user_id}/live-sessions`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setLiveSessions(data || []);
+        } else {
+          setLiveSessions([]);
+        }
+      } catch (e) {
+        setLiveSessions([]);
+      }
+    };
+    if (trainer?.user_id) fetchLiveSessions();
+  }, [trainer, accessToken]);
+
   const isInactive = trainer.trainer_status === 'inactive';
   const name = trainer.user_name || (trainer.email || '').split('@')[0] || 'Unknown';
   const modalContent = (
@@ -418,8 +440,9 @@ const ViewTrainerModal = ({ trainer, onClose, origin }) => {
           animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
           exit={{ opacity: 0, scale: 0.1, x: origin?.x - (window.innerWidth / 2) || 0, y: origin?.y - (window.innerHeight / 2) || 0 }}
           transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-          style={{ width: 'min(95vw, 400px)', backgroundColor: 'var(--color-surface)', borderRadius: '2.5rem', overflow: 'hidden', boxShadow: '0 25px 70px -15px rgba(0, 0, 0, 0.4)', border: '1px solid var(--color-border)' }}
+          style={{ width: 'min(95vw, 450px)', maxHeight: '90vh', overflowY: 'auto', backgroundColor: 'var(--color-surface)', borderRadius: '2.5rem', boxShadow: '0 25px 70px -15px rgba(0, 0, 0, 0.4)', border: '1px solid var(--color-border)' }}
           onClick={(e) => e.stopPropagation()}
+          className="no-scrollbar"
        >
           <header style={{ padding: '1rem 1.75rem', background: 'var(--color-surface-muted)', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
              <span style={{ fontSize: '0.6rem', fontWeight: 950, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Faculty Node Trace</span>
@@ -434,13 +457,34 @@ const ViewTrainerModal = ({ trainer, onClose, origin }) => {
              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', color: isInactive ? '#ef4444' : '#10b981', fontSize: '0.55rem', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '0.25rem' }}><div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'currentColor' }} />{isInactive ? 'Access Restricted' : 'Active Member'}</div>
              <h3 style={{ fontSize: '1.35rem', fontWeight: 950, margin: 0, color: '#111827' }}>{name}</h3>
              <p style={{ color: 'var(--color-text-muted)', fontWeight: 800, marginTop: '0.2rem', marginBottom: '1.75rem', fontSize: '0.8rem' }}>{trainer.email}</p>
-             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', padding: '1.25rem', backgroundColor: 'var(--color-surface-muted)', borderRadius: '1.5rem', border: '1px solid var(--color-border)', textAlign: 'left' }}>
+             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', padding: '1.25rem', backgroundColor: 'var(--color-surface-muted)', borderRadius: '1.5rem', border: '1px solid var(--color-border)', textAlign: 'left', marginBottom: '1.5rem' }}>
                 <VItem icon={<Phone size={12} />} label="Phone" value={trainer.user_number || '—'} />
                 <VItem icon={<Calendar size={12} />} label="Origin" value={trainer.user_dob || '—'} />
                 <VItem icon={<Activity size={12} />} label="Type" value={trainer.user_gender || 'Admin'} />
                 <VItem icon={<MapPin size={12} />} label="Hub" value={trainer.user_city || 'HQ'} />
              </div>
-             <button onClick={onClose} className="btn btn-primary" style={{ marginTop: '1.75rem', width: '100%', padding: '0.8rem', borderRadius: '1rem', fontWeight: 950, fontSize: '0.85rem' }}>Dismiss Review</button>
+             
+             <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+                <h4 style={{ fontSize: '0.8rem', fontWeight: 900, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Zap size={14} color="var(--color-primary)" /> Live Sessions
+                </h4>
+                {liveSessions === null ? (
+                  <div style={{ padding: '2rem', textAlign: 'center' }}><Loader2 size={24} className="animate-spin mx-auto" /></div>
+                ) : liveSessions.length === 0 ? (
+                  <div style={{ padding: '1rem', backgroundColor: 'var(--color-surface-muted)', borderRadius: '1rem', border: '1px dashed var(--color-border-strong)', textAlign: 'center', fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 800 }}>No active sessions</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {liveSessions.map((session, i) => (
+                      <div key={i} style={{ padding: '0.75rem', backgroundColor: 'var(--color-surface-muted)', borderRadius: '1rem', border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                         <div style={{ fontSize: '0.8rem', fontWeight: 800 }}>{session.title || 'Live Session'}</div>
+                         <div style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 800 }}>{session.status || 'Scheduled'}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+             </div>
+
+             <button onClick={onClose} className="btn btn-primary" style={{ marginTop: '0.5rem', width: '100%', padding: '0.8rem', borderRadius: '1rem', fontWeight: 950, fontSize: '0.85rem' }}>Dismiss Review</button>
           </div>
        </motion.div>
     </div>
