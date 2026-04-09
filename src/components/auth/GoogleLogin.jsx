@@ -16,49 +16,46 @@ const GoogleLogin = ({ onLoginSuccess, onLoginError }) => {
 
       const data = await res.json();
 
-      if (res.ok) {
-        onLoginSuccess?.(data);
-      } else {
-        onLoginError?.(data.message || 'Google Sign-In failed');
-      }
-    } catch (err) {
-      console.error(err);
-      onLoginError?.('Failed to connect to the server');
+      if (res.ok) onLoginSuccess?.(data);
+      else onLoginError?.(data.message || 'Google Sign-In failed');
+    } catch {
+      onLoginError?.('Server error');
     }
   }, [onLoginSuccess, onLoginError]);
 
   useEffect(() => {
-    if (!window.google || !googleButtonRef.current) return;
+    let interval;
 
-    // 🧹 Clear previous button (important for re-render)
-    googleButtonRef.current.innerHTML = '';
+    const renderButton = () => {
+      if (!window.google || !googleButtonRef.current) return;
 
-    // 🚀 Initialize Google
-    window.google.accounts.id.initialize({
-      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-      callback: handleCredentialResponse,
-    });
+      clearInterval(interval);
 
-    // 🎯 Render button
-    window.google.accounts.id.renderButton(googleButtonRef.current, {
-      type: 'standard',
-      size: 'large',
-      theme: isDark ? 'filled_black' : 'outline',
-      text: 'continue_with',
-      shape: 'rectangular',
-      width: 380,
-    });
+      googleButtonRef.current.innerHTML = '';
+
+      window.google.accounts.id.initialize({
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse,
+      });
+
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        type: 'standard',
+        size: 'large',
+        theme: isDark ? 'filled_black' : 'outline',
+        width: 380,
+      });
+    };
+
+    renderButton();
+    interval = setInterval(renderButton, 300);
 
     return () => {
+      clearInterval(interval);
       window.google?.accounts.id.cancel();
     };
   }, [handleCredentialResponse, isDark]);
 
-  return (
-    <div className="w-full flex justify-center">
-      <div ref={googleButtonRef} />
-    </div>
-  );
+  return <div ref={googleButtonRef} className="flex justify-center" />;
 };
 
 export default GoogleLogin;
