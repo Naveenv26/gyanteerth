@@ -19,6 +19,7 @@ import StudentCourses from '../pages/student/Courses';
 import StudentCatalog from '../pages/student/Catalog';
 import StudentCertificates from '../pages/student/Certificates';
 import CoursePlayer from '../pages/student/CoursePlayer';
+import StudentLiveSessions from '../pages/student/LiveSessions';
 
 // Trainer
 import TrainerDashboard from '../pages/trainer/Dashboard';
@@ -80,6 +81,7 @@ export const router = createBrowserRouter([
           { index: true, element: <StudentDashboard /> },
           { path: 'browse', element: <StudentCatalog /> },
           { path: 'courses', element: <StudentCourses /> },
+          { path: 'live-sessions', element: <StudentLiveSessions /> },
           { path: 'certificates', element: <StudentCertificates /> }
         ]
       },

@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   PlayCircle, ChevronRight, ChevronLeft, Award,
   Layers, Video, Monitor, Loader2, AlertCircle, ArrowLeft,
-  ChevronDown, BookOpen, ExternalLink, CheckCircle, Menu, Check
+  ChevronDown, BookOpen, ExternalLink, CheckCircle, Menu, Check, Star, X
 } from 'lucide-react';
 import { useEnrollment } from '../../shared/EnrollmentContext';
-import { ADMIN_API } from '../../config';
+import { useAuth } from '../../shared/AuthContext'; // <-- ADD THIS
+import { ADMIN_API, USER_API } from '../../config'; // <-- ADD USER_API
 
 /* ── helpers ─────────────────────────────────── */
 function buildLessons(modules, isLive) {
@@ -30,36 +32,108 @@ function buildLessons(modules, isLive) {
 
 function getEmbedUrl(url) {
   if (!url) return null;
+  
+  // YouTube
   if (url.includes('youtube.com') || url.includes('youtu.be')) {
-    const m = url.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
-    return m ? `https://www.youtube.com/embed/${m[1]}?autoplay=1&rel=0&modestbranding=1` : null;
+    const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/);
+    if (m) {
+      const baseUrl = `https://www.youtube.com/embed/${m[1]}`;
+      const params = new URLSearchParams({
+        autoplay: 1,
+        rel: 0,
+        modestbranding: 1,
+        enablejsapi: 1
+      });
+      return `${baseUrl}?${params.toString()}`;
+    }
   }
+  
+  // Vimeo
   if (url.includes('vimeo.com')) {
-    const m = url.match(/vimeo\.com\/(\d+)/);
+    const m = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/);
     return m ? `https://player.vimeo.com/video/${m[1]}?autoplay=1` : null;
   }
+  
+  // Google Drive
   if (url.includes('drive.google.com')) {
     const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
     return m ? `https://drive.google.com/file/d/${m[1]}/preview` : null;
   }
-  return null;
+
+  // Zoom Web (if they provide the web client URL, otherwise we just try the URL as is in iframe)
+  if (url.includes('zoom.us/j/')) {
+    // Attempting to use the web client version if it's a join link
+    return url.replace('/j/', '/wc/join/');
+  }
+
+  return url; // Default to the URL itself for other providers
 }
 
-/* ── Video Player ─────────────────────────────── */
-function VideoPlayer({ url, title }) {
-  const embedUrl = getEmbedUrl(url);
+/* ── Secure Video Player ─────────────────────────────── */
+function SecureVideoPlayer({ videoId, title }) {
+  const { user, smartFetch, authFetch } = useAuth();
+  const [videoSrc, setVideoSrc] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchSecureUrl = async () => {
+      // 🛡️ Fixed: Checked for 'user' session instead of undefined 'accessToken'
+      if (!videoId || !user) return;
+      
+      try {
+        setLoading(true);
+        // 🚀 SMART FETCH: Use secure cached retrieval for the temporary URL (5 min TTL)
+        const data = await smartFetch(`${USER_API}/get-secure-video/${videoId}`, {
+          cacheKey: `secure_vid_${videoId}`,
+          ttl: 5 * 60 * 1000 
+        });
+        
+        if (!data?.url) throw new Error("Unauthorized or video not found");
+        // data.url should be the temporary Signed URL
+        if (isMounted) setVideoSrc(data.url);
+        
+      } catch (err) {
+        if (isMounted) setError(err.message);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchSecureUrl();
+    return () => { isMounted = false; };
+  }, [videoId, smartFetch, authFetch]);
+
+  const handleContextMenu = (e) => e.preventDefault();
+
+  if (loading) {
+    return (
+      <div style={{ width: '100%', aspectRatio: '16/9', background: '#000', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 size={40} color="#6366f1" className="animate-spin" />
+      </div>
+    );
+  }
+
+  if (error || !videoSrc) {
+    return (
+      <div style={{ width: '100%', aspectRatio: '16/9', background: '#0f172a', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
+        <AlertCircle size={40} color="#ef4444" />
+        <p style={{ color: '#f8fafc', fontWeight: 600 }}>{error || "Video unavailable"}</p>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ width: '100%', background: '#000', borderRadius: '12px', overflow: 'hidden', aspectRatio: '16/9', position: 'relative' }}>
-      {embedUrl ? (
-        <iframe src={embedUrl} title={title} frameBorder="0" allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" style={{ width: '100%', height: '100%' }} />
-      ) : url ? (
-        <video src={url} controls autoPlay style={{ width: '100%', height: '100%' }} />
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem', background: '#0f172a' }}>
-          <Video size={56} color="#6366f1" style={{ opacity: 0.4 }} />
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>No video URL for this lesson</p>
-        </div>
-      )}
+    <div style={{ width: '100%', background: '#000', borderRadius: '12px', overflow: 'hidden', aspectRatio: '16/9' }}>
+      <video 
+        src={videoSrc} 
+        controls 
+        controlsList="nodownload" 
+        onContextMenu={handleContextMenu} 
+        style={{ width: '100%', height: '100%' }} 
+      />
     </div>
   );
 }
@@ -80,6 +154,7 @@ function useCountdown(targetDate) {
 }
 
 function LivePanel({ lesson, onJoin }) {
+  const [showStage, setShowStage] = useState(false);
   const target = lesson.start_time ? new Date(lesson.start_time) : null;
   const end    = lesson.end_time   ? new Date(lesson.end_time)   : null;
   const timeLeft = useCountdown(target);
@@ -110,6 +185,59 @@ function LivePanel({ lesson, onJoin }) {
 
   const countdownStr = isUpcoming ? formatCountdown(timeLeft) : null;
 
+  const handleJoin = () => {
+    setShowStage(true);
+    onJoin(lesson.id, lesson.moduleId);
+  };
+
+  if (showStage && lesson.url) {
+    const embedUrl = getEmbedUrl(lesson.url);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ 
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+          background: 'linear-gradient(90deg, #0f172a, #1e1b4b)', 
+          padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444', animation: 'pulse 1.5s infinite' }} />
+            <h3 style={{ color: 'white', margin: 0, fontSize: '0.9rem', fontWeight: 700 }}>{lesson.title} — Live Stage</h3>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <a href={lesson.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '0.4rem 0.8rem', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none', transition: 'all 0.2s' }}>
+              <ExternalLink size={14} /> Pop-out
+            </a>
+            <button 
+              onClick={() => setShowStage(false)} 
+              style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(239,68,68,0.3)' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#dc2626'}
+              onMouseLeave={e => e.currentTarget.style.background = '#ef4444'}
+            >
+              Exit Stage
+            </button>
+          </div>
+        </div>
+        
+        <div style={{ width: '100%', aspectRatio: '16/9', background: '#000', borderRadius: '16px', overflow: 'hidden', position: 'relative', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+          <iframe 
+            src={embedUrl} 
+            title="Live Session"
+            style={{ width: '100%', height: '100%', border: 'none' }} 
+            allow="camera; microphone; fullscreen; display-capture; autoplay"
+          />
+          <div style={{ position: 'absolute', bottom: '1rem', right: '1rem', pointerEvents: 'none', opacity: 0.5 }}>
+            <Monitor size={48} color="white" />
+          </div>
+        </div>
+
+        <p style={{ color: '#64748b', fontSize: '0.75rem', textAlign: 'center', margin: '0.5rem 0' }}>
+          If the video doesn't load, use the <strong>Pop-out</strong> button above to open the session in a new tab.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)', borderRadius: '20px', padding: '3.5rem 2rem', textAlign: 'center', border: `1px solid ${accent}25`, position: 'relative', overflow: 'hidden' }}>
@@ -138,9 +266,20 @@ function LivePanel({ lesson, onJoin }) {
           {lesson.url && (isOngoing || isUpcoming) && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
               {canJoin ? (
-                <a href={lesson.url} target="_blank" rel="noopener noreferrer" onClick={() => onJoin(lesson.id, lesson.moduleId)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', background: `linear-gradient(135deg, ${accent}, ${accent}cc)`, color: 'white', padding: '1rem 2.5rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 800, fontSize: '1rem', boxShadow: `0 8px 25px ${accent}40` }}>
-                  <ExternalLink size={20} /> {isOngoing ? 'Join Session Now' : 'Enter Waiting Room'}
-                </a>
+                <button 
+                  onClick={handleJoin} 
+                  style={{ 
+                    display: 'inline-flex', alignItems: 'center', gap: '0.75rem', 
+                    background: `linear-gradient(135deg, ${accent}, ${accent}cc)`, 
+                    color: 'white', padding: '1rem 2.5rem', borderRadius: '12px', border: 'none',
+                    fontWeight: 800, fontSize: '1rem', cursor: 'pointer',
+                    boxShadow: `0 8px 25px ${accent}40`, transition: 'transform 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <Monitor size={20} /> {isOngoing ? 'Join Session Now' : 'Enter Waiting Room'}
+                </button>
               ) : (
                 <div style={{ padding: '1.5rem', borderRadius: '12px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <AlertCircle size={20} color="#64748b" />
@@ -262,9 +401,9 @@ function AssessmentPanel({ lesson, onComplete }) {
 function MarkCompleteButton({ isDone, onMark }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <button onClick={onMark} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1.6rem', borderRadius: '12px', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.2s', background: isDone ? (hovered ? '#fee2e2' : 'linear-gradient(135deg, #10b981, #059669)') : 'white', color: isDone ? (hovered ? '#ef4444' : 'white') : '#10b981', border: isDone ? (hovered ? '2px solid #ef4444' : '2px solid transparent') : '2px solid #10b981', transform: hovered ? 'translateY(-1px)' : 'none' }}>
-      {isDone ? (hovered ? <><AlertCircle size={18} /> Undo Complete</> : <><CheckCircle size={18} /> Completed</>) : (<><Check size={18} /> Mark as Complete</>)}
+    <button onClick={isDone ? undefined : onMark} onMouseEnter={() => !isDone && setHovered(true)} onMouseLeave={() => !isDone && setHovered(false)}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1.6rem', borderRadius: '12px', fontWeight: 800, fontSize: '0.9rem', cursor: isDone ? 'default' : 'pointer', transition: 'all 0.2s', background: isDone ? 'linear-gradient(135deg, #10b981, #059669)' : 'white', color: isDone ? 'white' : '#10b981', border: isDone ? '2px solid transparent' : '2px solid #10b981', transform: hovered && !isDone ? 'translateY(-1px)' : 'none', opacity: isDone ? 0.9 : 1 }}>
+      {isDone ? (<><CheckCircle size={18} /> Completed</>) : (<><Check size={18} /> Mark as Complete</>)}
     </button>
   );
 }
@@ -276,6 +415,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const enrollment = useEnrollment();
+  const { authFetch } = useAuth(); // <-- Inject Secure Wrapper
   
   // Safe extraction of enrollment hooks/data
   const markLessonComplete = isTrainer ? () => {} : enrollment?.markLessonComplete;
@@ -297,6 +437,32 @@ const CoursePlayer = ({ isTrainer = false }) => {
   const [sidebarOpen, setSidebarOpen]     = useState(true);
   const [expandedModules, setExpandedModules] = useState({});
   const [justCompleted, setJustCompleted] = useState(false);
+  
+  // ── Review state ────────────────────────────────────────────────────────
+  const [showReview, setShowReview] = useState(false);
+  const [feedbackForm, setFeedbackForm] = useState({ Course_rating: '5', Instructor_rating: '5', Review: '' });
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!id) return;
+    setSubmittingReview(true);
+    try {
+      const res = await authFetch(`${USER_API}/courses/${id}/feedback/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(feedbackForm),
+      });
+      if (!res.ok) throw new Error('Feedback submission failed');
+      setReviewSuccess(true);
+      setTimeout(() => setShowReview(false), 2500);
+    } catch (err) {
+      console.error('Feedback error:', err);
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   // DEBUG LOG
   useEffect(() => {
@@ -311,7 +477,8 @@ const CoursePlayer = ({ isTrainer = false }) => {
     (async () => {
       try {
         setLoading(true);
-        const res  = await fetch(`${ADMIN_API}/course/${id}/full-details`);
+        // Securely fetch details
+        const res = await authFetch(`${ADMIN_API}/course/${id}/full-details`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.status && data.course) {
@@ -348,7 +515,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
       } catch (e) { setError(e.message); }
       finally { setLoading(false); }
     })();
-  }, [id, isTrainer]);
+  }, [id, isTrainer, authFetch]);
 
   // Reset just-completed animation when lesson changes
   useEffect(() => { setJustCompleted(false); }, [currentIdx]);
@@ -374,23 +541,24 @@ const CoursePlayer = ({ isTrainer = false }) => {
     const mid = currentLesson.moduleId;
     const isCurrentlyDone = isLessonComplete(sId, lId);
     
+    // Short circuit if already done -- meaning no undo!
+    if (isCurrentlyDone) return;
+    
     // 1. Sync Backend
-    if (!isCurrentlyDone) {
-      if (currentLesson.type === 'video') {
-        await markVideoProgress(sId, mid, lId);
-      } else if (currentLesson.type === 'live') {
-        // Attendance logic: Manual completion implies they attended/watched
-        await markLiveAttendance(sId, lId, mid, true, true);
-      } else if (currentLesson.type === 'assessment') {
-        // Assessment completion is usually handled inside the AssessmentPanel,
-        // but if they click the header button on a passed exam, we sync it.
-        await fetchCourseProgress(sId);
-      }
+    if (currentLesson.type === 'video') {
+      await markVideoProgress(sId, mid, lId);
+    } else if (currentLesson.type === 'live') {
+      // Attendance logic: Manual completion implies they attended/watched
+      await markLiveAttendance(sId, lId, mid, true, true);
+    } else if (currentLesson.type === 'assessment') {
+      // Assessment completion is usually handled inside the AssessmentPanel,
+      // but if they click the header button on a passed exam, we sync it.
+      await fetchCourseProgress(sId);
     }
     
     // 2. Update Local UI
     markLessonComplete(sId, lId, totalLessons);
-    if (!isCurrentlyDone) setJustCompleted(true);
+    setJustCompleted(true);
   }, [currentLesson, courseId, totalLessons, markLessonComplete, isLessonComplete, markVideoProgress, markLiveAttendance, fetchCourseProgress, isTrainer]);
 
   const go = idx => setCurrentIdx(Math.max(0, Math.min(lessons.length - 1, idx)));
@@ -474,6 +642,16 @@ const CoursePlayer = ({ isTrainer = false }) => {
         {/* Progress pill - HIDDEN for trainers */}
         {!isTrainer && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 1.5rem', flexShrink: 0 }}>
+            {progressPct === 100 && (
+              <button 
+                onClick={() => { setReviewSuccess(false); setShowReview(true); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#f97316', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 10px rgba(249,115,22,0.3)', marginRight: '0.5rem' }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+              >
+                <Star size={14} /> Rate Course
+              </button>
+            )}
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '0.68rem', color: '#475569', fontWeight: 600 }}>PROGRESS</div>
               <div style={{ fontSize: '0.78rem', color: progressPct === 100 ? '#10b981' : '#a5b4fc', fontWeight: 800 }}>
@@ -623,7 +801,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
                   </div>
 
                   {/* Lesson content */}
-                  {currentLesson.type === 'video' && <VideoPlayer url={currentLesson.url} title={currentLesson.title} />}
+                  {currentLesson.type === 'video' && <SecureVideoPlayer videoId={currentLesson.id} title={currentLesson.title} />}
                   {currentLesson.type === 'live'  && (
                     <LivePanel 
                       lesson={currentLesson} 
@@ -684,6 +862,89 @@ const CoursePlayer = ({ isTrainer = false }) => {
           </div>
         </main>
       </div>
+
+      {/* ── Review Modal ────────────────────────────────────────────────── */}
+      {/* ── Review Modal ────────────────────────────────────────────────── */}
+      {showReview && createPortal(
+          <div
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+            onClick={() => setShowReview(false)}
+          >
+            <div
+              style={{ position: 'relative', width: 'min(95vw, 440px)', backgroundColor: 'white', borderRadius: '1.5rem', overflow: 'hidden', boxShadow: '0 30px 60px rgba(0,0,0,0.3)', border: '1px solid #f1f5f9' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Stepped Journey Background */}
+              <div style={{ position: 'absolute', inset: 0, opacity: 0.85, pointerEvents: 'none', zIndex: 0, background: `linear-gradient(135deg, 
+                rgba(249,115,22,0.18) 0%, rgba(249,115,22,0.18) 15%,
+                rgba(249,115,22,0.10) 15%, rgba(249,115,22,0.10) 30%,
+                rgba(249,115,22,0.04) 30%, rgba(249,115,22,0.04) 45%,
+                transparent 45%, transparent 55%,
+                rgba(16,185,129,0.04) 55%, rgba(16,185,129,0.04) 70%,
+                rgba(16,185,129,0.10) 70%, rgba(16,185,129,0.10) 85%,
+                rgba(16,185,129,0.18) 85%, rgba(16,185,129,0.18) 100%)` }} />
+              
+              {/* Dashing Light Beam across the steps */}
+              <div style={{ position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%', background: 'linear-gradient(115deg, transparent 48.5%, rgba(255,255,255,0.7) 49.5%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.7) 50.5%, transparent 51.5%)', pointerEvents: 'none', zIndex: 0 }} />
+              
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                {reviewSuccess ? (
+                  <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
+                    <div style={{ width: '80px', height: '80px', background: '#f0fdf4', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', border: '2px solid #10b981' }}>
+                      <CheckCircle size={40} color="#10b981" />
+                    </div>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#064e3b' }}>Feedback Received!</h2>
+                    <p style={{ color: '#047857', marginTop: '0.4rem', fontWeight: 600, fontSize: '0.9rem' }}>Thank you for helping us evolve.</p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmitReview} style={{ padding: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+                      <div>
+                        <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#1e293b', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                          <Star size={20} color="#f97316" /> Course Evaluation
+                        </h2>
+                        <div style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '0.3rem', marginLeft: '1.75rem' }}>Goal Achieved! You reached the top.</div>
+                      </div>
+                      <button type="button" onClick={() => setShowReview(false)} style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#f8fafc', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0 }} onMouseEnter={e=>e.currentTarget.style.background='#f1f5f9'} onMouseLeave={e=>e.currentTarget.style.background='#f8fafc'}>
+                        <X size={18} color="#64748b" />
+                      </button>
+                    </div>
+
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>Overall Rating</label>
+                      <div style={{ display: 'flex', gap: '0.35rem' }}>
+                        {[1, 2, 3, 4, 5].map(num => (
+                          <button key={num} type="button" onClick={() => setFeedbackForm(prev => ({ ...prev, Course_rating: String(num) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem', transition: 'transform 0.1s' }} onMouseEnter={e=>e.currentTarget.style.transform='scale(1.1)'} onMouseLeave={e=>e.currentTarget.style.transform='none'}>
+                            <Star size={32} fill={num <= parseInt(feedbackForm.Course_rating) ? '#f97316' : '#f1f5f9'} color={num <= parseInt(feedbackForm.Course_rating) ? '#f97316' : '#cbd5e1'} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: '1.75rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>Your Review</label>
+                      <textarea
+                        required rows="3"
+                        placeholder="Tell us what you liked most..."
+                        value={feedbackForm.Review}
+                        onChange={e => setFeedbackForm(prev => ({ ...prev, Review: e.target.value }))}
+                        style={{ width: '100%', padding: '1rem', borderRadius: '1rem', border: '1px solid #e2e8f0', background: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', resize: 'none', outline: 'none', transition: 'border 0.2s', fontFamily: 'inherit' }}
+                        onFocus={e=>e.currentTarget.style.borderColor='#10b981'}
+                        onBlur={e=>e.currentTarget.style.borderColor='#e2e8f0'}
+                      />
+                    </div>
+
+                    <button type="submit" disabled={submittingReview} style={{ width: '100%', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', border: 'none', padding: '1rem', borderRadius: '1rem', fontWeight: 800, fontSize: '0.95rem', cursor: submittingReview ? 'not-allowed' : 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)', opacity: submittingReview ? 0.7 : 1, transition: 'transform 0.2s' }} onMouseEnter={e=>!submittingReview&&(e.currentTarget.style.transform='translateY(-2px)')} onMouseLeave={e=>!submittingReview&&(e.currentTarget.style.transform='none')}>
+                      {submittingReview ? <Loader2 size={18} className="animate-spin" /> : <Award size={18} />}
+                      {submittingReview ? 'Submitting...' : 'Submit Review'}
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }

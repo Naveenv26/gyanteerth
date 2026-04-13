@@ -5,61 +5,43 @@ import { AUTH_API } from '../config';
 import { useAuth } from '../shared/AuthContext';
 
 const ProtectedRoute = ({ allowedRoles }) => {
-  const { user, accessToken, loading: authLoading, logout } = useAuth();
+  const { user, loading: authLoading, authFetch } = useAuth();
   const [isVerifying, setIsVerifying] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const performSecurityCheck = async () => {
-      // If auth is still loading, wait
       if (authLoading) return;
 
-      // If no user/token locally, redirect immediately (base case)
-      if (!user || !accessToken) {
+      if (!user) {
         setIsVerifying(false);
         return;
       }
 
-      // Check server validation
       try {
-        // Use the user's ACTUAL role to determine which endpoint to call,
-        // not just whether 'admin' is in the allowedRoles list.
-        // This fixes multi-role routes like /complete-profile that allow all roles.
         let endpoint = `${AUTH_API}/security_check/`;
-        if (user?.role === 'admin') {
-          endpoint = `${AUTH_API}/security_check_admin/`;
-        } else if (user?.role === 'trainer') {
-          endpoint = `${AUTH_API}/security_check_trainer/`;
-        }
+        if (user?.role === 'admin') endpoint = `${AUTH_API}/security_check_admin/`;
+        else if (user?.role === 'trainer') endpoint = `${AUTH_API}/security_check_trainer/`;
 
-        const response = await fetch(endpoint, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'application/json'
-          }
-        });
+        // Notice we just use authFetch. No headers needed.
+        // If it fails with a 401, authFetch handles the logout automatically.
+        const response = await authFetch(endpoint, { method: 'GET' });
 
         if (response.ok) {
           setIsVerifying(false);
         } else {
-          // If server says no (401 or 403), logout and redirect
-          console.error("Security check failed:", response.status);
-          logout();
           setError("Session expired or unauthorized access.");
           setIsVerifying(false);
         }
       } catch (err) {
         console.error("Network error during security check:", err);
-        // On network error, we might decide to let them in if local state is fine,
-        // or block for safety. User wants "more secure", so we block.
         setError("Network error. Please try again.");
         setIsVerifying(false);
       }
     };
 
     performSecurityCheck();
-  }, [authLoading, user, accessToken, allowedRoles, logout]);
+  }, [authLoading, user, allowedRoles, authFetch]);
 
   if (authLoading || isVerifying) {
     return (
@@ -81,12 +63,10 @@ const ProtectedRoute = ({ allowedRoles }) => {
     );
   }
 
-  // If there's no user or token after verification
-  if (!user || !accessToken || error) {
+  if (!user || error) {
     return <Navigate to="/login" replace />;
   }
 
-  // Double check role locally
   if (allowedRoles?.length > 0 && !allowedRoles.includes(user.role)) {
     if (user.role === 'admin') return <Navigate to="/admin" replace />;
     if (user.role === 'trainer') return <Navigate to="/trainer" replace />;

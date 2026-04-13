@@ -9,7 +9,7 @@ import { useAuth } from '../../shared/AuthContext';
 import { USER_API, API_BASE } from '../../config';
 
 const CompleteProfile = () => {
-  const { user, accessToken, login, logout } = useAuth();
+  const { user, authFetch, login, logout } = useAuth();
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(false);
@@ -30,15 +30,14 @@ const CompleteProfile = () => {
 
   useEffect(() => {
     const fetchCurrentProfile = async () => {
-      if (!accessToken && !user) {
+      if (!user) {
         navigate('/login');
         return;
       }
 
       try {
-        const response = await fetch(`${USER_API}/profile`, {
+        const response = await authFetch(`${USER_API}/profile`, {
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
             'Accept': 'application/json'
           }
         });
@@ -68,7 +67,7 @@ const CompleteProfile = () => {
     };
 
     fetchCurrentProfile();
-  }, [accessToken, user, navigate, logout]);
+  }, [authFetch, user, navigate, logout]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -112,10 +111,9 @@ const CompleteProfile = () => {
         data.append('user_pic', profilePic);
       }
 
-      const response = await fetch(`${USER_API}/update_profile`, {
+      const response = await authFetch(`${USER_API}/update_profile`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
           'Accept': 'application/json'
         },
         body: data
@@ -126,7 +124,7 @@ const CompleteProfile = () => {
       if (response.ok) {
         setSuccess(true);
         const updatedUser = { ...user, name: formData.user_name, pic: result.user_pic || previewUrl };
-        login(updatedUser, { access_token: accessToken });
+        login(updatedUser);
         
         setTimeout(() => {
           navigate(`/${user.role}`);

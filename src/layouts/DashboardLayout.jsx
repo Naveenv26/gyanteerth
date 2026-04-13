@@ -55,7 +55,7 @@ const SidebarLink = ({ to, icon, label, currentPath }) => {
 };
 
 const DashboardLayout = () => {
-  const { user, logout } = useAuth();
+  const { user, login, logout, authFetch } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -72,6 +72,33 @@ const DashboardLayout = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Fetch latest profile pic from server on mount — students only
+  useEffect(() => {
+    // Only sync for students; trainers/admins use a different profile endpoint
+    if (!user || user.role !== 'student') return;
+
+    const syncProfile = async () => {
+      try {
+        const { USER_API } = await import('../config');
+        const token = localStorage.getItem('_gt_auth_tkn');
+        // Use plain fetch (not authFetch) so a non-200 never triggers auto-logout
+        const res = await fetch(`${USER_API}/profile`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const pic  = data.user_pic || data.pic || null;
+        const name = data.user_name || data.name || user.name;
+        if (pic !== user.pic || name !== user.name) {
+          login({ ...user, pic, name });
+        }
+      } catch { /* silent */ }
+    };
+
+    syncProfile();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.user_id]);
 
   // Role-based navigation items
   const getNavItems = () => {
@@ -98,6 +125,7 @@ const DashboardLayout = () => {
           { to: '/student', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
           { to: '/student/browse', icon: <Compass size={20} />, label: 'Browse Courses' },
           { to: '/student/courses', icon: <Book size={20} />, label: 'My Learning' },
+          { to: '/student/live-sessions', icon: <Video size={20} />, label: 'Live Sessions' },
           { to: '/student/certificates', icon: <FileText size={20} />, label: 'Certificates' },
         ];
     }
@@ -155,39 +183,36 @@ const DashboardLayout = () => {
                   border: '1px solid var(--color-border)'
                 }}
               >
-                <button
-                  onClick={() => {
-                    setProfileMenuOpen(false);
-                    const isStudent = user?.role === 'student' || user?.role === 'user';
-                    if (isStudent) {
-                      navigate('/complete-profile');
-                    } else {
-                      // Non-students stay on their dashboard or go to a generic settings page if exists
-                      // For now, just stay/refresh dashboard to avoid 403
-                      navigate(`/${user?.role}`);
-                    }
-                  }}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '1rem',
-                    padding: '1rem',
-                    color: 'var(--color-text)',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    transition: 'background 0.2s',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <UserCog size={18} style={{ color: 'var(--color-primary)' }} />
-                  <span>Update Profile</span>
-                </button>
-                <div style={{ height: '1px', backgroundColor: 'var(--color-border)' }} />
+                {(user?.role === 'student' || user?.role === 'user') && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        navigate('/complete-profile');
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        padding: '1rem',
+                        color: 'var(--color-text)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        transition: 'background 0.2s',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <UserCog size={18} style={{ color: 'var(--color-primary)' }} />
+                      <span>Update Profile</span>
+                    </button>
+                    <div style={{ height: '1px', backgroundColor: 'var(--color-border)' }} />
+                  </>
+                )}
                 <button
                   onClick={() => {
                     setProfileMenuOpen(false);
@@ -235,8 +260,14 @@ const DashboardLayout = () => {
               textAlign: 'left'
             }}
           >
-            <div style={{ backgroundColor: 'var(--color-primary)', color: 'white', minWidth: '2.5rem', height: '2.5rem', borderRadius: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '950', fontSize: '1rem', border: '2px solid var(--color-border)' }}>
-              {user?.name?.charAt(0) || 'U'}
+            <div style={{ minWidth: '2.5rem', height: '2.5rem', borderRadius: '0.85rem', overflow: 'hidden', border: '2px solid var(--color-border)', flexShrink: 0 }}>
+              {user?.pic ? (
+                <img src={user.pic} alt={user?.name || 'User'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ backgroundColor: 'var(--color-primary)', color: 'white', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '950', fontSize: '1rem' }}>
+                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                </div>
+              )}
             </div>
             <div style={{ overflow: 'hidden', flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--color-text)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{user?.name || 'User'}</div>
@@ -298,17 +329,7 @@ const DashboardLayout = () => {
         {/* Page Content with Motion Orchestration */}
         <div className="dashboard-content-scroll" style={{ padding: 'var(--page-padding)' }}>
           <div className="max-container" style={{ maxWidth: '1600px', margin: '0 auto', width: '100%' }}>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-              >
                 <Outlet />
-              </motion.div>
-            </AnimatePresence>
           </div>
         </div>
       </main>

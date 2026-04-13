@@ -15,7 +15,7 @@ import { ADMIN_API } from '../../config';
 const AdminCurriculum = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const { user, accessToken } = useAuth();
+  const { user, authFetch } = useAuth();
 
   const [course, setCourse] = useState(null);
   const [modules, setModules] = useState([]);
@@ -44,17 +44,12 @@ const AdminCurriculum = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const headers = useCallback(() => ({
-    'Authorization': `Bearer ${accessToken}`,
-    'Accept': 'application/json',
-    'Content-Type': 'application/json'
-  }), [accessToken]);
 
   const fetchCurriculum = useCallback(async () => {
-    if (!accessToken) return;
+    if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch(`${ADMIN_API}/course/${courseId}/full-details`, { headers: headers() });
+      const res = await authFetch(`${ADMIN_API}/course/${courseId}/full-details`);
       if (res.ok) {
         const data = await res.json();
         const rawCourse = data.course || data;
@@ -132,20 +127,20 @@ const AdminCurriculum = () => {
       }
     } catch (err) { console.error('fetchCurriculum failed:', err); showToast('Data synchronization failed', 'error'); }
     finally { setLoading(false); }
-  }, [courseId, accessToken, headers, activeModule, activeAssessment]);
+  }, [courseId, authFetch, activeModule, activeAssessment]);
 
   useEffect(() => {
-    if (accessToken) fetchCurriculum();
-  }, [courseId, accessToken]);
+    fetchCurriculum();
+  }, [courseId, authFetch]);
 
   const handleModuleSubmit = async (e) => {
     e.preventDefault();
     setActionLoading(true);
     const url = moduleForm.editingId ? `${ADMIN_API}/update_module/${moduleForm.editingId}` : `${ADMIN_API}/create_module`;
     try {
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method: moduleForm.editingId ? 'PUT' : 'POST',
-        headers: headers(),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ Course_ID: courseId, Title: moduleForm.Title, Course_Description: moduleForm.Description, Position: parseInt(moduleForm.Position) || 1 })
       });
       if (res.ok) { showToast(moduleForm.editingId ? 'Chapter updated' : 'Chapter created'); setShowModuleForm(false); setModuleForm({ Title: '', Description: '', Position: 0, editingId: null }); await fetchCurriculum(); }
@@ -155,7 +150,7 @@ const AdminCurriculum = () => {
   const deleteModule = async (id) => {
     if (!window.confirm('Erase this chapter? This cannot be undone.')) return;
     try {
-      const res = await fetch(`${ADMIN_API}/delete-module/${id}`, { method: 'DELETE', headers: headers() });
+      const res = await authFetch(`${ADMIN_API}/delete-module/${id}`, { method: 'DELETE' });
       if (res.ok) { showToast('Chapter Removed'); fetchCurriculum(); }
     } catch (err) { showToast('Action failed', 'error'); }
   };
@@ -177,9 +172,9 @@ const AdminCurriculum = () => {
       if (type === 'notes') { body.File_URL = payload.Note_URL; if (!payload.File_Type) body.File_Type = 'link'; delete body.Note_URL; }
       if (type === 'video') { body.Video_URL = payload.video_url; body.course_description = payload.course_description || payload.title; delete body.video_url; }
 
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method: isUpdate ? 'PUT' : 'POST',
-        headers: headers(),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
       if (res.ok) {
@@ -194,7 +189,7 @@ const AdminCurriculum = () => {
     if (!window.confirm(`Delete this ${type}?`)) return;
     const endpoints = { video: 'delete-video', live: 'delete-live', notes: 'delete-notes', assessment: 'delete-assessment', question: 'delete-question' };
     try {
-      const res = await fetch(`${ADMIN_API}/${endpoints[type]}/${id}`, { method: 'DELETE', headers: headers() });
+      const res = await authFetch(`${ADMIN_API}/${endpoints[type]}/${id}`, { method: 'DELETE' });
       if (res.ok) { showToast('Successfully Removed'); fetchCurriculum(); }
     } catch (err) { showToast('Operation failed', 'error'); }
   };
@@ -204,7 +199,11 @@ const AdminCurriculum = () => {
     const bodyKey1 = endpoint.includes('module') ? 'module_id_1' : 'question_id_1';
     const bodyKey2 = endpoint.includes('module') ? 'module_id_2' : 'question_id_2';
     try {
-      const res = await fetch(`${ADMIN_API}/${endpoint}`, { method: 'PUT', headers: headers(), body: JSON.stringify({ [bodyKey1]: id1, [bodyKey2]: id2 }) });
+      const res = await authFetch(`${ADMIN_API}/${endpoint}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [bodyKey1]: id1, [bodyKey2]: id2 })
+      });
       if (res.ok) { showToast('Priority Updated'); await fetchCurriculum(); }
     } finally { setActionLoading(false); }
   };
@@ -523,14 +522,14 @@ const AdminCurriculum = () => {
                 <button onClick={async () => {
                   setActionLoading(true); try {
                     // ✅ Fetch fresh data — positions are GLOBALLY shared across all assessments in DB
-                    const freshRes = await fetch(`${ADMIN_API}/course/${courseId}/full-details`, { headers: headers() });
+                    const freshRes = await authFetch(`${ADMIN_API}/course/${courseId}/full-details`);
                     // ✅ Random int within 32-bit integer safe range (max: 2,147,483,647)
                     // Collision chance is ~1 in 2 billion — effectively zero
                     const nextPos = Math.floor(Math.random() * 2000000000) + 1000;
 
-                    const res = await fetch(`${ADMIN_API}/create_question`, {
+                    const res = await authFetch(`${ADMIN_API}/create_question`, {
                       method: 'POST',
-                      headers: headers(),
+                      headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
                         Assessment_ID: activeAssessment.assessment_id,
                         Question_Txt: questionForm.Question_Txt,
@@ -550,9 +549,9 @@ const AdminCurriculum = () => {
                       for (const o of options) {
                         // ✅ Same fix as question position — globally shared option table
                         const optPos = Math.floor(Math.random() * 2000000000) + 1000;
-                        await fetch(`${ADMIN_API}/create_option`, {
+                        await authFetch(`${ADMIN_API}/create_option`, {
                           method: 'POST',
-                          headers: headers(),
+                          headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
                             Question_ID: qId,
                             Option_Txt: o.Option_Txt,

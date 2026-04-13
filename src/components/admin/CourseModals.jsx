@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
    X, XCircle, CheckCircle2, Loader2, ArrowRight, PlusCircle, Edit, Info, FolderPlus, Play, Trash2, Video, Layers, FileText, Clock, Link, Monitor, Film, Timer, HelpCircle, Award, Hash, Book, Globe, User, Users, Zap
 } from 'lucide-react';
@@ -40,7 +40,8 @@ const FormSelect = ({ label, children, ...props }) => (
    </div>
 );
 
-export const CreateCategoryModal = ({ onClose, refresh, showToast, categories, accessToken }) => {
+export const CreateCategoryModal = ({ onClose, refresh, showToast, categories }) => {
+   const { authFetch } = useAuth();
    const [loading, setLoading] = useState(false);
 
    const [formData, setFormData] = useState({
@@ -52,19 +53,13 @@ export const CreateCategoryModal = ({ onClose, refresh, showToast, categories, a
       Thumbnail: ''
    });
 
-   if (!accessToken) return null;
-
    const handleSubmit = async (e) => {
       e.preventDefault();
       setLoading(true);
       try {
-         const res = await fetch(`${ADMIN_API}/create-category`, {
+         const res = await authFetch(`${ADMIN_API}/create-category`, {
             method: 'POST',
-            headers: {
-               'Authorization': `Bearer ${accessToken}`,
-               'Accept': 'application/json',
-               'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                ...formData,
                Thumbnail: formData.Thumbnail || 'https://images.unsplash.com/photo-1542744094-3a31f272c490?w=800'
@@ -145,7 +140,7 @@ export const CreateCategoryModal = ({ onClose, refresh, showToast, categories, a
 };
 
 export const CreateCourseModal = ({ onClose, trainers, categories, showToast, refresh, initialCategoryId = '' }) => {
-   const { accessToken } = useAuth();
+   const { authFetch } = useAuth();
    const [loading, setLoading] = useState(false);
 
    const [formData, setFormData] = useState({
@@ -170,9 +165,9 @@ export const CreateCourseModal = ({ onClose, trainers, categories, showToast, re
       if (!formData.instructor_id || !formData.category_id) return showToast('Instructor & Category are required', 'error');
       setLoading(true);
       try {
-         const res = await fetch(`${ADMIN_API}/create_course?instructor_id=${formData.instructor_id}`, {
+         const res = await authFetch(`${ADMIN_API}/create_course?instructor_id=${formData.instructor_id}`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                category_id: formData.category_id,
                course_Type: formData.course_Type.toLowerCase().trim(),
@@ -281,7 +276,7 @@ export const CreateCourseModal = ({ onClose, trainers, categories, showToast, re
 };
 
 export const EditCourseModal = ({ course, onClose, trainers, categories, showToast, refresh }) => {
-   const { accessToken } = useAuth();
+   const { authFetch } = useAuth();
    const [loading, setLoading] = useState(false);
 
    const [formData, setFormData] = useState({
@@ -306,9 +301,9 @@ export const EditCourseModal = ({ course, onClose, trainers, categories, showToa
       if (!formData.instructor_id || !formData.category_id) return showToast('Instructor & Category are required', 'error');
       setLoading(true);
       try {
-         const res = await fetch(`${ADMIN_API}/update_course/${course.course_id}?instructor_id=${formData.instructor_id}`, {
+         const res = await authFetch(`${ADMIN_API}/update_course/${course.course_id}?instructor_id=${formData.instructor_id}`, {
             method: 'PUT',
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                category_id: formData.category_id,
                course_Type: formData.course_Type.toLowerCase().trim(),
@@ -416,7 +411,7 @@ export const EditCourseModal = ({ course, onClose, trainers, categories, showToa
 };
 
 export const ManageDemoModal = ({ course, onClose, showToast, refresh }) => {
-   const { accessToken } = useAuth();
+   const { authFetch } = useAuth();
    const [loading, setLoading] = useState(false);
    const [demos, setDemos] = useState(course.demo || []);
    const [editingDemo, setEditingDemo] = useState(null);
@@ -441,18 +436,18 @@ export const ManageDemoModal = ({ course, onClose, showToast, refresh }) => {
             ? { title: formData.title, video_url: formData.video_url, duration: formData.duration }
             : { course_id: course.course_id, title: formData.title, video_url: formData.video_url, duration: formData.duration };
 
-         const res = await fetch(url, {
+         const res = await authFetch(url, {
             method,
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
          });
 
          if (res.ok) {
             showToast(isEdit ? 'Demo updated' : 'Demo added');
+            // Bust detail cache to show dynamic changes
+            clearCache(`details_${course.course_id}`);
             // Fetch updated course details to sync demos
-            const detailRes = await fetch(`${ADMIN_API}/course/${course.course_id}/full-details`, {
-               headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
-            });
+            const detailRes = await authFetch(`${ADMIN_API}/course/${course.course_id}/full-details`);
             if (detailRes.ok) {
                const data = await detailRes.json();
                setDemos(data.course.demo || []);
@@ -474,9 +469,8 @@ export const ManageDemoModal = ({ course, onClose, showToast, refresh }) => {
    const handleDelete = async (demoId) => {
       if (!window.confirm('Remove this demo video?')) return;
       try {
-         const res = await fetch(`${ADMIN_API}/delete-demo/${demoId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+         const res = await authFetch(`${ADMIN_API}/delete-demo/${demoId}`, {
+            method: 'DELETE'
          });
          if (res.ok) {
             setDemos(demos.filter(d => d.demo_id !== demoId));
@@ -587,7 +581,7 @@ export const ManageDemoModal = ({ course, onClose, showToast, refresh }) => {
 };
 
 export const ManageModuleModal = ({ course, onClose, showToast, refresh }) => {
-   const { accessToken } = useAuth();
+   const { authFetch } = useAuth();
    const [loading, setLoading] = useState(false);
    const [modules, setModules] = useState(course.modules || []);
    const [editingModule, setEditingModule] = useState(null);
@@ -601,7 +595,7 @@ export const ManageModuleModal = ({ course, onClose, showToast, refresh }) => {
    const [assessmentForm, setAssessmentForm] = useState({ Title: '', Description: '', Total_Mark: 100, Passing_Mark: 40, Duration: 30, Attempt_Limit: 3, Status: 'active', editingId: null });
 
    const fetchFullCourse = async () => {
-      const res = await fetch(`${ADMIN_API}/course/${course.course_id}/full-details`, { headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' } });
+      const res = await authFetch(`${ADMIN_API}/course/${course.course_id}/full-details`);
       if (res.ok) {
          const data = await res.json();
          // ✅ Map content.videos → video so the list renders correctly
@@ -631,8 +625,15 @@ export const ManageModuleModal = ({ course, onClose, showToast, refresh }) => {
          const body = isEdit
             ? { Title: formData.Title, Course_Description: formData.Course_Description }
             : { Course_ID: course.course_id, Title: formData.Title, Course_Description: formData.Course_Description, Position: parseInt(formData.Position) };
-         const res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-         if (res.ok) { showToast(isEdit ? 'Module updated' : 'Module created'); await fetchFullCourse(); setFormData({ Title: '', Course_Description: '', Position: modules.length + 1 }); setEditingModule(null); refresh(); }
+         const res = await authFetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+         if (res.ok) { 
+            showToast(isEdit ? 'Module updated' : 'Module created'); 
+            clearCache(`details_${course.course_id}`);
+            await fetchFullCourse(); 
+            setFormData({ Title: '', Course_Description: '', Position: modules.length + 1 }); 
+            setEditingModule(null); 
+            refresh(); 
+         }
          else { const err = await res.json(); showToast(err.detail || err.message || 'Module operation failed', 'error'); }
       } catch (err) { showToast('Sync error', 'error'); } finally { setLoading(false); }
    };
@@ -644,8 +645,14 @@ export const ManageModuleModal = ({ course, onClose, showToast, refresh }) => {
          const isEdit = !!videoForm.editingId;
          const url = isEdit ? `${ADMIN_API}/update_video/${videoForm.editingId}` : `${ADMIN_API}/create_video`;
          const body = { Course_ID: course.course_id, Module_ID: activeModuleId, Video_URL: videoForm.Video_URL, course_description: videoForm.course_description };
-         const res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-         if (res.ok) { showToast(isEdit ? 'Lesson updated' : 'Lesson added'); await fetchFullCourse(); setVideoForm({ Video_URL: '', course_description: '', editingId: null }); refresh(); }
+         const res = await authFetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+         if (res.ok) { 
+            showToast(isEdit ? 'Lesson updated' : 'Lesson added'); 
+            clearCache(`details_${course.course_id}`);
+            await fetchFullCourse(); 
+            setVideoForm({ Video_URL: '', course_description: '', editingId: null }); 
+            refresh(); 
+         }
          else { const err = await res.json(); showToast(err.detail || err.message || 'Video operation failed', 'error'); }
       } catch (err) { showToast('Sync error', 'error'); } finally { setLoading(false); }
    };
@@ -661,8 +668,14 @@ export const ManageModuleModal = ({ course, onClose, showToast, refresh }) => {
             Meeting_URL: liveForm.Meeting_URL, Provider: liveForm.Provider,
             Start_time: liveForm.Start_time, End_time: liveForm.End_time, Status: liveForm.Status
          };
-         const res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-         if (res.ok) { showToast(isEdit ? 'Live session updated' : 'Live session created'); await fetchFullCourse(); setLiveForm({ Meeting_URL: '', Provider: 'Zoom', Start_time: '', End_time: '', Status: 'scheduled', editingId: null }); refresh(); }
+         const res = await authFetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+         if (res.ok) { 
+            showToast(isEdit ? 'Live session updated' : 'Live session created'); 
+            clearCache(`details_${course.course_id}`);
+            await fetchFullCourse(); 
+            setLiveForm({ Meeting_URL: '', Provider: 'Zoom', Start_time: '', End_time: '', Status: 'scheduled', editingId: null }); 
+            refresh(); 
+         }
          else { const err = await res.json(); showToast(err.detail || err.message || 'Live session operation failed', 'error'); }
       } catch (err) { showToast('Sync error', 'error'); } finally { setLoading(false); }
    };
@@ -674,7 +687,7 @@ export const ManageModuleModal = ({ course, onClose, showToast, refresh }) => {
          const isEdit = !!recForm.editingId;
          const url = isEdit ? `${ADMIN_API}/update_recorded_video/${recForm.editingId}` : `${ADMIN_API}/create_recorded_video`;
          const body = { Course_ID: course.course_id, Live_ID: recForm.Live_ID, Rec_Video_URL: recForm.Rec_Video_URL, Duration: recForm.Duration };
-         const res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+         const res = await authFetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
          if (res.ok) { showToast(isEdit ? 'Recording updated' : 'Recording attached'); await fetchFullCourse(); setRecForm({ Live_ID: null, Rec_Video_URL: '', Duration: '', editingId: null }); }
          else { const err = await res.json(); showToast(err.detail || err.message || 'Recording operation failed', 'error'); }
       } catch (err) { showToast('Sync error', 'error'); } finally { setLoading(false); }
@@ -696,7 +709,7 @@ export const ManageModuleModal = ({ course, onClose, showToast, refresh }) => {
             Attempt_Limit: parseInt(assessmentForm.Attempt_Limit),
             Status: assessmentForm.Status
          };
-         const res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+         const res = await authFetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
          if (res.ok) {
             showToast(isEdit ? 'Assessment updated' : 'Assessment created');
             await fetchFullCourse();
@@ -710,25 +723,25 @@ export const ManageModuleModal = ({ course, onClose, showToast, refresh }) => {
 
    const deleteVideo = async (id) => {
       if (!window.confirm('Delete lesson?')) return;
-      const res = await fetch(`${ADMIN_API}/delete-video/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } });
+      const res = await authFetch(`${ADMIN_API}/delete-video/${id}`, { method: 'DELETE' });
       if (res.ok) { showToast('Lesson removed'); await fetchFullCourse(); refresh(); }
    };
 
    const deleteLive = async (id) => {
       if (!window.confirm('Delete live session?')) return;
-      const res = await fetch(`${ADMIN_API}/delete-live/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } });
+      const res = await authFetch(`${ADMIN_API}/delete-live/${id}`, { method: 'DELETE' });
       if (res.ok) { showToast('Live session removed'); await fetchFullCourse(); refresh(); }
    };
 
    const deleteRec = async (id) => {
       if (!window.confirm('Remove recording?')) return;
-      const res = await fetch(`${ADMIN_API}/delete-recorded-video/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } });
+      const res = await authFetch(`${ADMIN_API}/delete-recorded-video/${id}`, { method: 'DELETE' });
       if (res.ok) { showToast('Recording removed'); await fetchFullCourse(); }
    };
 
    const deleteAssessment = async (id) => {
       if (!window.confirm('Erase this assessment and all its contents?')) return;
-      const res = await fetch(`${ADMIN_API}/delete-assessment/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } });
+      const res = await authFetch(`${ADMIN_API}/delete-assessment/${id}`, { method: 'DELETE' });
       if (res.ok) { showToast('Assessment purged'); await fetchFullCourse(); }
       else { showToast('Purge failed', 'error'); }
    };
@@ -899,7 +912,7 @@ export const ManageModuleModal = ({ course, onClose, showToast, refresh }) => {
                                  </div>
                                  <div style={{ display: 'flex', gap: '0.5rem' }} onClick={e => e.stopPropagation()}>
                                     <button onClick={() => { setEditingModule(m); setFormData({ Title: m.title, Course_Description: m.description, Position: m.position }); }} style={{ padding: '0.6rem', borderRadius: '0.75rem', border: 'none', background: 'white', color: 'var(--color-text)', cursor: 'pointer' }}><Edit size={16} /></button>
-                                    <button onClick={async () => { if (window.confirm('Delete Module?')) { const res = await fetch(`${ADMIN_API}/delete-module/${m.module_id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } }); if (res.ok) { await fetchFullCourse(); refresh(); } } }} style={{ padding: '0.6rem', borderRadius: '0.75rem', border: 'none', background: 'white', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                                    <button onClick={async () => { if (window.confirm('Delete Module?')) { const res = await authFetch(`${ADMIN_API}/delete-module/${m.module_id}`, { method: 'DELETE' }); if (res.ok) { await fetchFullCourse(); refresh(); } } }} style={{ padding: '0.6rem', borderRadius: '0.75rem', border: 'none', background: 'white', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={16} /></button>
                                  </div>
                               </div>
                            ))}
@@ -1012,7 +1025,7 @@ const EmptyState = ({ icon, title }) => (
 );
 
 export const ManageNotesModal = ({ course, onClose, showToast, refresh }) => {
-   const { accessToken } = useAuth();
+   const { authFetch } = useAuth();
    const [loading, setLoading] = useState(false);
    const [notes, setNotes] = useState(course.notes || []);
    const [editingNote, setEditingNote] = useState(null);
@@ -1037,17 +1050,15 @@ export const ManageNotesModal = ({ course, onClose, showToast, refresh }) => {
             ? { Title: formData.Title, File_URL: formData.File_URL, File_Type: formData.File_Type }
             : { Course_ID: course.course_id, Title: formData.Title, File_URL: formData.File_URL, File_Type: formData.File_Type };
 
-         const res = await fetch(url, {
+         const res = await authFetch(url, {
             method,
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
          });
 
          if (res.ok) {
             showToast(isEdit ? 'Notes updated' : 'Notes added');
-            const detailRes = await fetch(`${ADMIN_API}/course/${course.course_id}/full-details`, {
-               headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
-            });
+            const detailRes = await authFetch(`${ADMIN_API}/course/${course.course_id}/full-details`);
             if (detailRes.ok) {
                const data = await detailRes.json();
                setNotes(data.course.notes || []);
@@ -1069,9 +1080,8 @@ export const ManageNotesModal = ({ course, onClose, showToast, refresh }) => {
    const handleDelete = async (notesId) => {
       if (!window.confirm('Delete these course notes?')) return;
       try {
-         const res = await fetch(`${ADMIN_API}/delete-notes/${notesId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+         const res = await authFetch(`${ADMIN_API}/delete-notes/${notesId}`, {
+            method: 'DELETE'
          });
          if (res.ok) {
             setNotes(notes.filter(n => n.notes_id !== notesId));

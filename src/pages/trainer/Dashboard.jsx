@@ -1,302 +1,354 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../shared/AuthContext';
-import { Book, Users, Video, Clock, Loader2, Activity, ArrowRight, Grid, Calendar, Shield, BookOpen, FastForward, Award, CalendarDays, ExternalLink } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Book, Users, Video, Clock, Activity, ArrowRight, Calendar, Shield, BookOpen, Award, CalendarDays, ExternalLink, Zap, Layers, ChevronRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { ADMIN_API, TRAINER_API } from '../../config';
 
-// Reusable compact StatCard inspired by Student Portal
+const CACHE_KEY = 'trainer_dashboard_cache';
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+/* ── Premium Stat Card ── */
 const StatCard = ({ title, value, icon, color, delay }) => (
   <motion.div 
     initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-    className="premium-card" 
     style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      gap: '1.25rem', 
-      padding: '1.5rem',
-      flex: 1,
-      minWidth: '240px'
+      display: 'flex', alignItems: 'center', gap: '1.25rem', padding: '1.5rem',
+      background: 'white', borderRadius: '1.5rem', border: '1px solid #f1f5f9',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.03)', flex: 1, minWidth: '220px'
     }}
   >
     <div style={{ 
       width: '3.5rem', height: '3.5rem', borderRadius: '1rem', 
-      backgroundColor: `${color}10`, color: color, 
+      backgroundColor: `${color}15`, color: color, 
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      border: `1px solid ${color}20`
     }}>
       {React.cloneElement(icon, { size: 24 })}
     </div>
     <div>
-      <div style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--color-text)', lineHeight: 1.2 }}>{value}</div>
-      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>{title}</div>
+      <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', lineHeight: 1.2 }}>{value}</div>
+      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748b' }}>{title}</div>
     </div>
   </motion.div>
 );
 
+/* ── Skeleton Loader ── */
+const DashboardSkeleton = () => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+      {[1, 2, 3, 4].map(i => <div key={i} style={{ height: '100px', background: '#f1f5f9', borderRadius: '1.5rem', animation: 'pulse 1.5s infinite ease-in-out' }} />)}
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '2rem' }}>
+      <div style={{ height: '400px', background: '#f1f5f9', borderRadius: '2rem', animation: 'pulse 1.5s infinite ease-in-out' }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div style={{ height: '180px', background: '#f1f5f9', borderRadius: '2rem', animation: 'pulse 1.5s infinite ease-in-out' }} />
+        <div style={{ height: '200px', background: '#f1f5f9', borderRadius: '2rem', animation: 'pulse 1.5s infinite ease-in-out' }} />
+      </div>
+    </div>
+    <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }`}</style>
+  </div>
+);
+
 const TrainerDashboard = () => {
-  const { user, accessToken } = useAuth();
+  const { user, smartFetch } = useAuth();
   const navigate = useNavigate();
-  const [courses, setCourses] = useState([]);
-  const [students, setStudents] = useState([]);
-  const [liveSessions, setLiveSessions] = useState([]);
+  
+  const [data, setData] = useState({ courses: [], students: [], liveSessions: [] });
   const [loading, setLoading] = useState(true);
 
   const fetchTrainerData = useCallback(async () => {
-    if (!accessToken) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const headers = { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' };
+    const identifier = user?.user_id || user?.id || user?.email;
+    if (!identifier) return;
+
     try {
-      const courseRes = await fetch(`${TRAINER_API}/trainer_course_ids`, { headers });
-      if (courseRes.ok) {
-        const data = await courseRes.json();
-        const ids = data?.course_ids || [];
-        const fullCourses = [];
-        let allStudents = [];
-        for (const id of ids) {
-          let c = {};
-          let courseDataLoaded = false;
-          
-          try {
-            const res = await fetch(`${ADMIN_API}/course/${id}/full-details`, { headers });
-            if (res.ok) {
-              const detailData = await res.json();
-              c = detailData.course || detailData;
-              courseDataLoaded = true;
-            }
-          } catch (e) {}
-          
-          let studentCount = 0;
-          let avgProgress = 0;
-          try {
-            const pRes = await fetch(`${TRAINER_API}/course/${id}/students-progress`, { headers });
-            if (pRes.ok) {
-              const pData = await pRes.json();
-              const studentsList = pData.data || [];
-              studentCount = studentsList.length;
-              if (studentCount > 0) {
-                const totalProgress = studentsList.reduce((sum, s) => sum + (s.progress_percentage || 0), 0);
-                avgProgress = Math.round(totalProgress / studentCount);
-              }
-              
-              // Add mapped students to combined list
-              const mappedStudents = studentsList.map(st => ({
-                 name: st.user_name,
-                 email: st.email || st.user_id, // Fix email mapping
-                 progress: st.progress_percentage || 0
-              }));
-              allStudents = [...allStudents, ...mappedStudents];
-            }
-          } catch(e) {}
+      // 1. Fetch Course IDs securely (SWR enabled)
+      const cachedIds = await smartFetch(`${TRAINER_API}/trainer_course_ids`, {
+        cacheKey: `trainer_course_ids_${identifier}`
+      });
+      const ids = cachedIds?.course_ids || [];
 
-          const newCourse = {
-            ...c,
-            course_id: id,
-            course_title: c.course_title || c.title || `Course ID: ${id.split('-')[1] || id}`,
-            course_description: c.course_description || c.description || 'No description available for this course.',
-            is_active: c.is_active || courseDataLoaded,
-            avgProgress: avgProgress,
-            studentCount: studentCount,
-            status: (c.is_active || courseDataLoaded) ? 'live' : 'draft',
-            progress: avgProgress
+      // 3. CONCURRENT BATCH FETCHING
+      const coursePromises = ids.map(async (id) => {
+        const [detailJson, pData] = await Promise.all([
+          smartFetch(`${ADMIN_API}/course/${id}/full-details`, { cacheKey: `details_${id}` }),
+          smartFetch(`${TRAINER_API}/course/${id}/students-progress`, { cacheKey: `st_prog_${id}` })
+        ]);
+
+        let courseData = { course_id: id, course_title: `Course ${id}`, progress: 0, studentCount: 0, type: 'recorded', is_active: false, studentsList: [], liveSessions: [] };
+
+        if (detailJson) {
+          const c = detailJson.course || detailJson;
+          courseData = {
+            ...courseData, ...c,
+            course_title: c.course_title || c.title,
+            type: (c.course_type || c.course_Type || c.type || 'recorded').toLowerCase(),
+            is_active: !!c.is_active
           };
-          fullCourses.push(newCourse);
-        }
-        setCourses(fullCourses);
-        // sort by most recently active or high progress mapping (optional)
-        setStudents(allStudents.sort((a,b) => b.progress - a.progress));
-      }
-      
-      // Fetch upcoming live sessions - best-effort, silently skip if it fails
-      const identifier = user?.user_id || user?.id;
-      if (identifier) {
-        try {
-          const liveRes = await fetch(`${ADMIN_API}/instructor/${identifier}/live-sessions`, { headers });
-          if (liveRes.ok) {
-            const liveData = await liveRes.json();
-            const allLive = liveData.live_sessions || [];
-            const upcoming = allLive.filter(s => new Date(s.start_time) > new Date() || s.status === 'live');
-            setLiveSessions(upcoming.sort((a,b) => new Date(a.start_time) - new Date(b.start_time)));
-          }
-        } catch (err) { /* Live sessions optional — skip silently */ }
-      }
 
+          // ✅ Extract live sessions
+          const allModuleSessions = (c.modules || []).flatMap(m =>
+            (m.content?.live_sessions || m.live_sessions || []).map(ls => ({
+              ...ls,
+              live_id: ls.live_id || ls.Live_ID,
+              course_id: id,
+              course_title: courseData.course_title,
+              title: ls.title || ls.Title,
+              meeting_url: ls.meeting_url || ls.Meeting_URL,
+              start_time: ls.start_time || ls.Start_time,
+              end_time: ls.end_time || ls.End_time,
+              status: ls.status || ls.Status || 'scheduled',
+              provider: ls.provider || ls.Provider
+            }))
+          );
+          courseData.liveSessions = allModuleSessions;
+        }
+
+        if (pData) {
+          const studentsList = pData.data || [];
+          courseData.studentCount = studentsList.length;
+          courseData.studentsList = studentsList.map(st => ({
+             name: st.user_name,
+             email: st.email || st.user_id,
+             progress: st.progress_percentage || 0,
+             course_title: courseData.course_title,
+             course_id: id
+          }));
+          if (studentsList.length > 0) {
+            const totalProgress = studentsList.reduce((sum, s) => sum + (s.progress_percentage || 0), 0);
+            courseData.progress = Math.round(totalProgress / studentsList.length);
+          }
+        }
+        return courseData;
+      });
+
+      // 4. Await all course processing
+      const coursesResult = await Promise.all(coursePromises);
+
+      // 5. Extract ALL enrollments (No deduplication, as per user request to see 'both')
+      let allEnrollments = [];
+      coursesResult.forEach(c => { allEnrollments = [...allEnrollments, ...(c.studentsList || [])]; });
+      
+      const finalStudents = allEnrollments.sort((a, b) => b.progress - a.progress);
+
+      // 6. Aggregate ALL live sessions from course modules (Both Previous and Current)
+      const allLive = coursesResult
+        .flatMap(c => c.liveSessions || [])
+        .sort((a, b) => {
+          // Sort order: 1. Live Now, 2. Upcoming (Soonest first), 3. Past (Latest first)
+          const isALive = a.status === 'live';
+          const isBLive = b.status === 'live';
+          if (isALive && !isBLive) return -1;
+          if (!isALive && isBLive) return 1;
+          
+          const now = new Date();
+          const aTime = new Date(a.start_time);
+          const bTime = new Date(b.start_time);
+          
+          const isAUpcoming = aTime > now;
+          const isBUpcoming = bTime > now;
+          
+          if (isAUpcoming && isBUpcoming) return aTime - bTime; // Soonest upcoming first
+          if (!isAUpcoming && !isBUpcoming) return bTime - aTime; // Newest past first
+          
+          return isAUpcoming ? -1 : 1; // Upcoming before past
+        });
+
+      const payload = {
+        courses: coursesResult,
+        students: finalStudents,
+        liveSessions: allLive
+      };
+
+      setData(payload);
     } catch (err) {
-      console.error("Critical architecture sync failure", err);
+      console.error("Dashboard sync failure", err);
     } finally {
       setLoading(false);
     }
-  }, [user?.user_id, accessToken]);
+  }, [user, smartFetch]);
 
   useEffect(() => { fetchTrainerData(); }, [fetchTrainerData]);
 
+  const { courses, students, liveSessions } = data;
+  const avgOverallProgress = courses.length > 0 ? Math.round(courses.reduce((acc, c) => acc + c.progress, 0) / courses.length) : 0;
+
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
       
-      {/* HEADER SECTION */}
-      <div style={{ marginBottom: '2.5rem' }}>
-        <h1 style={{ fontSize: '2.25rem', fontWeight: 900, marginBottom: '0.5rem' }}>Welcome back, Professor {user?.name?.split(' ')[0] || 'Trainer'}! 👋</h1>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '1rem' }}>
-          Here's an overview of your active knowledge nodes and student interactions.
-        </p>
-      </div>
-
-      {/* METRICS GRID */}
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-        <StatCard title="Assigned Courses" value={courses.length} icon={<BookOpen size={24} />} color="var(--color-primary)" delay={0.1} />
-        <StatCard title="Total Students" value={students.length} icon={<Users size={24} />} color="#3b82f6" delay={0.2} />
-        <StatCard title="Upcoming Lives" value={liveSessions.length} icon={<Video size={24} />} color="#10b981" delay={0.3} />
-        <StatCard title="Overall Impact" value="84%" icon={<Award size={24} />} color="#f59e0b" delay={0.4} />
-      </div>
-
-      {/* QUICK QUICK ACTIONS SECTION */}
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '3rem' }}>
-          <button onClick={() => navigate('/trainer/courses')} className="btn btn-primary" style={{ flex: 1, minWidth: '200px', display: 'flex', justifyContent: 'center', backgroundColor: 'var(--navy-900)', color: 'white', padding: '1rem' }}>
-            <Book size={18} /> Course Repository
-          </button>
-          <button onClick={() => navigate('/trainer/students')} className="btn" style={{ flex: 1, minWidth: '200px', display: 'flex', justifyContent: 'center', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)', padding: '1rem' }}>
-             <Users size={18} /> Student Roster
-          </button>
-          <button onClick={() => navigate('/trainer/live-sessions')} className="btn" style={{ flex: 1, minWidth: '200px', display: 'flex', justifyContent: 'center', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '1rem' }}>
-             <CalendarDays size={18} /> Scheduling Node
-          </button>
-      </div>
-
-      {loading ? (
-        <div style={{ padding: '6rem 0', textAlign: 'center', opacity: 0.5 }}>
-           <Loader2 className="animate-spin" style={{ margin: '0 auto 1rem auto' }} size={32} color="var(--color-primary)" />
-           <p style={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '0.1em' }}>SYNCING YOUR DASHBOARD...</p>
-        </div>
-      ) : (
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '2rem', alignItems: 'start' }}>
+      {/* ── Command Center Hero ── */}
+      <div style={{ 
+        background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', 
+        borderRadius: '2.5rem', padding: '3.5rem 3rem', marginBottom: '2.5rem',
+        position: 'relative', overflow: 'hidden', color: 'white',
+        boxShadow: '0 25px 50px -12px rgba(30, 27, 75, 0.25)'
+      }}>
+        <div style={{ position: 'absolute', top: '-20%', right: '-5%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%)', borderRadius: '50%' }} />
         
-        {/* LEFT COLUMN: ASSIGNED COURSES */}
-        <div className="premium-card" style={{ padding: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Active Modules</h3>
-            <button onClick={() => navigate('/trainer/courses')} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>View All</button>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '2rem' }}>
+          <div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.1)', padding: '0.4rem 1rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1.5rem', border: '1px solid rgba(255, 255, 255, 0.15)' }}>
+              <Shield size={14} color="#818cf8" /> Instructor Console
+            </div>
+            <h1 style={{ fontSize: '3.25rem', fontWeight: 900, marginBottom: '0.75rem', letterSpacing: '-0.03em' }}>
+              Welcome back, <span style={{ color: '#818cf8' }}>Professor {user?.name?.split(' ')[0] || 'Trainer'}</span>
+            </h1>
+            <p style={{ fontSize: '1.1rem', color: 'rgba(255, 255, 255, 0.8)', fontWeight: 500, maxWidth: '600px', lineHeight: 1.6 }}>
+              Overview of your active knowledge nodes, upcoming broadcasts, and student interaction metrics.
+            </p>
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {courses.length === 0 && <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: '2rem' }}>No modules currently assigned to your node.</p>}
-            {courses.slice(0, 4).map(course => (
-              <div 
-                key={course.course_id} 
-                style={{ 
-                  padding: '1.25rem', borderRadius: '1.25rem', border: '1px solid var(--color-border)',
-                  display: 'flex', flexDirection: 'column', gap: '0.75rem',
-                  transition: 'all 0.3s'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--color-text)' }}>{course.course_title}</h4>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-primary)' }}>{course.progress || 0}% Status</span>
-                </div>
-                <div style={{ width: '100%', backgroundColor: 'var(--color-bg)', height: '0.65rem', borderRadius: '1rem', overflow: 'hidden' }}>
-                    <div style={{ width: `${course.progress || 0}%`, backgroundColor: 'var(--color-primary)', height: '100%', borderRadius: '1rem' }}></div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>{course.status === 'live' ? '🟢 Published' : '🟡 Review'}</span>
-                    <button 
-                        onClick={() => navigate(`/trainer/course/${course.course_id}`)}
-                        style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                    >
-                        Review Content <ArrowRight size={14} />
-                    </button>
-                </div>
-              </div>
-            ))}
+          
+          {/* Quick Actions inside Hero */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', minWidth: '220px' }}>
+             <button onClick={() => navigate('/trainer/courses')} style={{ background: 'white', color: '#1e1b4b', border: 'none', padding: '1rem 1.5rem', borderRadius: '1rem', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', transition: 'transform 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform = 'translateX(-4px)'} onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
+                <Book size={18} color="#4f46e5" /> Course Repository <ArrowRight size={16} style={{ marginLeft: 'auto' }}/>
+             </button>
+             <button onClick={() => navigate('/trainer/live-sessions')} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', padding: '1rem 1.5rem', borderRadius: '1rem', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', backdropFilter: 'blur(10px)', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}>
+                <CalendarDays size={18} color="#a5b4fc" /> Broadcast Schedule
+             </button>
           </div>
         </div>
+      </div>
 
-        {/* RIGHT COLUMN: LIVE SESSIONS & STUDENTS */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      {loading ? <DashboardSkeleton /> : (
+        <>
+          {/* METRICS GRID */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
+            <StatCard title="Assigned Modules" value={courses.length} icon={<Layers />} color="#4f46e5" delay={0.0} />
+            <StatCard title="Total Students" value={students.length} icon={<Users />} color="#0ea5e9" delay={0.1} />
+            <StatCard title="Upcoming Lives" value={liveSessions.length} icon={<Video />} color="#10b981" delay={0.2} />
+            <StatCard title="Avg Engagement" value={`${avgOverallProgress}%`} icon={<Activity />} color="#f59e0b" delay={0.3} />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '2.5rem', alignItems: 'start' }}>
             
-            {/* UPCOMING LIVE SESSIONS */}
-            <div className="premium-card" style={{ padding: '2rem' }}>
-               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                     <Video size={18} style={{ color: '#ef4444' }} />
-                     <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Upcoming Lives</h3>
-                   </div>
-                   <button onClick={() => navigate('/trainer/live-sessions')} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>Schedule</button>
-                </div>
-                
-                {liveSessions.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '2rem 1rem', background: 'var(--color-surface-muted)', borderRadius: '1rem' }}>
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>You have no upcoming live sessions scheduled.</p>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                     {liveSessions.slice(0, 3).map(session => (
-                       <div key={session.live_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pading: '1rem', background: 'var(--color-surface-muted)', borderRadius: '1rem', border: '1px solid var(--color-border)', padding: '1rem' }}>
-                          <div>
-                            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '0.2rem' }}>{session.title || 'Live Broadcast'}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 700 }}>
-                              {session.status === 'live' ? '🟢 HAPPENING NOW' : new Date(session.start_time).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </div>
-                          </div>
-                          <a href={session.meeting_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', background: session.status === 'live' ? '#ef4444' : 'var(--color-primary)', color: 'white' }}>
-                            <ExternalLink size={14} />
-                          </a>
-                       </div>
-                     ))}
+            {/* LEFT COLUMN: ASSIGNED COURSES */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 900, color: '#0f172a' }}>Active Modules</h3>
+                <button onClick={() => navigate('/trainer/courses')} style={{ background: 'none', border: 'none', color: '#4f46e5', fontWeight: 800, cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>View All <ChevronRight size={16} /></button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {courses.length === 0 && (
+                  <div style={{ padding: '4rem 2rem', background: 'white', borderRadius: '2rem', border: '2px dashed #e2e8f0', textAlign: 'center' }}>
+                    <BookOpen size={48} color="#cbd5e1" style={{ margin: '0 auto 1rem' }} />
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1e293b' }}>No assigned modules</h3>
+                    <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '0.5rem' }}>You have not been assigned any courses yet.</p>
                   </div>
                 )}
-            </div>
-
-            {/* RECENT STUDENTS */}
-            <div className="premium-card" style={{ padding: '2rem' }}>
-               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Users size={18} style={{ color: '#3b82f6' }} />
-                      <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Student Roster preview</h3>
-                   </div>
-                   <button onClick={() => navigate('/trainer/students')} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>Full Roster</button>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {students.length === 0 && <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', fontSize: '0.9rem' }}>Waiting for student enrollment sync...</p>}
-                  {students.slice(0, 4).map(student => (
-                    <div 
-                      key={student.email} 
-                      style={{ 
-                        display: 'flex', gap: '1rem', alignItems: 'center',
-                        paddingBottom: '1rem', borderBottom: '1px solid var(--color-border)'
-                      }}
-                    >
-                      <div style={{ 
-                        width: '40px', height: '40px', borderRadius: '12px', 
-                        backgroundColor: 'var(--color-primary-bg)', color: 'var(--color-primary)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '1rem', fontWeight: 900
-                      }}>
-                        {(student.name || 'S').charAt(0)}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-text)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{student.name || student.username}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Progress: {student.progress || 0}%</div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Email</div>
-                         <div style={{ fontSize: '0.7rem', fontWeight: 800 }}>{student.email.length > 15 ? student.email.slice(0, 15) + '...' : student.email}</div>
-                      </div>
+                {courses.slice(0, 4).map((course, idx) => (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
+                    key={course.course_id} 
+                    style={{ padding: '1.5rem', background: 'white', borderRadius: '2rem', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}
+                  >
+                    <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
+                       <div style={{ width: '80px', height: '60px', borderRadius: '1rem', background: '#0f172a', overflow: 'hidden', flexShrink: 0 }}>
+                         <img src={course.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=200'} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Course Thumbnail" />
+                       </div>
+                       <div style={{ flex: 1, minWidth: 0 }}>
+                         <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{course.course_title}</h4>
+                         <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: '#64748b', marginTop: '0.4rem', fontWeight: 600 }}>
+                           <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Users size={14} color="#4f46e5" /> {course.studentCount} Enrolled</span>
+                           <span>•</span>
+                           <span style={{ 
+                             padding: '0.15rem 0.65rem', borderRadius: '99px', fontSize: '0.72rem', fontWeight: 800,
+                             background: (course.type === 'live' || course.type === 'live_course') ? '#fef2f2' : '#f0fdf4',
+                             color: (course.type === 'live' || course.type === 'live_course') ? '#ef4444' : '#10b981',
+                             border: `1px solid ${(course.type === 'live' || course.type === 'live_course') ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}`
+                           }}>
+                             {(course.type === 'live' || course.type === 'live_course') ? '🔴 Live' : '🟢 Recorded'}
+                           </span>
+                         </div>
+                       </div>
                     </div>
-                  ))}
-                </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', padding: '1rem', background: '#f8fafc', borderRadius: '1rem' }}>
+                       <div style={{ flex: 1, background: '#e2e8f0', height: '6px', borderRadius: '10px', overflow: 'hidden' }}>
+                         <motion.div initial={{ width: 0 }} animate={{ width: `${course.progress || 0}%` }} transition={{ duration: 1 }} style={{ width: `${course.progress || 0}%`, background: 'linear-gradient(90deg, #4f46e5, #818cf8)', height: '100%', borderRadius: '10px' }} />
+                       </div>
+                       <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#4f46e5' }}>{course.progress || 0}% Avg</span>
+                       <button onClick={() => navigate(`/trainer/course/${course.course_id}`)} style={{ background: 'white', border: '1px solid #e2e8f0', color: '#0f172a', padding: '0.5rem 1rem', borderRadius: '0.75rem', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer' }}>Review</button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: LIVE SESSIONS & STUDENTS */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                 
-                <div style={{ marginTop: '2.5rem', padding: '1.5rem', background: 'var(--color-surface-muted)', borderRadius: '1.5rem', border: '1px solid var(--color-border)' }}>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-muted)', lineHeight: 1.6, fontWeight: 500 }}>
-                        <Shield size={14} style={{ marginRight: '0.5rem', verticalAlign: 'middle', color: 'var(--color-primary)' }} />
-                        You are viewing the trainer console. All course delivery is directly synchronized with the LMS architecture.
-                    </p>
+                {/* UPCOMING LIVE SESSIONS */}
+                <div style={{ background: 'white', borderRadius: '2rem', padding: '2rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                         <Video size={20} style={{ color: '#ef4444' }} />
+                         <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900 }}>Live Sessions</h3>
+                       </div>
+                    </div>
+                    
+                    {liveSessions.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '2rem 1rem', background: '#f8fafc', borderRadius: '1.25rem', border: '1px dashed #e2e8f0' }}>
+                        <p style={{ color: '#64748b', fontSize: '0.9rem', fontWeight: 600 }}>No upcoming broadcasts.</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                         {liveSessions.slice(0, 3).map((session, i) => (
+                           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }} key={session.live_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', borderRadius: '1.25rem', padding: '1.25rem', border: '1px solid #f1f5f9' }}>
+                              <div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.3rem' }}>{session.title || 'Live Broadcast'}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#4f46e5', fontWeight: 800 }}>
+                                  {session.status === 'live' ? '🟢 HAPPENING NOW' : new Date(session.start_time).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              </div>
+                              <a href={session.meeting_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '10px', background: session.status === 'live' ? '#ef4444' : '#4f46e5', color: 'white' }}>
+                                <ExternalLink size={16} />
+                              </a>
+                           </motion.div>
+                         ))}
+                      </div>
+                    )}
+                </div>
+
+                {/* RECENT STUDENTS */}
+                <div style={{ background: 'white', borderRadius: '2rem', padding: '2rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Users size={20} style={{ color: '#0ea5e9' }} />
+                          <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900 }}>Top Students</h3>
+                       </div>
+                       <button onClick={() => navigate('/trainer/students')} style={{ background: 'none', border: 'none', color: '#4f46e5', fontWeight: 800, cursor: 'pointer', fontSize: '0.85rem' }}>Roster</button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      {students.length === 0 ? (
+                        <p style={{ color: '#64748b', textAlign: 'center', fontSize: '0.9rem', fontWeight: 600 }}>Awaiting student enrollments...</p>
+                      ) : (
+                        students.slice(0, 6).map((student, i) => (
+                          <motion.div 
+                            initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} 
+                            transition={{ delay: i * 0.1 }} 
+                            key={`${student.email}-${student.course_id}`} 
+                            style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}
+                          >
+                            <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 900 }}>
+                              {(student.name || 'S').charAt(0).toUpperCase()}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{student.name || 'Anonymous'}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{student.course_title}</div>
+                            </div>
+                            <div style={{ background: '#f0fdf4', color: '#10b981', padding: '0.3rem 0.6rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 800 }}>
+                              {student.progress}%
+                            </div>
+                          </motion.div>
+                        ))
+                      )}
+                    </div>
                 </div>
             </div>
-        </div>
-      </div>
+          </div>
+        </>
       )}
     </div>
   );

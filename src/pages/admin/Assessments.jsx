@@ -1,7 +1,7 @@
 import { 
   Search, Edit, Target, Clock, Award, Trash2, ArrowRight, 
   Loader2, AlertCircle, CheckCircle2, Filter, X, Save,
-  ChevronRight, Bookmark, BarChart3, Settings2, Layout, BookOpen, Grid, List
+  ChevronRight, Bookmark, BarChart3, Settings2, Layout, BookOpen, Grid, List, Globe
 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,7 +10,7 @@ import { useAuth } from '../../shared/AuthContext';
 import { ADMIN_API } from '../../config';
 
 const AdminAssessments = () => {
-  const { accessToken } = useAuth();
+  const { user, authFetch, smartFetch } = useAuth();
   const navigate = useNavigate();
   const [assessments, setAssessments] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -26,49 +26,52 @@ const AdminAssessments = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const headers = useCallback(() => ({
-    'Authorization': `Bearer ${accessToken}`,
-    'Accept': 'application/json',
-    'Content-Type': 'application/json'
-  }), [accessToken]);
 
   const fetchEverything = useCallback(async () => {
-    if (!accessToken) return;
+    if (!user) return;
     setLoading(true);
     try {
-      const statusRes = await fetch(`${ADMIN_API}/courses/ids-by-status`, { headers: headers() });
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        const { active, draft, inactive } = statusData.courses;
+      const statusData = await smartFetch(`${ADMIN_API}/courses/ids-by-status`, { cacheKey: 'admin_course_ids' });
+      if (statusData) {
+        const { active = [], draft = [], inactive = [] } = statusData.courses || {};
         const allIds = [...active, ...draft, ...inactive];
         
         const allAsms = [];
         const courseRegistry = [];
 
-        for (const id of allIds) {
+        // Parallelize fetching course details for assessments using smartFetch
+        const coursePromises = allIds.map(async (id) => {
            try {
-              const fullRes = await fetch(`${ADMIN_API}/course/${id}/full-details`, { headers: headers() });
-              if (fullRes.ok) {
-                 const fullData = await fullRes.json();
+              const fullData = await smartFetch(`${ADMIN_API}/course/${id}/full-details`, { cacheKey: `details_${id}` });
+              if (fullData) {
                  const c = fullData.course || fullData;
-                 courseRegistry.push({ course_id: id, course_title: c.course_title || c.title });
-                 
-                 (c.modules || []).forEach(m => {
-                    const content = m.content || {};
-                    const relevantAsms = content.assessments || m.assessments || [];
-                    relevantAsms.forEach(a => {
-                       allAsms.push({ 
-                         ...a, 
-                         assessment_id: a.assessment_id || a.Assessment_ID,
-                         module_id: m.module_id || m.Module_ID,
-                         module_title: m.title || m.Title, 
-                         course_title: c.course_title || c.title, 
-                         course_id: id 
-                       });
-                    });
-                 });
+                 return { id, data: c };
               }
            } catch (e) {}
+           return null;
+        });
+
+        const courseResults = await Promise.all(coursePromises);
+
+        for (const res of courseResults) {
+           if (!res) continue;
+           const { id, data: c } = res;
+           courseRegistry.push({ course_id: id, course_title: c.course_title || c.title || 'Untitled Course' });
+           
+           (c.modules || []).forEach(m => {
+              const content = m.content || {};
+              const relevantAsms = content.assessments || m.assessments || [];
+              relevantAsms.forEach(a => {
+                 allAsms.push({ 
+                   ...a, 
+                   assessment_id: a.assessment_id || a.Assessment_ID,
+                   module_id: m.module_id || m.Module_ID,
+                   module_title: m.title || m.Title, 
+                   course_title: c.course_title || c.title || 'Untitled Course', 
+                   course_id: id 
+                 });
+              });
+           });
         }
         setCourses(courseRegistry);
         setAssessments(allAsms);
@@ -78,14 +81,14 @@ const AdminAssessments = () => {
     } finally {
       setLoading(false);
     }
-  }, [headers, accessToken]);
+  }, [user, smartFetch]);
 
   useEffect(() => { fetchEverything(); }, [fetchEverything]);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this assessment?')) return;
     try {
-      const res = await fetch(`${ADMIN_API}/delete-assessment/${id}`, { method: 'DELETE', headers: headers() });
+      const res = await authFetch(`${ADMIN_API}/delete-assessment/${id}`, { method: 'DELETE' });
       if (res.ok) { showToast('Assessment Deleted'); fetchEverything(); }
       else showToast('Delete failed', 'error');
     } catch (err) { showToast('Network fail', 'error'); }
@@ -102,39 +105,64 @@ const AdminAssessments = () => {
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-bg)', fontFamily: "'Outfit', sans-serif", color: 'var(--color-text)', paddingBottom: '10rem' }}>
       
       {/* COMPACT COMMANDER HEADER */}
-      <div style={{ backgroundColor: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', padding: '1.5rem 0' }}>
-         <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '0 var(--page-padding)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '2rem' }}>
-            <div>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', color: '#f97316', marginBottom: '0.4rem' }}>
-                  <Award size={18} /><span style={{ fontSize: '0.65rem', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Assessment Management</span>
-               </div>
-               <h1 style={{ margin: 0, fontSize: '1.85rem', color: 'var(--color-text)' }}>Assessments</h1>
+      {/* ── Domain Navigation (Courses) ── */}
+      <div style={{ display: 'flex', gap: '0.85rem', overflowX: 'auto', paddingBottom: '1rem', marginBottom: '2.5rem', flexWrap: 'wrap' }} className="no-scrollbar">
+         <button 
+           onClick={() => setSelectedCourse('all')}
+           style={{ 
+             padding: '0.65rem 1.25rem', borderRadius: '1.15rem', 
+             border: selectedCourse === 'all' ? '1px solid transparent' : '1px solid var(--color-border)', 
+             backgroundColor: selectedCourse === 'all' ? '#f97316' : 'var(--color-surface)', 
+             color: selectedCourse === 'all' ? 'white' : 'var(--color-text)', 
+             fontWeight: 850, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+             boxShadow: selectedCourse === 'all' ? 'var(--shadow-md)' : 'none',
+             display: 'flex', alignItems: 'center', gap: '0.5rem'
+           }}
+         >
+           <Globe size={14} /> Every Course
+         </button>
+         {courses.map(c => (
+            <button 
+              key={c.course_id}
+              onClick={() => setSelectedCourse(c.course_id)}
+              style={{ 
+                padding: '0.65rem 1.25rem', borderRadius: '1.15rem', 
+                border: selectedCourse === c.course_id ? '1px solid transparent' : '1px solid var(--color-border)', 
+                backgroundColor: selectedCourse === c.course_id ? '#f97316' : 'var(--color-surface)', 
+                color: selectedCourse === c.course_id ? 'white' : 'var(--color-text)', 
+                fontWeight: 850, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+                boxShadow: selectedCourse === c.course_id ? 'var(--shadow-md)' : 'none',
+                display: 'flex', alignItems: 'center', gap: '0.5rem'
+              }}
+            >
+              <BookOpen size={14} /> {c.course_title}
+            </button>
+         ))}
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: '1.5rem', marginBottom: '2.5rem' }}>
+         <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', color: '#f97316', marginBottom: '0.4rem' }}>
+               <Award size={18} /><span style={{ fontSize: '0.65rem', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Assessment Management</span>
+            </div>
+            <h1 style={{ margin: 0, fontSize: '1.85rem', color: 'var(--color-text)' }}>Assessments Registry</h1>
+         </div>
+         
+         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative' }}>
+              <Search size={18} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+              <input 
+               type="text" 
+               placeholder="Identify evaluation..." 
+               value={searchQuery} 
+               onChange={(e) => setSearchQuery(e.target.value)} 
+               style={{ width: '280px', padding: '0.85rem 1.5rem 0.85rem 3.5rem', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '1.25rem', fontSize: '0.9rem', fontWeight: 650, outline: 'none', color: 'var(--color-text)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }} 
+              />
             </div>
             
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-               <div style={{ position: 'relative' }}>
-                 <Search size={18} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-                 <input 
-                  type="text" 
-                  placeholder="Search assessments..." 
-                  value={searchQuery} 
-                  onChange={(e) => setSearchQuery(e.target.value)} 
-                  style={{ width: 'clamp(200px, 30vw, 400px)', padding: '0.9rem 1.5rem 0.9rem 3.5rem', backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: '1.25rem', fontSize: '1rem', fontWeight: 650, outline: 'none', color: 'var(--color-text)' }} 
-                 />
-               </div>
-               
-               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 1rem', backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: '1.25rem' }}>
-                  <Filter size={14} color="var(--color-text-light)" />
-                  <select value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)} style={{ border: 'none', background: 'none', fontSize: '0.85rem', fontWeight: 700, outline: 'none', color: 'var(--color-text)', cursor: 'pointer' }}>
-                    <option value="all">Every Course</option>
-                    {courses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_title}</option>)}
-                  </select>
-               </div>
-
-               <div style={{ display: 'flex', backgroundColor: 'var(--color-surface-muted)', padding: '0.35rem', borderRadius: '1.25rem', border: '1px solid var(--color-border)' }}>
-                  <button onClick={() => setViewMode('grid')} style={{ padding: '0.6rem 0.85rem', borderRadius: '0.9rem', border: 'none', background: viewMode === 'grid' ? 'var(--color-surface)' : 'transparent', color: viewMode === 'grid' ? '#f97316' : 'var(--color-text-light)', cursor: 'pointer', boxShadow: viewMode === 'grid' ? 'var(--shadow-md)' : 'none', transition: 'all 0.3s' }}><Grid size={20}/></button>
-                  <button onClick={() => setViewMode('list')} style={{ padding: '0.6rem 0.85rem', borderRadius: '0.9rem', border: 'none', background: viewMode === 'list' ? 'var(--color-surface)' : 'transparent', color: viewMode === 'list' ? '#f97316' : 'var(--color-text-light)', cursor: 'pointer', boxShadow: viewMode === 'list' ? 'var(--shadow-md)' : 'none', transition: 'all 0.3s' }}><List size={20}/></button>
-               </div>
+            <div style={{ display: 'flex', backgroundColor: 'var(--color-surface-muted)', padding: '0.35rem', borderRadius: '1.25rem', border: '1px solid var(--color-border)' }}>
+               <button onClick={() => setViewMode('grid')} style={{ padding: '0.6rem 0.85rem', borderRadius: '0.9rem', border: 'none', background: viewMode === 'grid' ? 'var(--color-surface)' : 'transparent', color: viewMode === 'grid' ? '#f97316' : 'var(--color-text-muted)', cursor: 'pointer', boxShadow: viewMode === 'grid' ? 'var(--shadow-md)' : 'none', transition: 'all 0.3s' }}><Grid size={20}/></button>
+               <button onClick={() => setViewMode('list')} style={{ padding: '0.6rem 0.85rem', borderRadius: '0.9rem', border: 'none', background: viewMode === 'list' ? 'var(--color-surface)' : 'transparent', color: viewMode === 'list' ? '#f97316' : 'var(--color-text-muted)', cursor: 'pointer', boxShadow: viewMode === 'list' ? 'var(--shadow-md)' : 'none', transition: 'all 0.3s' }}><List size={20}/></button>
             </div>
          </div>
       </div>
@@ -209,7 +237,7 @@ const AdminAssessments = () => {
          </div>
       </div>
 
-      {editingAsm && <EditAssessmentModal asm={editingAsm} onClose={() => setEditingAsm(null)} showToast={showToast} refresh={fetchEverything} headers={headers} />}
+      {editingAsm && <EditAssessmentModal asm={editingAsm} onClose={() => setEditingAsm(null)} showToast={showToast} refresh={fetchEverything} />}
 
       {toast && (
         <div style={{ position: 'fixed', bottom: '4rem', left: '50%', transform: 'translateX(-50%)', zIndex: 3500, padding: '1.15rem 3rem', borderRadius: '4rem', backgroundColor: '#111827', color: 'var(--color-text-muted)', fontWeight: '900', boxShadow: '0 30px 60px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '1rem', animation: 'slideUp 0.5s' }}>
@@ -358,7 +386,8 @@ const ASInfo = ({ icon, label, value }) => (
   </div>
 );
 
-const EditAssessmentModal = ({ asm, onClose, showToast, refresh, headers }) => {
+const EditAssessmentModal = ({ asm, onClose, showToast, refresh }) => {
+  const { authFetch } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     Module_ID: asm.module_id,
@@ -375,9 +404,9 @@ const EditAssessmentModal = ({ asm, onClose, showToast, refresh, headers }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${ADMIN_API}/update_assessment/${asm.assessment_id}`, {
+      const res = await authFetch(`${ADMIN_API}/update_assessment/${asm.assessment_id}`, {
         method: 'PUT',
-        headers: headers(),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
       if (res.ok) { showToast('Assessment Updated'); refresh(); onClose(); }
