@@ -3,7 +3,7 @@ import {
   Search, Plus, Edit, Trash2, CheckCircle2, AlertCircle, 
   BookOpen, Users, Layers, ArrowRight, Loader2, Award, ChevronRight,
   Monitor, Play, FileText, Settings, Layout, Archive, Globe, Clock,
-  ArrowLeft, Palette, ShieldCheck, Zap, Save
+  ArrowLeft, Palette, ShieldCheck, Zap, Save, ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../../shared/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -12,8 +12,8 @@ import { ADMIN_API } from '../../config';
 import { CreateCourseModal, EditCourseModal } from '../../components/admin/CourseModals';
 
 const AdminCourses = () => {
-  const { accessToken } = useAuth();
   const navigate = useNavigate();
+  const { user, smartFetch, authFetch, clearCache } = useAuth();
   const [searchParams] = useSearchParams();
   const urlCategoryId = searchParams.get('categoryId');
   
@@ -35,25 +35,19 @@ const AdminCourses = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const headers = useCallback(() => ({
-    'Authorization': `Bearer ${accessToken}`,
-    'Accept': 'application/json',
-    'Content-Type': 'application/json'
-  }), [accessToken]);
 
   const fetchAllData = useCallback(async () => {
-    if (!accessToken) return;
-    setLoading(true);
+    if (!user) return;
     try {
-      const catRes = await fetch(`${ADMIN_API}/get-categories`, { headers: headers() });
-      if (catRes.ok) {
-        const catData = await catRes.json();
-        setCategories(catData.categories || []);
-      }
+      // 1. Concurrent Fetch Categories & Status Metadata (SWR)
+      const [catData, statusData] = await Promise.all([
+        smartFetch(`${ADMIN_API}/get-categories`, { cacheKey: 'admin_categories' }),
+        smartFetch(`${ADMIN_API}/courses/ids-by-status`, { cacheKey: 'admin_course_ids' })
+      ]);
 
-      const statusRes = await fetch(`${ADMIN_API}/courses/ids-by-status`, { headers: headers() });
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
+      if (catData) setCategories(catData.categories || []);
+
+      if (statusData) {
         const { active = [], draft = [], inactive = [] } = statusData.courses || {};
         const allMeta = [
           ...active.map(id => ({ id, status: 'active' })),
@@ -61,33 +55,37 @@ const AdminCourses = () => {
           ...inactive.map(id => ({ id, status: 'inactive' }))
         ];
 
-        const detailResults = [];
-        for (const meta of allMeta) {
-           try {
-              const res = await fetch(`${ADMIN_API}/course/${meta.id}/full-details`, { headers: headers() });
-              if (res.ok) {
-                 const data = await res.json();
-                 const c = data.course || data;
-                 detailResults.push({
-                   ...c,
-                   course_id: meta.id,
-                   status: meta.status,
-                   course_title: c.course_title || c.title || 'Untitled Course',
-                   course_description: c.course_description || c.description || 'No description available',
-                   thumbnail: c.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800'
-                 });
-               }
-           } catch (e) {}
-        }
+        // 2. 🔥 CONCURRENT BATCH FETCHING (Parallelized SWR)
+        const detailPromises = allMeta.map(async (meta) => {
+          const data = await smartFetch(`${ADMIN_API}/course/${meta.id}/full-details`, { 
+            cacheKey: `details_${meta.id}` 
+          });
+          if (!data) return null;
+          const c = data.course || data;
+          return {
+            ...c,
+            course_id: meta.id,
+            status: meta.status,
+            course_title: c.course_title || c.title || 'Untitled Course',
+            course_description: c.course_description || c.description || 'No description available',
+            thumbnail: c.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800'
+          };
+        });
+
+        const detailResults = (await Promise.all(detailPromises)).filter(Boolean);
         setCourses(detailResults);
       }
-    } catch (err) { showToast('Sync failed', 'error'); }
-    finally { setLoading(false); }
-  }, [headers, accessToken]);
+    } catch (err) { 
+      console.error("Courses sync failed", err);
+      showToast('Sync failed', 'error'); 
+    } finally { 
+      setLoading(false); 
+    }
+  }, [user, smartFetch]);
 
   const fetchTrainers = useCallback(async () => {
     try {
-      const res = await fetch(`${ADMIN_API}/all_trainer`, { headers: headers() });
+      const res = await authFetch(`${ADMIN_API}/all_trainer`);
       if (res.ok) {
         const data = await res.json();
         const active = data.active_trainer_email || [];
@@ -99,7 +97,7 @@ const AdminCourses = () => {
         setTrainers([...process(active), ...process(inactive)]);
       }
     } catch (err) { console.error('Faculty fetch failed'); }
-  }, [headers]);
+  }, [authFetch]);
 
   useEffect(() => { fetchAllData(); fetchTrainers(); }, [fetchAllData, fetchTrainers]);
 
@@ -107,8 +105,14 @@ const AdminCourses = () => {
     if (!window.confirm('Mobilize live?')) return;
     setIsPublishing(true);
     try {
-      const res = await fetch(`${ADMIN_API}/activate/${courseId}`, { method: 'PUT', headers: headers() });
-      if (res.ok) { showToast('Strategic Deployment Successful'); fetchAllData(); setActiveTab('active'); }
+      const res = await authFetch(`${ADMIN_API}/activate/${courseId}`, { method: 'PUT' });
+      if (res.ok) { 
+        showToast('Strategic Deployment Successful'); 
+        clearCache('admin_course_ids'); // Bust IDs cache
+        clearCache(`details_${courseId}`); // Bust specific detail cache
+        fetchAllData(); 
+        setActiveTab('active'); 
+      }
       else { const d = await res.json(); showToast(d.detail || d.message || 'Denied', 'error'); }
     } catch (err) { showToast('Sync failed', 'error'); }
     finally { setIsPublishing(false); }
@@ -117,8 +121,13 @@ const AdminCourses = () => {
   const handleDelete = async (courseId) => {
     if (!window.confirm('Purge asset?')) return;
     try {
-      const res = await fetch(`${ADMIN_API}/delete-course/${courseId}`, { method: 'DELETE', headers: headers() });
-      if (res.ok) { showToast('Asset Purged'); fetchAllData(); }
+      const res = await authFetch(`${ADMIN_API}/delete-course/${courseId}`, { method: 'DELETE' });
+      if (res.ok) { 
+        showToast('Asset Purged'); 
+        clearCache('admin_course_ids');
+        clearCache(`details_${courseId}`);
+        fetchAllData(); 
+      }
       else showToast('Restricted', 'error');
     } catch (err) { showToast('Sync failed', 'error'); }
   };
@@ -167,6 +176,26 @@ const AdminCourses = () => {
       </div>
 
       <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '2rem 2.5rem' }}>
+         
+         {/* DOMAIN TABS */}
+         <div style={{ display: 'flex', gap: '0.85rem', overflowX: 'auto', paddingBottom: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }} className="no-scrollbar">
+            <button 
+              onClick={() => { setActiveCategory('all'); navigate('/admin/courses', { replace: true }); }}
+              style={{ padding: '0.65rem 1.25rem', borderRadius: '1rem', border: activeCategory === 'all' ? '1px solid transparent' : '1px solid var(--color-border)', backgroundColor: activeCategory === 'all' ? 'var(--color-primary)' : 'var(--color-surface)', color: activeCategory === 'all' ? 'white' : 'var(--color-text)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s', boxShadow: activeCategory === 'all' ? 'var(--shadow-md)' : 'none' }}
+            >
+              Global Catalog
+            </button>
+            {categories.map(c => (
+               <button 
+                 key={c.Category_ID}
+                 onClick={() => { setActiveCategory(c.Category_ID); navigate(`/admin/courses?categoryId=${c.Category_ID}`, { replace: true }); }}
+                 style={{ padding: '0.65rem 1.25rem', borderRadius: '1rem', border: activeCategory === c.Category_ID ? '1px solid transparent' : '1px solid var(--color-border)', backgroundColor: activeCategory === c.Category_ID ? 'var(--color-primary)' : 'var(--color-surface)', color: activeCategory === c.Category_ID ? 'white' : 'var(--color-text)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s', boxShadow: activeCategory === c.Category_ID ? 'var(--shadow-md)' : 'none' }}
+               >
+                 {c.Category_Name}
+               </button>
+            ))}
+         </div>
+
          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '3rem' }}>
             <div style={{ display: 'flex', padding: '0.4rem', backgroundColor: 'var(--color-surface-muted)', borderRadius: '1.75rem', border: '1px solid var(--color-border)', gap: '0.4rem' }}>
                <SmallTab active={activeTab === 'draft'} label="Development" count={getCount('draft')} onClick={() => setActiveTab('draft')} icon={<Clock size={12}/>} activeColor="#f97316" />

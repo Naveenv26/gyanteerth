@@ -8,7 +8,7 @@ import { useAuth } from '../../shared/AuthContext';
 import { ADMIN_API } from '../../config';
 
 const AdminFeedbacks = () => {
-  const { accessToken } = useAuth();
+  const { authFetch, smartFetch } = useAuth();
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,12 +23,8 @@ const AdminFeedbacks = () => {
   const fetchFeedbacks = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${ADMIN_API}/all-feedback`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      });
-      if (res.ok) {
-        const json = await res.json();
-        // Assume json.data contains the array
+      const json = await smartFetch(`${ADMIN_API}/all-feedback`, { cacheKey: 'admin_all_feedbacks' });
+      if (json) {
         setFeedbacks(json.data || []);
       }
     } catch (err) {
@@ -36,21 +32,18 @@ const AdminFeedbacks = () => {
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [smartFetch]);
 
   useEffect(() => {
-    if (accessToken) fetchFeedbacks();
-  }, [accessToken, fetchFeedbacks]);
+    fetchFeedbacks();
+  }, [fetchFeedbacks]);
 
   const handleUpdateStatus = async (feedbackId, newStatus) => {
     setActionLoading(feedbackId);
     try {
-      const res = await fetch(`${ADMIN_API}/feedback/${feedbackId}/status`, {
+      const res = await authFetch(`${ADMIN_API}/feedback/${feedbackId}/status`, {
         method: 'PUT',
-        headers: { 
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ display_status: newStatus })
       });
       if (res.ok) {

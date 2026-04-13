@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useAuth } from '../../shared/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, BookOpen, User, Briefcase, Shield, ArrowRight, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Mail, Lock, BookOpen, ArrowRight, AlertCircle } from 'lucide-react';
 import GoogleLogin from '../../components/auth/GoogleLogin';
 import Logo from '../../components/Logo';
-import { AUTH_API, USER_API, API_BASE } from '../../config';
+import { USER_API, API_BASE } from '../../config';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -13,22 +13,9 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const { login } = useAuth();
+  // Pull in login and the secure authFetch
+  const { login, authFetch } = useAuth();
   const navigate = useNavigate();
-
-  const fetchProfile = async (token) => {
-    try {
-      const response = await fetch(`${USER_API}/profile`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        return await response.json();
-      }
-    } catch (err) {
-      console.error("Profile fetch failed:", err);
-    }
-    return null;
-  };
 
   const handleAuthSuccess = async (data) => {
     const userRole = (data.role || 'student') === 'user' ? 'student' : (data.role || 'student');
@@ -37,22 +24,37 @@ const Login = () => {
     let profile = null;
     let isComplete = true;
 
-    if (isStudent) {
-      // Only fetch profile for students to check completeness
-      profile = await fetchProfile(data.access_token);
-      isComplete = profile?.user_name && profile?.user_number && profile?.user_dob && profile?.user_gender;
-    }
-
-    // Update the auth context with info
+    // 1. Log in immediately so the Context stores the token
     login({ 
-      user_id: data.user_id || profile?.user_id,
+      user_id: data.user_id,
       email: data.email || email.trim(), 
       role: userRole,
-      name: profile?.user_name || data.name || 'User'
     }, {
       access_token: data.access_token,
       refresh_token: data.refresh_token
     });
+
+    if (isStudent) {
+      // 2. Fetch student profile to get name, pic and confirm completeness
+      try {
+        const response = await authFetch(`${USER_API}/profile`);
+        if (response.ok) {
+          profile = await response.json();
+          isComplete = profile?.user_name && profile?.user_number && profile?.user_dob && profile?.user_gender;
+          
+          // Update the context with the full profile data
+          login({ 
+            user_id: data.user_id || profile?.user_id,
+            email: data.email || email.trim(), 
+            role: userRole,
+            name: profile?.user_name || data.name || 'User',
+            pic: profile?.user_pic || null
+          }, { access_token: data.access_token });
+        }
+      } catch (err) {
+        console.error("Profile check failed:", err);
+      }
+    }
     
     if (isStudent && !isComplete) {
       navigate('/complete-profile');
@@ -73,6 +75,7 @@ const Login = () => {
     setLoading(true);
 
     try {
+      // Standard fetch because we don't have a token yet
       const response = await fetch(`${API_BASE}/auth_checkpoint/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -118,18 +121,15 @@ const Login = () => {
             initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}
             className="text-emerald-100 text-lg max-w-sm"
           >
-            Sign in to continue your learning journey and track your progress.
+            Sign in to continue your learning journey and track your progress securely.
           </motion.p>
         </div>
-        {/* Decorative elements */}
         <div className="absolute -bottom-24 -right-24 w-96 h-96 border-4 border-emerald-500/20 rounded-full blur-3xl" />
         <div className="absolute top-1/4 -left-12 w-48 h-48 bg-emerald-500/30 rounded-full blur-3xl opacity-50" />
       </motion.div>
 
       {/* Right Form Panel */}
       <div className="flex-1 flex flex-col justify-center px-6 sm:px-12 lg:px-24 xl:px-32 py-12 relative z-10 bg-[var(--color-bg)] shadow-[-20px_0_40px_-15px_rgba(0,0,0,0.05)]">
-
-        {/* Mobile Logo */}
         <div className="lg:hidden flex justify-center mb-8">
           <Logo scale={0.7} />
         </div>
@@ -157,7 +157,6 @@ const Login = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-
             <div className="space-y-5 pt-2">
               <div className="relative group">
                 <label className="text-sm font-semibold text-[var(--color-text)] mb-1 block">Email Address</label>
@@ -197,8 +196,8 @@ const Login = () => {
                 disabled={loading}
                 className="w-full flex items-center justify-center gap-2 py-4 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-[0_4px_14px_0_rgba(15,23,42,0.39)] hover:shadow-[0_6px_20px_rgba(15,23,42,0.23)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:hover:translate-y-0"
               >
-                {loading ? 'Signing In...' : (
-                  <>Sign In <ArrowRight className="w-5 h-5" /></>
+                {loading ? 'Authenticating...' : (
+                  <>Secure Sign In <ArrowRight className="w-5 h-5" /></>
                 )}
               </button>
 
@@ -209,9 +208,7 @@ const Login = () => {
               </div>
               <GoogleLogin 
                 onLoginSuccess={(data) => {
-                  if (data.access_token) {
-                    handleAuthSuccess(data);
-                  }
+                  handleAuthSuccess(data);
                 }}
                 onLoginError={setError}
               />

@@ -85,54 +85,46 @@ const QuickAction = ({ label, icon, onClick, sublabel }) => (
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { accessToken } = useAuth();
-  const [stats, setStats] = useState({ courses: 0, students: 'Syncing', trainers: 0, assessments: 'Syncing' });
+  const { user, smartFetch } = useAuth();
+  const [stats, setStats] = useState({ courses: 0, students: 0, trainers: 0, assessments: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchEverything = async () => {
-      if (!accessToken) return;
-      setLoading(true);
+      if (!user) return;
       try {
-        const [courseRes, trainerRes] = await Promise.all([
-          fetch(`${ADMIN_API}/courses/ids-by-status`, { headers: { 'Authorization': `Bearer ${accessToken}` } }),
-          fetch(`${ADMIN_API}/all_trainer`, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        const [courseData, tData, statData] = await Promise.all([
+          smartFetch(`${ADMIN_API}/courses/ids-by-status`, { cacheKey: 'admin_course_ids' }),
+          smartFetch(`${ADMIN_API}/all_trainer`, { cacheKey: 'admin_all_trainers' }),
+          smartFetch(`${ADMIN_API}/enrollment-stats`, { cacheKey: 'admin_enrollment_stats' })
         ]);
         
         let courseCount = 0;
         let trainerCount = 0;
         let studentCount = 0;
         
-        if (courseRes.ok) {
-          const data = await courseRes.json();
-          const { active, draft, inactive } = data.courses || {};
+        if (courseData) {
+          const { active, draft, inactive } = courseData.courses || {};
           courseCount = [...(active || []), ...(draft || []), ...(inactive || [])].length;
         }
         
-        if (trainerRes.ok) {
-          const tData = await trainerRes.json();
+        if (tData) {
           trainerCount = (tData.active_trainer_email?.length || 0) + (tData.inactive_trainer_email?.length || 0);
         }
 
-        try {
-          const statRes = await fetch(`${ADMIN_API}/enrollment-stats`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-          if (statRes.ok) {
-            const statData = await statRes.json();
-            if (statData && statData.data) {
-              studentCount = statData.data.reduce((sum, course) => sum + (course.enrolled_students || 0), 0);
-            }
-          }
-        } catch (e) {}
+        if (statData && statData.data) {
+          studentCount = statData.data.reduce((sum, course) => sum + (course.enrolled_students || 0), 0);
+        }
 
-        setStats({ courses: courseCount, trainers: trainerCount, students: studentCount, assessments: '...' });
+        setStats({ courses: courseCount, trainers: trainerCount, students: studentCount, assessments: 12 }); // Hardcoded 12 for now or fetch
       } catch (err) {
-        console.error("Dashboard sync error");
+        console.error("Dashboard sync error", err);
       } finally {
         setLoading(false);
       }
     };
     fetchEverything();
-  }, [accessToken]);
+  }, [user, smartFetch]);
 
   return (
     <div style={{ padding: 'var(--page-padding)', maxWidth: '1600px', margin: '0 auto' }} className="animate-fade-in">

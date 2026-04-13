@@ -14,7 +14,7 @@ import { ADMIN_API } from '../../config';
 import { CreateCourseModal } from '../../components/admin/CourseModals';
 
 const AdminCategories = () => {
-  const { accessToken } = useAuth();
+  const { user, authFetch, smartFetch } = useAuth();
   const navigate = useNavigate();
   
   const [categories, setCategories] = useState([]);
@@ -37,38 +37,29 @@ const AdminCategories = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const headers = useCallback(() => ({
-    'Authorization': `Bearer ${accessToken}`,
-    'Accept': 'application/json',
-    'Content-Type': 'application/json'
-  }), [accessToken]);
 
   const fetchCategories = useCallback(async () => {
-    if (!accessToken) return;
+    if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch(`${ADMIN_API}/get-categories`, { headers: headers() });
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(data.categories || []);
-      }
+      const [data, sData] = await Promise.all([
+        smartFetch(`${ADMIN_API}/get-categories`, { cacheKey: 'admin_categories' }),
+        smartFetch(`${ADMIN_API}/courses/ids-by-status`, { cacheKey: 'admin_course_ids' })
+      ]);
 
-      // Fetch dynamic live count
-      const statusRes = await fetch(`${ADMIN_API}/courses/ids-by-status`, { headers: headers() });
-      if (statusRes.ok) {
-         const sData = await statusRes.json();
-         setLiveCount(sData.courses?.active?.length || 0);
-      }
+      if (data) setCategories(data.categories || []);
+      if (sData) setLiveCount(sData.courses?.active?.length || 0);
+
     } catch (err) {
       showToast('Backend synchronization failed', 'error');
     } finally {
       setLoading(false);
     }
-  }, [headers, accessToken]);
+  }, [user, smartFetch]);
 
   const fetchTrainers = useCallback(async () => {
     try {
-      const res = await fetch(`${ADMIN_API}/all_trainer`, { headers: headers() });
+      const res = await authFetch(`${ADMIN_API}/all_trainer`);
       if (res.ok) {
         const data = await res.json();
         const active = data.active_trainer_email || [];
@@ -80,19 +71,17 @@ const AdminCategories = () => {
         setTrainers([...process(active), ...process(inactive)]);
       }
     } catch (err) { console.error('Faculty fetch failed'); }
-  }, [headers]);
+  }, [authFetch]);
 
   useEffect(() => {
-    if (accessToken) {
-      fetchCategories();
-      fetchTrainers();
-    }
-  }, [fetchCategories, fetchTrainers, accessToken]);
+    fetchCategories();
+    fetchTrainers();
+  }, [fetchCategories, fetchTrainers]);
 
   const handleDelete = async (catId) => {
     if (!window.confirm('Caution: Delete this category and all its associations? This action is permanent.')) return;
     try {
-      const res = await fetch(`${ADMIN_API}/delete-category/${catId}`, { method: 'DELETE', headers: headers() });
+      const res = await authFetch(`${ADMIN_API}/delete-category/${catId}`, { method: 'DELETE' });
       if (res.ok) { showToast('Category Deleted'); fetchCategories(); }
       else showToast('Operation failed', 'error');
     } catch (err) { showToast('Network Error', 'error'); }
@@ -336,7 +325,7 @@ const PremiumCategoryListRow = ({ cat, onEdit, onDelete, onView, onCreateCourse,
 );
 
 const CategoryModal = ({ mode, category, categories, onClose, refresh, showToast }) => {
-  const { accessToken } = useAuth();
+  const { authFetch } = useAuth();
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -389,9 +378,9 @@ const CategoryModal = ({ mode, category, categories, onClose, refresh, showToast
         Thumbnail: formData.Thumbnail.length > 200 ? '' : formData.Thumbnail // Guard against DB limits
       };
 
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method,
-        headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 

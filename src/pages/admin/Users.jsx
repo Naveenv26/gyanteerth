@@ -12,7 +12,7 @@ import { useAuth } from '../../shared/AuthContext';
 import { ADMIN_API, getHeaders } from '../../config';
 
 const AdminUsers = () => {
-  const { accessToken } = useAuth();
+  const { authFetch, smartFetch } = useAuth();
   const navigate = useNavigate();
   const [trainers, setTrainers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,44 +35,39 @@ const AdminUsers = () => {
   const validateMobile = (num) => /^[0-9]{10}$/.test(num);
   const validatePassword = (pass) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/.test(pass);
 
-  const headers = useCallback(() => ({
-    'Authorization': `Bearer ${accessToken}`,
-    'Accept': 'application/json',
-    'Content-Type': 'application/json'
-  }), [accessToken]);
 
   const fetchTrainers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${ADMIN_API}/all_trainer`, { headers: headers() });
-      if (res.ok) {
-        const jsonData = await res.json();
-        const activeList = jsonData.active_trainer_email || [];
-        const inactiveList = jsonData.inactive_trainer_email || [];
+      const data = await smartFetch(`${ADMIN_API}/all_trainer`, { cacheKey: 'admin_all_trainers' });
+      if (data) {
+        const activeList = data.active_trainer_email || [];
+        const inactiveList = data.inactive_trainer_email || [];
 
         const fetchDetails = async (list, status) => {
-          const results = [];
-          for (const item of list) {
+          const promises = list.map(async (item) => {
             const email = typeof item === 'string' ? item : Object.values(item)[0];
-            if (email) {
-              try {
-                const detailRes = await fetch(`${ADMIN_API}/get_trainer`, {
+            if (!email) return null;
+            try {
+               const detail = await smartFetch(`${ADMIN_API}/get_trainer`, {
                   method: 'POST',
-                  headers: headers(),
-                  body: JSON.stringify({ trainer_email: email })
-                });
-                if (detailRes.ok) {
-                  const detail = await detailRes.json();
-                  results.push({ ...detail, trainer_status: status });
-                }
-              } catch (e) {}
-            }
-          }
-          return results;
+                  body: JSON.stringify({ trainer_email: email }),
+                  headers: { 'Content-Type': 'application/json' },
+                  cacheKey: `trainer_detail_${email}`
+               });
+               if (detail) return { ...detail, trainer_status: status };
+            } catch (e) {}
+            return null;
+          });
+          const results = await Promise.all(promises);
+          return results.filter(Boolean);
         };
 
-        const activeDetails = await fetchDetails(activeList, 'active');
-        const inactiveDetails = await fetchDetails(inactiveList, 'inactive');
+        const [activeDetails, inactiveDetails] = await Promise.all([
+          fetchDetails(activeList, 'active'),
+          fetchDetails(inactiveList, 'inactive')
+        ]);
+        
         setTrainers([...activeDetails, ...inactiveDetails]);
       }
     } catch (err) {
@@ -80,11 +75,11 @@ const AdminUsers = () => {
     } finally {
       setLoading(false);
     }
-  }, [headers]);
+  }, [smartFetch]);
 
   useEffect(() => {
-    if (accessToken) fetchTrainers();
-  }, [accessToken, fetchTrainers]);
+    fetchTrainers();
+  }, [fetchTrainers]);
 
   const handleCreate = async (formData) => {
     setActionLoading(true);
@@ -95,12 +90,17 @@ const AdminUsers = () => {
       }
       const fd = new FormData();
       Object.entries(formData).forEach(([key, val]) => fd.append(key, val));
-      const res = await fetch(`${ADMIN_API}/create_trainer`, {
+      const res = await authFetch(`${ADMIN_API}/create_trainer`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' },
+        headers: { 'Accept': 'application/json' },
         body: fd
       });
-      if (res.ok) { showToast('Faculty operational'); setShowCreateModal(false); fetchTrainers(); }
+      if (res.ok) { 
+        showToast('Faculty operational'); 
+        clearCache('admin_all_trainers');
+        setShowCreateModal(false); 
+        fetchTrainers(); 
+      }
       else { const d = await res.json(); showToast(d.detail || 'Creation denied', 'error'); }
     } catch (err) { showToast('Sync protocol failure', 'error'); }
     finally { setActionLoading(false); }
@@ -109,34 +109,39 @@ const AdminUsers = () => {
   const handleUpdate = async (formData) => {
     setActionLoading(true);
     try {
-      const updatePayload = {
-        user_id: formData.user_id,
-        trainer_name: formData.trainer_name,
-        trainer_number: String(formData.trainer_number),
-        trainer_email: formData.trainer_email.trim(),
-        trainer_gender: formData.trainer_gender,
-        trainer_dob: formData.trainer_dob,
-        trainer_city: formData.trainer_city,
-        trainer_state: formData.trainer_state,
-        password: formData.trainer_pass || 'unchanged'
-      };
-      const res = await fetch(`${ADMIN_API}/update-trainer`, { method: 'PUT', headers: headers(), body: JSON.stringify(updatePayload) });
-      if (res.ok) { showToast('Profile updated'); setShowEditModal(false); fetchTrainers(); }
-      else { const d = await res.json(); showToast(d.detail || 'Update rejected', 'error'); }
-    } catch (err) { showToast('Connection loss', 'error'); }
+      const fd = new FormData();
+      Object.entries(formData).forEach(([key, val]) => fd.append(key, val));
+      const res = await authFetch(`${ADMIN_API}/update_trainer/${selectedTrainer.trainer_email}`, {
+        method: 'PUT',
+        headers: { 'Accept': 'application/json' },
+        body: fd
+      });
+      if (res.ok) { 
+        showToast('Profile sync success'); 
+        clearCache('admin_all_trainers');
+        clearCache(`trainer_detail_${selectedTrainer.trainer_email}`);
+        setShowEditModal(false); 
+        fetchTrainers(); 
+      }
+      else showToast('Update rejected', 'error');
+    } catch (err) { showToast('Sync protocol failure', 'error'); }
     finally { setActionLoading(false); }
   };
 
   const handleToggleStatus = async (email, currentStatus) => {
-    const isNowActive = currentStatus === 'active';
-    const action = isNowActive ? 'deactivation' : 'activation';
-    if (!window.confirm(`Initiate faculty ${action} protocol?`)) return;
+    if (!window.confirm(`Toggle status for ${email}?`)) return;
     setActionLoading(true);
     try {
-      const res = await fetch(`${ADMIN_API}/inactive-trainer`, { method: 'PUT', headers: headers(), body: JSON.stringify({ trainer_email: email }) });
-      if (res.ok) { showToast(`Faculty successfully ${isNowActive ? 'archived' : 'restored'}`); fetchTrainers(); }
-      else showToast('Protocol execution failed', 'error');
-    } catch (err) { showToast('Sync failure', 'error'); }
+      const endpoint = currentStatus === 'active' ? 'deactivate' : 'activate';
+      const res = await authFetch(`${ADMIN_API}/${endpoint}_trainer/${email}`, { method: 'PUT' });
+      if (res.ok) { 
+        showToast('Status synchronized'); 
+        clearCache('admin_all_trainers');
+        clearCache(`trainer_detail_${email}`);
+        fetchTrainers(); 
+      }
+      else showToast('Status change denied', 'error');
+    } catch (err) { showToast('Sync protocol failure', 'error'); }
     finally { setActionLoading(false); }
   };
 
@@ -410,14 +415,12 @@ const CInfo = ({ icon, label, value }) => (
 
 const ViewTrainerModal = ({ trainer, onClose, origin }) => {
   const [liveSessions, setLiveSessions] = useState(null);
-  const { accessToken } = useAuth();
+  const { authFetch } = useAuth();
   
   useEffect(() => {
     const fetchLiveSessions = async () => {
       try {
-        const res = await fetch(`${ADMIN_API}/instructor/${trainer.user_id}/live-sessions`, {
-          headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
+        const res = await authFetch(`${ADMIN_API}/instructor/${trainer.user_id}/live-sessions`);
         if (res.ok) {
           const data = await res.json();
           setLiveSessions(data || []);
@@ -429,7 +432,7 @@ const ViewTrainerModal = ({ trainer, onClose, origin }) => {
       }
     };
     if (trainer?.user_id) fetchLiveSessions();
-  }, [trainer, accessToken]);
+  }, [trainer, authFetch]);
 
   const isInactive = trainer.trainer_status === 'inactive';
   const name = trainer.user_name || (trainer.email || '').split('@')[0] || 'Unknown';
