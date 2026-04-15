@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Award, ShieldCheck, Zap, Info, Download, Trash2, Search, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../shared/AuthContext';
@@ -10,6 +11,7 @@ const Certificates = () => {
   const { enrolledCourses, getCourseProgress } = useEnrollment();
   const [selectedCert, setSelectedCert] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [downloadFn, setDownloadFn] = useState(null);
 
   // 🎓 Identify completed courses (100% progress)
   const earnedCertificates = useMemo(() => {
@@ -158,59 +160,87 @@ const Certificates = () => {
       )}
 
       {/* ── Dynamic PDF Generation Modal ── */}
-      <AnimatePresence>
-        {selectedCert && (
-          <div style={{ 
-            position: 'fixed', 
-            inset: 0, 
-            backgroundColor: 'rgba(15, 23, 42, 0.4)', 
-            backdropFilter: 'blur(50px) saturate(160%)', // Maximum focus blur
-            WebkitBackdropFilter: 'blur(50px) saturate(160%)',
-            zIndex: 999999, // Absolute maximum to cover sidebar
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            padding: '2rem' 
-          }}>
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 40 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 40 }}
-              style={{ 
-                position: 'relative', 
-                maxHeight: '90vh', 
-                backgroundColor: 'transparent',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center'
-              }}
-              className="no-scrollbar"
-            >
-              <button 
-                onClick={() => setSelectedCert(null)}
+      {createPortal(
+        <AnimatePresence>
+          {selectedCert && (
+            <div style={{ 
+              position: 'fixed', 
+              inset: 0, 
+              backgroundColor: 'rgba(15, 23, 42, 0.4)', 
+              backdropFilter: 'blur(10px)', // Added global blur on portal
+              WebkitBackdropFilter: 'blur(10px)',
+              zIndex: 999999, // Ensure it's on top of sidebar and everything
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              padding: '2rem' 
+            }}>
+              {/* Top-right controls: Download + Close */}
+              <div style={{ 
+                position: 'absolute', top: '1.5rem', right: '1.5rem', 
+                display: 'flex', alignItems: 'center', gap: '0.75rem', zIndex: 100000 
+              }}>
+                <button 
+                  onClick={() => downloadFn && downloadFn()}
+                  style={{ 
+                    padding: '0.7rem 1.5rem', borderRadius: '0.75rem',
+                    background: '#059669', color: 'white', border: 'none', 
+                    cursor: 'pointer', fontWeight: 900, fontSize: '0.85rem',
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    boxShadow: '0 10px 30px rgba(5, 150, 105, 0.4)',
+                    transition: 'all 0.2s', opacity: downloadFn ? 1 : 0.5
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <Download size={16} /> Download PDF
+                </button>
+                <button 
+                  onClick={() => { setSelectedCert(null); setDownloadFn(null); }}
+                  style={{ 
+                    width: '46px', height: '46px', borderRadius: '50%', 
+                    background: 'white', border: 'none', cursor: 'pointer', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                    fontWeight: 900, fontSize: '1.5rem', boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+                    color: '#1a1a1a', transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  ×
+                </button>
+              </div>
+              <motion.div 
+                key="certificate-modal"
+                initial={{ opacity: 0, scale: 0.9, y: 40 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 40 }}
                 style={{ 
-                  position: 'absolute', top: '-2rem', right: '50%', transform: 'translateX(50%)',
-                  width: '50px', height: '50px', borderRadius: '50%', 
-                  background: 'white', border: 'none', cursor: 'pointer', 
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                  fontWeight: 900, fontSize: '1.6rem', boxShadow: '0 40px 100px rgba(0,0,0,0.3)',
-                  zIndex: 100000
+                  position: 'relative', 
+                  maxHeight: '90vh', 
+                  backgroundColor: 'transparent',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  overflowY: 'auto'
                 }}
+                className="no-scrollbar"
               >
-                ×
-              </button>
-              
-              <CertificateGenerator 
-                candidateName={user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Valued Learner'}
-                courseName={selectedCert.courseTitle}
-                startDate="Enrollment Date" 
-                endDate={selectedCert.earnedDate}
-                certificateId={selectedCert.id}
-              />
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                
+                <CertificateGenerator 
+                  candidateName={user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Valued Learner'}
+                  courseName={selectedCert.courseTitle}
+                  startDate="Enrollment Date" 
+                  endDate={selectedCert.earnedDate}
+                  certificateId={selectedCert.id}
+                  onDownload={(fn) => setDownloadFn(() => fn)}
+                />
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -222,3 +252,4 @@ const Certificates = () => {
 };
 
 export default Certificates;
+
