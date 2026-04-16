@@ -135,6 +135,12 @@ const CertificateGenerator = ({
           
           {/* Signature */}
           <div style={{ textAlign: 'left', zIndex: 20 }}>
+            <img 
+              src="/Signature.png" 
+              alt="Signature" 
+              style={{ height: '60px', objectFit: 'contain', marginBottom: '5px', display: 'block' }}
+              crossOrigin="anonymous"
+            />
             <div style={{ borderBottom: '2px solid #4b5563', width: '220px', marginBottom: '15px' }} />
             <div style={{ fontSize: '18px', fontWeight: 950, color: '#000', textTransform: 'uppercase', letterSpacing: '1px' }}>Vikrant Sukhtankar</div>
             <div style={{ fontSize: '13px', fontWeight: 800, color: '#374151', marginTop: '4px', letterSpacing: '2px' }}>CEO & FOUNDER</div>
