@@ -12,7 +12,7 @@ import { useAuth } from '../../shared/AuthContext';
 import { ADMIN_API, getHeaders } from '../../config';
 
 const AdminUsers = () => {
-  const { authFetch, smartFetch } = useAuth();
+  const { authFetch, smartFetch, clearCache } = useAuth();
   const navigate = useNavigate();
   const [trainers, setTrainers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,10 +49,7 @@ const AdminUsers = () => {
             const email = typeof item === 'string' ? item : Object.values(item)[0];
             if (!email) return null;
             try {
-               const detail = await smartFetch(`${ADMIN_API}/get_trainer`, {
-                  method: 'POST',
-                  body: JSON.stringify({ trainer_email: email }),
-                  headers: { 'Content-Type': 'application/json' },
+               const detail = await smartFetch(`${ADMIN_API}/get_trainer?trainer_email=${email}`, {
                   cacheKey: `trainer_detail_${email}`
                });
                if (detail) return { ...detail, trainer_status: status };
@@ -98,8 +95,8 @@ const AdminUsers = () => {
       if (res.ok) { 
         showToast('Faculty operational'); 
         clearCache('admin_all_trainers');
+        setTrainers(prev => [{ ...formData, trainer_status: 'active' }, ...prev]);
         setShowCreateModal(false); 
-        fetchTrainers(); 
       }
       else { const d = await res.json(); showToast(d.detail || 'Creation denied', 'error'); }
     } catch (err) { showToast('Sync protocol failure', 'error'); }
@@ -109,36 +106,61 @@ const AdminUsers = () => {
   const handleUpdate = async (formData) => {
     setActionLoading(true);
     try {
-      const fd = new FormData();
-      Object.entries(formData).forEach(([key, val]) => fd.append(key, val));
-      const res = await authFetch(`${ADMIN_API}/update_trainer/${selectedTrainer.trainer_email}`, {
+      // Transform payload to match backend schema requirements
+      const payload = {
+        ...formData,
+        password: formData.trainer_pass,
+        trainer_number: String(formData.trainer_number)
+      };
+
+      const res = await authFetch(`${ADMIN_API}/update-trainer`, {
         method: 'PUT',
-        headers: { 'Accept': 'application/json' },
-        body: fd
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' 
+        },
+        body: JSON.stringify(payload)
       });
       if (res.ok) { 
+        setTrainers(prev => prev.map(t => (t.email === formData.trainer_email || t.trainer_email === formData.trainer_email) ? { ...t, ...formData } : t));
         showToast('Profile sync success'); 
         clearCache('admin_all_trainers');
-        clearCache(`trainer_detail_${selectedTrainer.trainer_email}`);
+        if (formData.trainer_email) {
+          clearCache(`trainer_detail_${formData.trainer_email}`);
+          refreshSingleTrainer(formData.trainer_email, selectedTrainer.trainer_status);
+        }
         setShowEditModal(false); 
-        fetchTrainers(); 
       }
       else showToast('Update rejected', 'error');
     } catch (err) { showToast('Sync protocol failure', 'error'); }
     finally { setActionLoading(false); }
   };
 
+  const refreshSingleTrainer = async (email, status) => {
+    try {
+      const detail = await smartFetch(`${ADMIN_API}/get_trainer?trainer_email=${email}`, { forceRefresh: true });
+      if (detail) {
+        setTrainers(prev => prev.map(t => (t.email === email || t.trainer_email === email) ? { ...detail, trainer_status: status } : t));
+      }
+    } catch (e) {}
+  };
+
   const handleToggleStatus = async (email, currentStatus) => {
     if (!window.confirm(`Toggle status for ${email}?`)) return;
     setActionLoading(true);
     try {
-      const endpoint = currentStatus === 'active' ? 'deactivate' : 'activate';
-      const res = await authFetch(`${ADMIN_API}/${endpoint}_trainer/${email}`, { method: 'PUT' });
+      const targetStatus = currentStatus === 'active' ? 'inactive' : 'active';
+      const res = await authFetch(`${ADMIN_API}/inactive-trainer`, { 
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trainer_email: email, status: targetStatus })
+      });
       if (res.ok) { 
-        showToast('Status synchronized'); 
+        setTrainers(prev => prev.map(t => (t.email === email || t.trainer_email === email) ? { ...t, trainer_status: targetStatus } : t));
+        showToast(`Trainer ${targetStatus === 'active' ? 'Activated' : 'Deactivated'}`); 
         clearCache('admin_all_trainers');
         clearCache(`trainer_detail_${email}`);
-        fetchTrainers(); 
+        refreshSingleTrainer(email, targetStatus);
       }
       else showToast('Status change denied', 'error');
     } catch (err) { showToast('Sync protocol failure', 'error'); }

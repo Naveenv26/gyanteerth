@@ -23,19 +23,20 @@ const GoogleLogin = ({ onLoginSuccess, onLoginError }) => {
     }
   }, [onLoginSuccess, onLoginError]);
 
+  const initializedRef = useRef(false);
+
   useEffect(() => {
-    let interval;
+    if (initializedRef.current) return;
 
     const renderButton = () => {
-      if (!window.google || !googleButtonRef.current) return;
-
-      clearInterval(interval);
+      if (!window.google || !googleButtonRef.current || initializedRef.current) return;
 
       googleButtonRef.current.innerHTML = '';
 
       window.google.accounts.id.initialize({
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
         callback: handleCredentialResponse,
+        auto_select: false,
       });
 
       window.google.accounts.id.renderButton(googleButtonRef.current, {
@@ -44,18 +45,29 @@ const GoogleLogin = ({ onLoginSuccess, onLoginError }) => {
         theme: isDark ? 'filled_black' : 'outline',
         width: 380,
       });
+      
+      initializedRef.current = true;
     };
 
-    renderButton();
-    interval = setInterval(renderButton, 300);
+    if (window.google) {
+      renderButton();
+    } else {
+      const checkInterval = setInterval(() => {
+        if (window.google) {
+          renderButton();
+          clearInterval(checkInterval);
+        }
+      }, 500);
+      return () => clearInterval(checkInterval);
+    }
 
     return () => {
-      clearInterval(interval);
-      window.google?.accounts.id.cancel();
+      // Don't cancel here if it causes re-renders to flash
+      // window.google?.accounts.id.cancel();
     };
   }, [handleCredentialResponse, isDark]);
 
-  return <div ref={googleButtonRef} className="flex justify-center" />;
+  return <div ref={googleButtonRef} className="flex justify-center min-h-[44px]" />;
 };
 
 export default GoogleLogin;

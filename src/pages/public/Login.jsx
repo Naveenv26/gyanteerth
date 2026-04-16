@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAuth } from '../../shared/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -17,7 +17,7 @@ const Login = () => {
   const { login, authFetch } = useAuth();
   const navigate = useNavigate();
 
-  const handleAuthSuccess = async (data) => {
+  const handleAuthSuccess = useCallback(async (data) => {
     const userRole = (data.role || 'student') === 'user' ? 'student' : (data.role || 'student');
     const isStudent = userRole === 'student' || userRole === 'user';
     
@@ -61,7 +61,7 @@ const Login = () => {
     } else {
       navigate(`/${userRole}`);
     }
-  };
+  }, [email, login, authFetch, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -207,9 +207,7 @@ const Login = () => {
                 <div className="flex-grow border-t border-slate-300"></div>
               </div>
               <GoogleLogin 
-                onLoginSuccess={(data) => {
-                  handleAuthSuccess(data);
-                }}
+                onLoginSuccess={handleAuthSuccess}
                 onLoginError={setError}
               />
             </div>
