@@ -228,11 +228,7 @@ const Certificates = () => {
               >
                 
                 <CertificateGenerator 
-                  candidateName={user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Valued Learner'}
-                  courseName={selectedCert.courseTitle}
-                  startDate="Enrollment Date" 
-                  endDate={selectedCert.earnedDate}
-                  certificateId={selectedCert.id}
+                  courseId={selectedCert.courseId}
                   onDownload={(fn) => setDownloadFn(() => fn)}
                 />
               </motion.div>

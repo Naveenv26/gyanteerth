@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Mail, Phone, Lock, BookOpen, ArrowRight, X, KeyRound, RefreshCw, AlertCircle, Check, XCircle, ArrowLeft } from 'lucide-react';
+import { User, Mail, Phone, Lock, BookOpen, ArrowRight, X, KeyRound, RefreshCw, AlertCircle, Check, XCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../shared/AuthContext';
 import GoogleLogin from '../../components/auth/GoogleLogin';
 import { AUTH_API, USER_API, API_BASE } from '../../config';
@@ -25,6 +25,7 @@ const Signup = () => {
   const [formData, setFormData] = useState({
     email: '', password: '', confirmPassword: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
 
   const [step, setStep] = useState(1);
   const [tempUserId, setTempUserId] = useState(null);
@@ -351,10 +352,17 @@ const Signup = () => {
                       <Lock className="w-5 h-5" />
                     </div>
                     <input
-                      type="password" name="password" required placeholder="••••••••"
+                      type={showPassword ? 'text' : 'password'} name="password" required placeholder="••••••••"
                       value={formData.password} onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3 bg-[var(--color-surface-muted)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-light)] shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all"
+                      className="w-full pl-10 pr-10 py-3 bg-[var(--color-surface-muted)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-light)] shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 text-[var(--color-text-light)] hover:text-[var(--color-primary)] transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                   </div>
                 </motion.div>
                 <motion.div variants={itemVariants} className="relative group">
@@ -364,10 +372,17 @@ const Signup = () => {
                       <Lock className="w-5 h-5" />
                     </div>
                     <input
-                      type="password" name="confirmPassword" required placeholder="••••••••"
+                      type={showPassword ? 'text' : 'password'} name="confirmPassword" required placeholder="••••••••"
                       value={formData.confirmPassword} onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3 bg-[var(--color-surface-muted)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-light)] shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all"
+                      className="w-full pl-10 pr-10 py-3 bg-[var(--color-surface-muted)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-light)] shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 text-[var(--color-text-light)] hover:text-[var(--color-primary)] transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                   </div>
                 </motion.div>
               </div>

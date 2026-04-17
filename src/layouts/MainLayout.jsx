@@ -2,32 +2,31 @@ import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LogIn, 
-  UserPlus, 
   LogOut, 
   LayoutDashboard, 
-  Menu, 
-  X, 
   ChevronRight, 
   Sparkles, 
   ShoppingBag, 
   Users, 
   HelpCircle,
   Mail,
-  ArrowRight
+  ShieldCheck,
+  X
 } from 'lucide-react';
 import { useAuth } from '../shared/AuthContext';
 import { useTheme } from '../shared/ThemeContext';
 import Logo from '../components/Logo';
 import ThemeToggle from '../components/ThemeToggle';
 import { motion, AnimatePresence } from 'framer-motion';
+import CertificateVerifyBox from '../components/CertificateVerifyBox';
 
 const MainLayout = () => {
   const { user, logout } = useAuth();
   const { isDark } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -50,11 +49,47 @@ const MainLayout = () => {
     { name: 'Contact', path: '/under-construction', icon: Mail },
   ];
 
-  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
-
   return (
     <div className="flex flex-col min-h-screen w-full bg-[var(--color-bg)] font-sans text-[var(--color-text)] selection:bg-emerald-500/30">
       
+      {/* 🛡️ Verification Modal Overlay */}
+      <AnimatePresence>
+        {isVerifyModalOpen && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsVerifyModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-2xl bg-[var(--color-surface)] p-8 md:p-12 rounded-[3rem] shadow-2xl border border-[var(--color-border)] overflow-hidden"
+            >
+              <button 
+                onClick={() => setIsVerifyModalOpen(false)}
+                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
+              >
+                <X size={24} />
+              </button>
+
+              <div className="text-center mb-10">
+                <div className="w-16 h-16 bg-[var(--color-primary-bg)] text-[var(--color-primary)] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                  <ShieldCheck size={32} />
+                </div>
+                <h2 className="text-3xl font-black text-[var(--color-text)] tracking-tight mb-3">Verify Certificate</h2>
+                <p className="text-[var(--color-text-muted)] font-bold">Secure verification protocol for Gyanteerth credentials.</p>
+              </div>
+
+              <CertificateVerifyBox />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Dynamic Modern Navbar */}
       <header 
         className={`sticky top-0 z-[100] w-full transition-all duration-300 ${
@@ -66,15 +101,15 @@ const MainLayout = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             {/* Logo area */}
-            <div className="flex-shrink-0 hover:scale-105 transition-transform">
+            <div className="flex-shrink-0 hover:scale-105 transition-transform flex items-center gap-4">
               <Link to="/">
                 <Logo scale={0.75} showTagline={false} />
               </Link>
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-10">
-              <div className="flex items-center gap-8">
+            <nav className="flex items-center gap-10">
+              <div className="hidden md:flex items-center gap-8">
                 {navLinks.map((link) => {
                   const isActive = location.pathname === link.path;
                   return (
@@ -92,13 +127,24 @@ const MainLayout = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-4 pl-8 border-l border-[var(--color-border)]">
+              <div className="flex items-center gap-4 md:pl-8 md:border-l md:border-[var(--color-border)]">
+                
+                {/* 🛡️ Verification Button */}
+                <button 
+                  onClick={() => setIsVerifyModalOpen(true)}
+                  className="hidden sm:flex items-center gap-2 px-6 py-2.5 bg-white border-2 border-emerald-500/20 text-emerald-800 text-sm font-black rounded-2xl hover:bg-emerald-50 hover:border-emerald-500/50 transition-all shadow-sm"
+                >
+                  <ShieldCheck size={18} className="text-emerald-600" /> 
+                  <span className="hidden lg:inline">Verify Credential</span>
+                  <span className="lg:hidden">Verify</span>
+                </button>
+
                 <ThemeToggle />
                 {user ? (
                   <div className="flex items-center gap-4">
                     <Link 
                       to={`/${user.role}`} 
-                      className="flex items-center gap-2 text-sm font-bold text-slate-700 bg-white border-2 border-slate-100 hover:border-emerald-500/30 hover:bg-emerald-50 px-5 py-2.5 rounded-2xl transition-all shadow-sm shadow-slate-200/50"
+                      className="hidden sm:flex items-center gap-2 text-sm font-bold text-slate-700 bg-white border-2 border-slate-100 hover:border-emerald-500/30 hover:bg-emerald-50 px-5 py-2.5 rounded-2xl transition-all shadow-sm shadow-slate-200/50"
                     >
                       <LayoutDashboard className="w-4 h-4 text-emerald-600" /> Dashboard
                     </Link>
@@ -113,7 +159,7 @@ const MainLayout = () => {
                   <div className="flex items-center gap-4">
                     <Link 
                       to="/login" 
-                      className="group flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-emerald-700 bg-emerald-50/50 hover:bg-emerald-50 px-5 py-3 rounded-2xl transition-all animate-none"
+                      className="hidden sm:flex group flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-emerald-700 bg-emerald-50/50 hover:bg-emerald-50 px-5 py-3 rounded-2xl transition-all animate-none"
                     >
                       <LogIn className="w-4 h-4 text-emerald-600 group-hover:translate-x-0.5 transition-transform" /> Sign In
                     </Link>
@@ -130,126 +176,9 @@ const MainLayout = () => {
                 )}
               </div>
             </nav>
-
-            {/* Mobile menu button toggle */}
-            <div className="flex items-center gap-3">
-               {!user && (
-                 <Link to="/signup" className="md:hidden text-xs font-black text-white bg-emerald-600 px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20">Sign Up</Link>
-               )}
-               <ThemeToggle className="md:hidden" />
-               <button 
-                onClick={toggleMobileMenu}
-                className="text-[var(--color-text)] hover:text-[var(--color-primary)] p-2.5 bg-[var(--color-surface-muted)] rounded-xl hover:bg-[var(--color-primary-bg)]"
-               >
-                 {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-               </button>
-            </div>
           </div>
         </div>
       </header>
-
-      {/* Modern Sidebar / Mobile Overlay */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={toggleMobileMenu}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200]"
-            />
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 h-full w-full max-w-sm bg-[var(--color-surface)] z-[201] shadow-2xl flex flex-col"
-            >
-              <div className="p-8 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-primary)] text-white">
-                <Logo scale={0.6} showTagline={false} />
-                <button 
-                  onClick={toggleMobileMenu}
-                  className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto py-10 px-6 space-y-10">
-                {/* Main Links */}
-                <div>
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
-                    <div className="h-[1px] w-4 bg-slate-200" /> Essential Links
-                  </h4>
-                  <div className="grid gap-3">
-                    {navLinks.map((link) => (
-                      <Link 
-                        key={link.name} 
-                        to={link.path} 
-                        onClick={toggleMobileMenu}
-                        className="flex items-center justify-between p-4 rounded-3xl bg-slate-50 hover:bg-emerald-50 text-slate-800 font-black group transition-all"
-                      >
-                        {link.name}
-                        <ArrowRight className="w-4 h-4 text-emerald-600 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Explore Links (Our Products, About, etc.) */}
-                <div>
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
-                    <div className="h-[1px] w-4 bg-slate-200" /> Explore Gyanteerth
-                  </h4>
-                  <div className="grid grid-cols-1 gap-2">
-                    {dummyLinks.map((link) => {
-                      const Icon = link.icon;
-                      return (
-                        <Link 
-                          key={link.name} 
-                          to={link.path}
-                          onClick={toggleMobileMenu}
-                          className="flex items-center gap-4 p-4 rounded-3xl hover:bg-orange-50 text-slate-600 hover:text-orange-700 font-bold group transition-all"
-                        >
-                          <div className="w-10 h-10 bg-slate-100 group-hover:bg-orange-100 text-slate-400 group-hover:text-orange-500 rounded-xl flex items-center justify-center transition-colors">
-                            <Icon className="w-5 h-5" />
-                          </div>
-                          {link.name}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Account Section for Mobile */}
-                {!user && (
-                  <div className="pt-6">
-                    <Link 
-                      to="/login"
-                      onClick={toggleMobileMenu}
-                      className="flex items-center justify-center p-5 rounded-3xl border-2 border-emerald-600 text-emerald-700 font-black hover:bg-emerald-50 transition-all mb-4"
-                    >
-                      Member Login
-                    </Link>
-                    <Link 
-                      to="/signup"
-                      onClick={toggleMobileMenu}
-                      className="flex items-center justify-center p-5 rounded-3xl bg-emerald-600 text-white font-black hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20"
-                    >
-                      Join Platform
-                    </Link>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-8 bg-slate-50 border-t border-slate-100">
-                <p className="text-center text-[11px] font-bold text-slate-400 italic">"Empowering minds with knowledge"</p>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
       {/* Main Content Area */}
       <main className="flex-1 bg-[var(--color-bg)] relative">

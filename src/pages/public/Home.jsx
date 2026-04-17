@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   BookOpen,
-  UserCheck,
   Award,
   PlayCircle,
   ArrowRight,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { USER_API } from '../../config';
+import CertificateVerifyBox from '../../components/CertificateVerifyBox';
 
 const FeatureCard = ({ icon, title, desc, delay, accentColor = "emerald" }) => {
   const accentClasses = {
@@ -218,7 +218,7 @@ const Home = () => {
           </div>
         </section>
 
-        {/* FEATURES Section */}
+      {/* FEATURES Section */}
         <section className="py-32 relative">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-2 bg-gradient-to-r from-[var(--color-primary)]/20 via-[var(--color-accent)] to-[var(--color-primary)]/20 rounded-full" />
 
@@ -264,6 +264,35 @@ const Home = () => {
                 desc="Achievements are globally immutable and hashed for professional authority."
               />
             </div>
+          </div>
+        </section>
+
+        {/* 🛡️ NEW: Certificate Verification Section */}
+        <section className="py-24 relative overflow-hidden">
+          <div className="max-w-4xl mx-auto px-6 relative z-10">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="bg-[var(--color-surface)] p-12 md:p-16 rounded-[3rem] shadow-2xl border border-[var(--color-border)] relative overflow-hidden group"
+            >
+              {/* Decorative Blur */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-primary)]/5 rounded-full blur-3xl -mr-32 -mt-32 transition-colors group-hover:bg-[var(--color-primary)]/10" />
+              
+              <div className="text-center mb-10 relative z-10">
+                <div className="w-16 h-16 bg-[var(--color-primary-bg)] text-[var(--color-primary)] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                  <ShieldCheck size={32} />
+                </div>
+                <h2 className="text-3xl md:text-5xl font-black text-[var(--color-text)] tracking-tight mb-4">Verify Achievement</h2>
+                <p className="text-[var(--color-text-muted)] font-bold max-w-lg mx-auto">
+                  Enter the unique certificate UUID to verify its authenticity and metadata directly from our secure registry.
+                </p>
+              </div>
+
+              <div className="max-w-2xl mx-auto relative z-10">
+                <CertificateVerifyBox />
+              </div>
+            </motion.div>
           </div>
         </section>
 
