@@ -234,24 +234,7 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          <div style={{ 
-            padding: '1.5rem', background: 'var(--color-surface)', borderRadius: '1.5rem', 
-            border: '1px solid var(--color-border)', position: 'relative'
-          }}>
-            <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', opacity: 0.5 }}>SYSTEM LOGS</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {[
-                { time: '14:21', msg: 'Security Check: Passed', color: '#10b981' },
-                { time: '12:04', msg: 'Course Node #23 Syncing', color: '#3b82f6' },
-                { time: '10:45', msg: 'DB Backup Complete', color: '#8b5cf6' }
-              ].map((log, i) => (
-                <div key={i} style={{ display: 'flex', gap: '0.75rem', fontSize: '0.65rem', fontFamily: 'monospace' }}>
-                  <span style={{ color: 'var(--color-text-muted)' }}>[{log.time}]</span>
-                  <span style={{ color: log.color, fontWeight: 800 }}>{log.msg}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+
         </div>
 
       </div>
