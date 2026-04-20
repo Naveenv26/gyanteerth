@@ -10,7 +10,7 @@ import { useAuth } from '../../shared/AuthContext';
 import { ADMIN_API } from '../../config';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const CACHE_KEY = 'lms_catalog_cache';
+const CACHE_KEY = 'lms_catalog_cache_v2';
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 /* ── Skeleton Loader ── */
@@ -144,9 +144,11 @@ const Catalog = () => {
         ]);
 
         let finalCategories = ['All'];
+        let rawCats = [];
         if (catRes.ok) {
           const catData = await catRes.json();
-          const names = (catData.categories || catData.data || catData || []).map(c => c.Category_Name || c.name || c.category_name || c.Title || 'Other');
+          rawCats = catData.categories || catData.data || catData || [];
+          const names = rawCats.map(c => c.Category_Name || c.name || c.category_name || c.Title || 'Other');
           finalCategories = ['All', ...new Set(names.filter(Boolean))];
           setCategories(finalCategories);
         }
@@ -162,12 +164,21 @@ const Catalog = () => {
               if (res.ok) {
                 const data = await res.json();
                 const c = data.course || data.data || data;
+                
+                // Enhanced Category Mapping
+                let catName = c.category_name || c.Category_Name || c.Category;
+                if (!catName && (c.category_id || c.Category_ID || c.Course_Category_ID)) {
+                  const cid = c.category_id || c.Category_ID || c.Course_Category_ID;
+                  const match = rawCats.find(rc => (rc.Category_ID || rc.id || rc.Category_id) === cid);
+                  if (match) catName = match.Category_Name || match.name || match.category_name || match.Title;
+                }
+
                 return {
                   ...c,
                   id: c.course_id || c.Course_id || c.Course_ID || id,
                   title: c.course_title || c.title || c.Course_Title || 'Untitled',
                   thumbnail: c.thumbnail || c.Thumbnail || c.course_thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800',
-                  category_name: c.category_name || c.Category_Name || c.Category || 'Mastery',
+                  category_name: catName || 'Mastery',
                   type: (c.course_type || c.course_Type || c.Course_Type || c.type || 'recorded').toLowerCase(),
                   level: c.level || c.Level || 'Intermediate'
                 };

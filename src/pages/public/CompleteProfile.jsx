@@ -88,6 +88,49 @@ const CompleteProfile = () => {
     }
   };
 
+  const getErrorMessage = (result) => {
+    if (!result) return "An unexpected error occurred";
+    
+    // 1. Prioritize explicit message from backend
+    if (result.message) return result.message;
+    
+    // 2. Handle FastAPI/Pydantic list of errors
+    if (Array.isArray(result.detail)) {
+      const first = result.detail[0];
+      if (typeof first === 'string') return first;
+      if (first?.msg) {
+        // Humanize the message: "value_error.any_str.min_length" -> "Min length requirement not met"
+        let msg = first.msg;
+        // Capitalize first letter
+        msg = msg.charAt(0).toUpperCase() + msg.slice(1);
+        return msg;
+      }
+    }
+    
+    // 3. Handle raw string detail (which often contains the blunt Pydantic trace)
+    if (typeof result.detail === 'string') {
+      let raw = result.detail;
+      
+      // Check if it's a Pydantic validation trace
+      if (raw.includes("validation error for")) {
+        // Try to extract the core message: "Value error, Username must not contain spaces"
+        const match = raw.match(/Value error, (.*?)(?: \[|$)/);
+        if (match && match[1]) return match[1];
+        
+        // Fallback: search for "msg: " pattern if it exists
+        const msgMatch = raw.match(/msg='(.*?)'/);
+        if (msgMatch && msgMatch[1]) return msgMatch[1];
+        
+        // Last resort: clean up the first line
+        const lines = raw.split('\n');
+        if (lines.length > 2) return lines[2].trim();
+      }
+      return raw;
+    }
+    
+    return "Failed to update profile. Please check your inputs.";
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -98,6 +141,13 @@ const CompleteProfile = () => {
 
     if (missingFields.length > 0) {
       setError("Please fill all required fields");
+      setLoading(false);
+      return;
+    }
+
+    // Frontend validation for username spaces (common requirement in this app)
+    if (formData.user_name && formData.user_name.trim().includes(' ')) {
+      setError("Username must not contain spaces. Please use underscores or keep it as one word.");
       setLoading(false);
       return;
     }
@@ -130,7 +180,7 @@ const CompleteProfile = () => {
           navigate(`/${user.role}`);
         }, 1500);
       } else {
-        setError(result.message || result.detail?.[0]?.msg || "Failed to update profile");
+        setError(getErrorMessage(result));
       }
     } catch (err) {
       setError("Network error. Please try again.");

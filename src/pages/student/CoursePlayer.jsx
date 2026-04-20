@@ -4,27 +4,88 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   PlayCircle, ChevronRight, ChevronLeft, Award,
   Layers, Video, Monitor, Loader2, AlertCircle, ArrowLeft,
-  ChevronDown, BookOpen, ExternalLink, CheckCircle, Menu, Check, Star, X
+  ChevronDown, BookOpen, ExternalLink, CheckCircle, Menu, Check, Star, X,
+  FileText
 } from 'lucide-react';
 import { useEnrollment } from '../../shared/EnrollmentContext';
 import { useAuth } from '../../shared/AuthContext'; // <-- ADD THIS
 import { ADMIN_API, USER_API } from '../../config'; // <-- ADD USER_API
 
 /* ── helpers ─────────────────────────────────── */
-function buildLessons(modules, isLive) {
+function buildLessons(modules, courseNotes) {
   const lessons = [];
+
+  // 0. Course-Level Notes (Prepend if they exist)
+  (courseNotes || []).forEach((n, ni) => {
+    lessons.push({
+      id: n.notes_id || n.note_id || n.Notes_ID || n.id,
+      moduleId: 'global-resources',
+      moduleTitle: 'General Resources',
+      title: n.title || n.Title || `Resource ${ni + 1}`,
+      type: 'note',
+      url: n.note_url || n.file_url || n.Note_URL || n.File_URL
+    });
+  });
+
   (modules || []).forEach(mod => {
-    if (!isLive) {
-      (mod.content?.videos || []).forEach((v, vi) => {
-        lessons.push({ id: v.video_id, moduleId: mod.module_id, moduleTitle: mod.title, title: v.description || `Video ${vi + 1}`, type: 'video', url: v.video_url });
+    const vc = mod.content?.videos || mod.video || [];
+    const lc = mod.content?.live_sessions || mod.live_sessions || [];
+    const nc = mod.content?.notes || mod.notes || [];
+    const ac = mod.content?.assessments || mod.assessments || [];
+
+    // 1. Videos (Recorded Content)
+    vc.forEach((v, vi) => {
+      lessons.push({ 
+        id: v.video_id || v.Video_ID, 
+        moduleId: mod.module_id || mod.Module_ID, 
+        moduleTitle: mod.title || mod.Title, 
+        title: v.description || v.course_description || v.Title || v.title || `Video ${vi + 1}`, 
+        type: 'video', 
+        url: v.video_url || v.Video_URL 
       });
-    } else {
-      (mod.content?.live_sessions || []).forEach((ls, li) => {
-        lessons.push({ id: ls.live_id, moduleId: mod.module_id, moduleTitle: mod.title, title: `Live Session ${li + 1}${ls.provider ? ' — ' + ls.provider : ''}`, type: 'live', url: ls.meeting_url, start_time: ls.start_time, end_time: ls.end_time, status: ls.status, recordings: ls.recordings || [] });
+    });
+
+    // 2. Live Sessions
+    lc.forEach((ls, li) => {
+      lessons.push({ 
+        id: ls.live_id || ls.Live_ID, 
+        moduleId: mod.module_id || mod.Module_ID, 
+        moduleTitle: mod.title || mod.Title, 
+        title: ls.title || ls.Title || `Live Session ${li + 1}${ls.provider ? ' — ' + ls.provider : ''}`, 
+        type: 'live', 
+        url: ls.meeting_url || ls.Meeting_URL, 
+        start_time: ls.start_time || ls.Start_time, 
+        end_time: ls.end_time || ls.End_time, 
+        status: ls.status || ls.Status, 
+        recordings: ls.recordings || [] 
       });
-    }
-    (mod.content?.assessments || []).forEach(a => {
-      lessons.push({ id: a.assessment_id, moduleId: mod.module_id, moduleTitle: mod.title, title: a.title, type: 'assessment', totalMark: a.total_mark, passingMark: a.passing_mark, duration: a.duration, questions: a.questions || [] });
+    });
+
+    // 3. Notes / Resources
+    nc.forEach((n, ni) => {
+      lessons.push({
+        id: n.notes_id || n.note_id || n.Notes_ID || n.id,
+        moduleId: mod.module_id || mod.Module_ID,
+        moduleTitle: mod.title || mod.Title,
+        title: n.title || n.Title || `Resource ${ni + 1}`,
+        type: 'note',
+        url: n.note_url || n.file_url || n.Note_URL || n.File_URL
+      });
+    });
+
+    // 4. Assessments
+    ac.forEach(a => {
+      lessons.push({ 
+        id: a.assessment_id || a.Assessment_ID, 
+        moduleId: mod.module_id || mod.Module_ID, 
+        moduleTitle: mod.title || mod.Title, 
+        title: a.title || a.Title, 
+        type: 'assessment', 
+        totalMark: a.total_mark || a.Total_Mark, 
+        passingMark: a.passing_mark || a.Passing_Mark, 
+        duration: a.duration || a.Duration, 
+        questions: a.questions || [] 
+      });
     });
   });
   return lessons;
@@ -69,70 +130,35 @@ function getEmbedUrl(url) {
   return url; // Default to the URL itself for other providers
 }
 
-/* ── Secure Video Player ─────────────────────────────── */
-function SecureVideoPlayer({ videoId, title }) {
-  const { user, smartFetch, authFetch } = useAuth();
-  const [videoSrc, setVideoSrc] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchSecureUrl = async () => {
-      // 🛡️ Fixed: Checked for 'user' session instead of undefined 'accessToken'
-      if (!videoId || !user) return;
-      
-      try {
-        setLoading(true);
-        // 🚀 SMART FETCH: Use secure cached retrieval for the temporary URL (5 min TTL)
-        const data = await smartFetch(`${USER_API}/get-secure-video/${videoId}`, {
-          cacheKey: `secure_vid_${videoId}`,
-          ttl: 5 * 60 * 1000 
-        });
-        
-        if (!data?.url) throw new Error("Unauthorized or video not found");
-        // data.url should be the temporary Signed URL
-        if (isMounted) setVideoSrc(data.url);
-        
-      } catch (err) {
-        if (isMounted) setError(err.message);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    fetchSecureUrl();
-    return () => { isMounted = false; };
-  }, [videoId, smartFetch, authFetch]);
-
-  const handleContextMenu = (e) => e.preventDefault();
-
-  if (loading) {
-    return (
-      <div style={{ width: '100%', aspectRatio: '16/9', background: '#000', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 size={40} color="#6366f1" className="animate-spin" />
-      </div>
-    );
-  }
-
-  if (error || !videoSrc) {
+/* ── Iframe Video Player ───────────────────────── */
+function VideoPlayer({ lesson }) {
+  if (!lesson || !lesson.url) {
     return (
       <div style={{ width: '100%', aspectRatio: '16/9', background: '#0f172a', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
         <AlertCircle size={40} color="#ef4444" />
-        <p style={{ color: '#f8fafc', fontWeight: 600 }}>{error || "Video unavailable"}</p>
+        <p style={{ color: '#f8fafc', fontWeight: 600 }}>Video URL not available</p>
       </div>
     );
   }
 
+  // Handle YouTube watch URLs and convert to embed
+  let embedUrl = lesson.url;
+  if (embedUrl.includes('youtube.com/watch?v=')) {
+    const videoId = new URL(embedUrl).searchParams.get('v');
+    if (videoId) embedUrl = `https://www.youtube.com/embed/${videoId}`;
+  } else if (embedUrl.includes('youtu.be/')) {
+    const videoId = embedUrl.split('youtu.be/')[1].split('?')[0];
+    if (videoId) embedUrl = `https://www.youtube.com/embed/${videoId}`;
+  }
+
   return (
-    <div style={{ width: '100%', background: '#000', borderRadius: '12px', overflow: 'hidden', aspectRatio: '16/9' }}>
-      <video 
-        src={videoSrc} 
-        controls 
-        controlsList="nodownload" 
-        onContextMenu={handleContextMenu} 
-        style={{ width: '100%', height: '100%' }} 
+    <div style={{ width: '100%', background: '#000', borderRadius: '12px', overflow: 'hidden', aspectRatio: '16/9', boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}>
+      <iframe 
+        src={embedUrl} 
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        style={{ width: '100%', height: '100%', border: 'none' }} 
+        title={lesson.title || 'Video Player'}
       />
     </div>
   );
@@ -302,6 +328,70 @@ function LivePanel({ lesson, onJoin }) {
               <ExternalLink size={13} color="#10b981" style={{ marginLeft: 'auto' }} />
             </a>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Note Panel ───────────────────────────────── */
+function NotePanel({ lesson }) {
+  // Try to detect if it's a PDF for inline preview
+  const lowerUrl = (lesson.url || '').toLowerCase();
+  const isPdf = lowerUrl.endsWith('.pdf') || lowerUrl.includes('.pdf?');
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div style={{ padding: '3.5rem 2rem', background: 'white', borderRadius: '24px', border: '1px solid #f1f5f9', textAlign: 'center', boxShadow: '0 10px 40px rgba(0,0,0,0.04)', position: 'relative', overflow: 'hidden' }}>
+        {/* Decorative background */}
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #ef4444, #f59e0b)' }} />
+        
+        <div style={{ width: '80px', height: '80px', borderRadius: '20px', background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', border: '1px solid #fee2e2' }}>
+          <BookOpen size={36} color="#ef4444" />
+        </div>
+        
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#0f172a', marginBottom: '0.75rem', letterSpacing: '-0.02em' }}>{lesson.title}</h2>
+        <p style={{ color: '#64748b', fontSize: '0.95rem', maxWidth: '400px', margin: '0 auto 2.5rem', lineHeight: 1.6 }}>
+          This resource is available for your learning. You can view it directly or download it for offline study.
+        </p>
+        
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+           <a 
+            href={lesson.url} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: '0.6rem', 
+              background: 'linear-gradient(135deg, #0f172a, #1e293b)', 
+              color: 'white', textDecoration: 'none', padding: '0.85rem 2rem', 
+              borderRadius: '12px', fontSize: '0.9rem', fontWeight: 800, 
+              boxShadow: '0 8px 20px rgba(15,23,42,0.2)', transition: 'transform 0.2s' 
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+           >
+            <ExternalLink size={18} /> Open Resource
+           </a>
+        </div>
+      </div>
+
+      {isPdf && (
+        <div style={{ width: '100%', height: '800px', borderRadius: '24px', overflow: 'hidden', border: '1px solid #e2e8f0', background: 'white', boxShadow: '0 20px 50px rgba(0,0,0,0.08)' }}>
+           <iframe 
+            src={`${lesson.url}#toolbar=0&navpanes=0`} 
+            width="100%" 
+            height="100%" 
+            style={{ border: 'none' }} 
+            title={lesson.title}
+           />
+        </div>
+      )}
+      
+      {!isPdf && lesson.url && (
+        <div style={{ padding: '2rem', background: '#f8fafc', borderRadius: '16px', border: '1px dashed #cbd5e1', textAlign: 'center' }}>
+          <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0 }}>
+            Note: Preview is only available for PDF files. For other formats, please use the button above to open the resource.
+          </p>
         </div>
       )}
     </div>
@@ -481,14 +571,15 @@ const CoursePlayer = ({ isTrainer = false }) => {
         const res = await authFetch(`${ADMIN_API}/course/${id}/full-details`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if (data.status && data.course) {
+          if (data.status && data.course) {
           const c = data.course;
           setCourse(c);
-          const typeLower = (c.type || c.course_type || c.course_Type || 'recorded').toLowerCase();
-          const isLive = typeLower === 'live' || typeLower === 'live_course' || typeLower === 'live session';
-          const built  = buildLessons(c.modules, isLive);
+          const built  = buildLessons(c.modules, c.notes);
           setLessons(built);
 
+          const typeLower = (c.type || c.course_type || c.course_Type || 'recorded').toLowerCase();
+          const isLive = typeLower === 'live' || typeLower === 'live_course' || typeLower === 'live session';
+          
           // Auto-select first ongoing or upcoming live session if live course
           if (isLive && built.length > 0) {
               const now = new Date();
@@ -570,10 +661,16 @@ const CoursePlayer = ({ isTrainer = false }) => {
     lessonsByModule[l.moduleId].push({ ...l, globalIdx: idx });
   });
 
-  const lessonTypeColor = t => t === 'live' ? '#ef4444' : t === 'assessment' ? '#10b981' : '#6366f1';
+  const lessonTypeColor = t => {
+    if (t === 'live')       return '#ef4444';
+    if (t === 'assessment') return '#10b981';
+    if (t === 'note')       return '#f59e0b'; // Amber for notes
+    return '#6366f1';
+  };
   const lessonTypeIcon  = t => {
     if (t === 'live')       return <Monitor size={13} />;
     if (t === 'assessment') return <Award size={13} />;
+    if (t === 'note')       return <FileText size={13} />;
     return <Video size={13} />;
   };
 
@@ -683,7 +780,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* ── Sidebar ── */}
-        <aside style={{ width: sidebarOpen ? '320px' : '0', minWidth: sidebarOpen ? '320px' : '0', background: 'var(--color-surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)', borderRight: '1px solid var(--color-border)', zIndex: 40 }}>
+        <aside style={{ width: sidebarOpen ? '260px' : '0', minWidth: sidebarOpen ? '260px' : '0', background: 'var(--color-surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)', borderRight: '1px solid var(--color-border)', zIndex: 40 }}>
 
           {/* Sidebar header */}
           <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
@@ -702,8 +799,13 @@ const CoursePlayer = ({ isTrainer = false }) => {
 
           {/* Module list */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem 0.625rem' }}>
-            {(course.modules || []).map((mod, mi) => {
-              const modLessons = lessonsByModule[mod.module_id] || [];
+            {(() => {
+              const displayModules = [...(course.modules || [])];
+              if (lessonsByModule['global-resources']) {
+                displayModules.unshift({ module_id: 'global-resources', title: 'General Resources' });
+              }
+              return displayModules.map((mod, mi) => {
+                const modLessons = lessonsByModule[mod.module_id] || [];
               const isExp      = expandedModules[mod.module_id];
               const doneCount  = modLessons.filter(l => isLessonComplete(courseId, l.id)).length;
               return (
@@ -741,7 +843,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: isActive ? 700 : 400, fontSize: '0.78rem', color: isDone ? '#10b981' : isActive ? '#e2e8f0' : '#64748b', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', textDecoration: isDone && !isActive ? 'none' : 'none' }}>{lesson.title}</div>
                           <div style={{ fontSize: '0.67rem', color: isDone ? '#10b981' : '#334155', textTransform: 'capitalize', marginTop: '0.1rem' }}>
-                            {isDone ? '✓ Done' : lesson.type === 'assessment' ? 'Assessment' : lesson.type === 'live' ? 'Live' : 'Video'}
+                            {isDone ? '✓ Done' : lesson.type === 'assessment' ? 'Assessment' : lesson.type === 'live' ? 'Live' : lesson.type === 'note' ? 'Resource' : 'Video'}
                           </div>
                         </div>
                         {isActive && !isDone && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: tc, flexShrink: 0, boxShadow: `0 0 6px ${tc}` }} />}
@@ -750,7 +852,8 @@ const CoursePlayer = ({ isTrainer = false }) => {
                   })}
                 </div>
               );
-            })}
+            });
+            })()}
 
             {lessons.length === 0 && (
               <div style={{ padding: '2rem', textAlign: 'center' }}>
@@ -780,9 +883,9 @@ const CoursePlayer = ({ isTrainer = false }) => {
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.22rem 0.75rem', borderRadius: '99px', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', background: currentLesson.type === 'video' ? 'rgba(99,102,241,0.1)' : currentLesson.type === 'live' ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)', color: lessonTypeColor(currentLesson.type) }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.22rem 0.75rem', borderRadius: '99px', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', background: currentLesson.type === 'video' ? 'rgba(99,102,241,0.1)' : currentLesson.type === 'live' ? 'rgba(239,68,68,0.1)' : currentLesson.type === 'note' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)', color: lessonTypeColor(currentLesson.type) }}>
                           {lessonTypeIcon(currentLesson.type)}
-                          {currentLesson.type === 'live' ? 'Live Session' : currentLesson.type === 'assessment' ? 'Assessment' : 'Video Lesson'}
+                          {currentLesson.type === 'live' ? 'Live Session' : currentLesson.type === 'assessment' ? 'Assessment' : currentLesson.type === 'note' ? 'Resource' : 'Video Lesson'}
                         </span>
                         <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>· {currentLesson.moduleTitle}</span>
                         {currentDone && (
@@ -801,7 +904,8 @@ const CoursePlayer = ({ isTrainer = false }) => {
                   </div>
 
                   {/* Lesson content */}
-                  {currentLesson.type === 'video' && <SecureVideoPlayer videoId={currentLesson.id} title={currentLesson.title} />}
+                  {currentLesson.type === 'video' && <VideoPlayer lesson={currentLesson} />}
+                  {currentLesson.type === 'note' && <NotePanel lesson={currentLesson} />}
                   {currentLesson.type === 'live'  && (
                     <LivePanel 
                       lesson={currentLesson} 

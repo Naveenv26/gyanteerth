@@ -88,7 +88,8 @@ const Login = () => {
       if (response.ok && data.access_token) {
         await handleAuthSuccess(data);
       } else {
-        setError(data.message || data.detail?.[0]?.msg || 'Invalid credentials');
+        const errorMsg = data.message || (Array.isArray(data.detail) ? data.detail[0]?.msg : data.detail) || 'Invalid credentials';
+        setError(errorMsg);
       }
     } catch (err) {
       setError('Failed to connect to the server');

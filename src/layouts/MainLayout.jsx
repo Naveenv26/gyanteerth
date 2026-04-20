@@ -99,17 +99,16 @@ const MainLayout = () => {
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            {/* Logo area */}
-            <div className="flex-shrink-0 hover:scale-105 transition-transform flex items-center gap-4">
-              <Link to="/">
-                <Logo scale={0.75} showTagline={false} />
-              </Link>
-            </div>
-
-            {/* Desktop Navigation */}
-            <nav className="flex items-center gap-10">
-              <div className="hidden md:flex items-center gap-8">
+          <div className="flex items-center justify-between relative">
+            
+            {/* ⬅️ Left Section: Logo + Navigation Links */}
+            <div className="flex-1 flex items-center gap-12">
+              <div className="flex-shrink-0 hover:scale-105 transition-transform">
+                <Link to="/">
+                  <Logo scale={0.75} showTagline={false} />
+                </Link>
+              </div>
+              <nav className="hidden xl:flex items-center gap-8">
                 {navLinks.map((link) => {
                   const isActive = location.pathname === link.path;
                   return (
@@ -124,27 +123,29 @@ const MainLayout = () => {
                     </Link>
                   );
                 })}
-              </div>
+              </nav>
+            </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-4 md:pl-8 md:border-l md:border-[var(--color-border)]">
-                
-                {/* 🛡️ Verification Button */}
-                <button 
-                  onClick={() => setIsVerifyModalOpen(true)}
-                  className="hidden sm:flex items-center gap-2 px-6 py-2.5 bg-white border-2 border-emerald-500/20 text-emerald-800 text-sm font-black rounded-2xl hover:bg-emerald-50 hover:border-emerald-500/50 transition-all shadow-sm"
-                >
-                  <ShieldCheck size={18} className="text-emerald-600" /> 
-                  <span className="hidden lg:inline">Verify Credential</span>
-                  <span className="lg:hidden">Verify</span>
-                </button>
+            {/* 🎯 Center Section: Verification Button */}
+            <div className="flex items-center justify-center flex-shrink-0">
+              <button 
+                onClick={() => setIsVerifyModalOpen(true)}
+                className="flex items-center gap-2 px-8 py-3 bg-white border-2 border-emerald-500/20 text-emerald-800 text-sm font-black rounded-2xl hover:bg-emerald-50 hover:border-emerald-500/50 transition-all shadow-sm transform hover:-translate-y-0.5 active:scale-95"
+              >
+                <ShieldCheck size={20} className="text-emerald-600" /> 
+                <span className="tracking-tight">Verify Credential</span>
+              </button>
+            </div>
 
-                <ThemeToggle />
+            {/* ➡️ Right Section: Theme Toggle + User Actions */}
+            <div className="flex-1 flex items-center justify-end gap-5">
+              <ThemeToggle />
+              <div className="flex items-center gap-4 border-l border-[var(--color-border)] pl-5">
                 {user ? (
                   <div className="flex items-center gap-4">
                     <Link 
                       to={`/${user.role}`} 
-                      className="hidden sm:flex items-center gap-2 text-sm font-bold text-slate-700 bg-white border-2 border-slate-100 hover:border-emerald-500/30 hover:bg-emerald-50 px-5 py-2.5 rounded-2xl transition-all shadow-sm shadow-slate-200/50"
+                      className="hidden md:flex items-center gap-2 text-sm font-bold text-slate-700 bg-white border-2 border-slate-100 hover:border-emerald-500/30 hover:bg-emerald-50 px-5 py-2.5 rounded-2xl transition-all shadow-sm"
                     >
                       <LayoutDashboard className="w-4 h-4 text-emerald-600" /> Dashboard
                     </Link>
@@ -159,14 +160,14 @@ const MainLayout = () => {
                   <div className="flex items-center gap-4">
                     <Link 
                       to="/login" 
-                      className="hidden sm:flex group flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-emerald-700 bg-emerald-50/50 hover:bg-emerald-50 px-5 py-3 rounded-2xl transition-all animate-none"
+                      className="hidden sm:flex group flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-emerald-700 bg-emerald-50/50 hover:bg-emerald-50 px-5 py-3 rounded-2xl transition-all"
                     >
                       <LogIn className="w-4 h-4 text-emerald-600 group-hover:translate-x-0.5 transition-transform" /> Sign In
                     </Link>
                     <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
                       <Link 
                         to="/signup" 
-                        className="group flex items-center gap-2 text-sm font-black bg-gradient-to-r from-emerald-600 via-emerald-700 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 px-7 py-3 rounded-2xl shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all"
+                        className="group flex items-center gap-2 text-sm font-black bg-gradient-to-r from-emerald-600 via-emerald-700 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 px-7 py-3 rounded-2xl shadow-xl shadow-emerald-500/20 transition-all"
                       >
                         <span className="text-white group-hover:text-orange-400 transition-colors">Start Free</span>
                         <Sparkles className="w-4 h-4 text-white group-hover:text-orange-400 group-hover:rotate-12 transition-all" />
@@ -175,7 +176,7 @@ const MainLayout = () => {
                   </div>
                 )}
               </div>
-            </nav>
+            </div>
           </div>
         </div>
       </header>

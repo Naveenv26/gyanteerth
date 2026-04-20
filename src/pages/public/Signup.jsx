@@ -59,6 +59,31 @@ const Signup = () => {
     }
   };
 
+  const getErrorMessage = (result) => {
+    if (!result) return "An unexpected error occurred";
+    if (result.message) return result.message;
+    if (Array.isArray(result.detail)) {
+      const first = result.detail[0];
+      if (typeof first === 'string') return first;
+      if (first?.msg) {
+        let msg = first.msg;
+        msg = msg.charAt(0).toUpperCase() + msg.slice(1);
+        return msg;
+      }
+    }
+    if (typeof result.detail === 'string') {
+      let raw = result.detail;
+      if (raw.includes("validation error for")) {
+        const match = raw.match(/Value error, (.*?)(?: \[|$)/);
+        if (match && match[1]) return match[1];
+        const msgMatch = raw.match(/msg='(.*?)'/);
+        if (msgMatch && msgMatch[1]) return msgMatch[1];
+      }
+      return raw;
+    }
+    return "Something went wrong. Please try again.";
+  };
+
   const handleSignupSubmit = async (e) => {
     e.preventDefault();
     if (!isPasswordValid) {
@@ -89,7 +114,7 @@ const Signup = () => {
         setTempUserId(data.user_id);
         setStep(2);
       } else {
-        setError(data.message || data.detail?.[0]?.msg || 'Email may already exist or invalid request');
+        setError(getErrorMessage(data));
       }
     } catch (err) {
       setError('Failed to connect to the server');
@@ -156,14 +181,14 @@ const Signup = () => {
             alert('Registration and password set successfully! Please login.');
             navigate('/login');
           } else {
-            setError(pwData.message || pwData.detail?.[0]?.msg || 'Failed to set password');
+            setError(getErrorMessage(pwData));
           }
         } catch (pwErr) {
           setError(pwErr.message || 'Failed to connect to the server for setting password');
           console.error('Set Password Error:', pwErr);
         }
       } else {
-        setError(data.message || data.detail?.[0]?.msg || 'Invalid verification code');
+        setError(getErrorMessage(data));
       }
     } catch (err) {
       setError(err.message || 'Failed to verify OTP');
@@ -224,7 +249,7 @@ const Signup = () => {
       });
       const data = await response.json();
       if (!response.ok) {
-        setError(data.message || 'Failed to resend OTP');
+        setError(getErrorMessage(data));
       } else {
         // Successfully resent
         alert('OTP resent to your email');
