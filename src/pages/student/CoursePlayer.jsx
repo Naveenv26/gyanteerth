@@ -180,7 +180,6 @@ function useCountdown(targetDate) {
 }
 
 function LivePanel({ lesson, onJoin }) {
-  const [showStage, setShowStage] = useState(false);
   const target = lesson.start_time ? new Date(lesson.start_time) : null;
   const end    = lesson.end_time   ? new Date(lesson.end_time)   : null;
   const timeLeft = useCountdown(target);
@@ -212,57 +211,11 @@ function LivePanel({ lesson, onJoin }) {
   const countdownStr = isUpcoming ? formatCountdown(timeLeft) : null;
 
   const handleJoin = () => {
-    setShowStage(true);
     onJoin(lesson.id, lesson.moduleId);
+    if (lesson.url) {
+      window.open(lesson.url, '_blank', 'noopener,noreferrer');
+    }
   };
-
-  if (showStage && lesson.url) {
-    const embedUrl = getEmbedUrl(lesson.url);
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div style={{ 
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-          background: 'linear-gradient(90deg, #0f172a, #1e1b4b)', 
-          padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444', animation: 'pulse 1.5s infinite' }} />
-            <h3 style={{ color: 'white', margin: 0, fontSize: '0.9rem', fontWeight: 700 }}>{lesson.title} — Live Stage</h3>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <a href={lesson.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '0.4rem 0.8rem', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none', transition: 'all 0.2s' }}>
-              <ExternalLink size={14} /> Pop-out
-            </a>
-            <button 
-              onClick={() => setShowStage(false)} 
-              style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(239,68,68,0.3)' }}
-              onMouseEnter={e => e.currentTarget.style.background = '#dc2626'}
-              onMouseLeave={e => e.currentTarget.style.background = '#ef4444'}
-            >
-              Exit Stage
-            </button>
-          </div>
-        </div>
-        
-        <div style={{ width: '100%', aspectRatio: '16/9', background: '#000', borderRadius: '16px', overflow: 'hidden', position: 'relative', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
-          <iframe 
-            src={embedUrl} 
-            title="Live Session"
-            style={{ width: '100%', height: '100%', border: 'none' }} 
-            allow="camera; microphone; fullscreen; display-capture; autoplay"
-          />
-          <div style={{ position: 'absolute', bottom: '1rem', right: '1rem', pointerEvents: 'none', opacity: 0.5 }}>
-            <Monitor size={48} color="white" />
-          </div>
-        </div>
-
-        <p style={{ color: '#64748b', fontSize: '0.75rem', textAlign: 'center', margin: '0.5rem 0' }}>
-          If the video doesn't load, use the <strong>Pop-out</strong> button above to open the session in a new tab.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>

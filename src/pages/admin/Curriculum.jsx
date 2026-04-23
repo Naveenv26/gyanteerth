@@ -442,14 +442,21 @@ const AdminCurriculum = () => {
                 {editModal.type === 'live' && (
                   <>
                     <AMInput label="Session Topic" value={editModal.data.Title} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Title: e.target.value } })} required placeholder="e.g. Q&A Session" />
+                    <AMInput label="Live Class Link" value={editModal.data.Meeting_URL} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Meeting_URL: e.target.value } })} placeholder="https://..." />
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                      <AMSelect label="Platform" value={editModal.data.Provider} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Provider: e.target.value } })} options={['Zoom', 'Google Meet', 'Teams']} />
-                      <AMSelect label="Session Status" value={editModal.data.Status} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Status: e.target.value } })} options={[{ label: 'Scheduled', val: 'scheduled' }, { label: 'Live Now', val: 'live' }]} />
+                      <AMSelect label="Platform" value={editModal.data.Provider} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Provider: e.target.value } })} options={['Zoom', 'Google Meet', 'Teams', 'Other']} />
+                      <AMSelect label="Session Status" value={editModal.data.Status} onChange={e => {
+                        const newStatus = e.target.value;
+                        const nowStr = newStatus === 'live' ? new Date().toISOString().slice(0, 16) : editModal.data.Start_time;
+                        setEditModal({ ...editModal, data: { ...editModal.data, Status: newStatus, Start_time: nowStr, End_time: nowStr } });
+                      }} options={[{ label: 'Scheduled', val: 'scheduled' }, { label: 'Live Now', val: 'live' }]} />
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                       <AMInput label="Starting Time" type="datetime-local" value={editModal.data.Start_time} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Start_time: e.target.value } })} required />
-                       <AMInput label="Ending Time" type="datetime-local" value={editModal.data.End_time} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, End_time: e.target.value } })} required />
-                    </div>
+                    {editModal.data.Status !== 'live' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                         <AMInput label="Starting Time" type="datetime-local" step="60" value={editModal.data.Start_time} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Start_time: e.target.value } })} required />
+                         <AMInput label="Ending Time" type="datetime-local" step="60" value={editModal.data.End_time} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, End_time: e.target.value } })} required />
+                      </div>
+                    )}
                   </>
                 )}
                 {editModal.type === 'notes' && (

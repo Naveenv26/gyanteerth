@@ -13,6 +13,10 @@ const Certificates = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [downloadFn, setDownloadFn] = useState(null);
 
+  const handleDownloadReady = React.useCallback((fn) => {
+    setDownloadFn(() => fn);
+  }, []);
+
   // 🎓 Identify completed courses (100% progress)
   const earnedCertificates = useMemo(() => {
     const raw = enrolledCourses || [];
@@ -229,7 +233,7 @@ const Certificates = () => {
                 
                 <CertificateGenerator 
                   courseId={selectedCert.courseId}
-                  onDownload={(fn) => setDownloadFn(() => fn)}
+                  onDownload={handleDownloadReady}
                 />
               </motion.div>
             </div>

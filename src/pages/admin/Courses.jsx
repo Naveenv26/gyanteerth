@@ -36,29 +36,29 @@ const AdminCourses = () => {
   };
 
 
-  const fetchAllData = useCallback(async () => {
+  const fetchAllData = useCallback(async (force = false) => {
     if (!user) return;
     try {
       // 1. Concurrent Fetch Categories & Status Metadata (SWR)
       const [catData, statusData] = await Promise.all([
-        smartFetch(`${ADMIN_API}/get-categories`, { cacheKey: 'admin_categories' }),
-        smartFetch(`${ADMIN_API}/courses/ids-by-status`, { cacheKey: 'admin_course_ids' })
+        smartFetch(`${ADMIN_API}/get-categories`, { cacheKey: 'admin_categories', forceRefresh: force }),
+        smartFetch(`${ADMIN_API}/courses/ids-by-status`, { cacheKey: 'admin_course_ids', forceRefresh: force })
       ]);
 
       if (catData) setCategories(catData.categories || []);
 
       if (statusData) {
-        const { active = [], draft = [], inactive = [] } = statusData.courses || {};
+        const { active = [], draft = [] } = statusData.courses || {};
         const allMeta = [
           ...active.map(id => ({ id, status: 'active' })),
-          ...draft.map(id => ({ id, status: 'draft' })),
-          ...inactive.map(id => ({ id, status: 'inactive' }))
+          ...draft.map(id => ({ id, status: 'draft' }))
         ];
 
         // 2. 🔥 CONCURRENT BATCH FETCHING (Parallelized SWR)
         const detailPromises = allMeta.map(async (meta) => {
           const data = await smartFetch(`${ADMIN_API}/course/${meta.id}/full-details`, { 
-            cacheKey: `details_${meta.id}` 
+            cacheKey: `details_${meta.id}`,
+            forceRefresh: force 
           });
           if (!data) return null;
           const c = data.course || data;
@@ -110,7 +110,7 @@ const AdminCourses = () => {
         showToast('Strategic Deployment Successful'); 
         clearCache('admin_course_ids'); // Bust IDs cache
         clearCache(`details_${courseId}`); // Bust specific detail cache
-        fetchAllData(); 
+        fetchAllData(true); 
         setActiveTab('active'); 
       }
       else { const d = await res.json(); showToast(d.detail || d.message || 'Denied', 'error'); }
@@ -126,7 +126,7 @@ const AdminCourses = () => {
         showToast('Asset Purged'); 
         clearCache('admin_course_ids');
         clearCache(`details_${courseId}`);
-        fetchAllData(); 
+        fetchAllData(true); 
       }
       else showToast('Restricted', 'error');
     } catch (err) { showToast('Sync failed', 'error'); }
@@ -200,7 +200,6 @@ const AdminCourses = () => {
             <div style={{ display: 'flex', padding: '0.4rem', backgroundColor: 'var(--color-surface-muted)', borderRadius: '1.75rem', border: '1px solid var(--color-border)', gap: '0.4rem' }}>
                <SmallTab active={activeTab === 'draft'} label="Development" count={getCount('draft')} onClick={() => setActiveTab('draft')} icon={<Clock size={12}/>} activeColor="#f97316" />
                <SmallTab active={activeTab === 'active'} label="Live Operation" count={getCount('active')} onClick={() => setActiveTab('active')} icon={<Zap size={12}/>} activeColor="#10b981" />
-               <SmallTab active={activeTab === 'inactive'} label="Archives" count={getCount('inactive')} onClick={() => setActiveTab('inactive')} icon={<Archive size={12}/>} activeColor="#64748b" />
             </div>
          </div>
 
@@ -312,7 +311,7 @@ const PremiumCourseCardSmall = ({ course, onEdit, onDelete, onManage, onPublish,
                 </button>
              ) : (
                 <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', color: 'white', padding: '0.45rem 1rem', borderRadius: '0.75rem', fontWeight: 950, fontSize: '0.65rem', letterSpacing: '0.05em' }}>
-                   {isLive ? 'ACTIVE' : 'ARCHIVED'}
+                   ACTIVE
                 </div>
              )}
           </div>

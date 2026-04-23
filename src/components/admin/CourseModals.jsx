@@ -140,7 +140,7 @@ export const CreateCategoryModal = ({ onClose, refresh, showToast, categories })
 };
 
 export const CreateCourseModal = ({ onClose, trainers, categories, showToast, refresh, initialCategoryId = '' }) => {
-   const { authFetch } = useAuth();
+   const { authFetch, clearCache } = useAuth();
    const [loading, setLoading] = useState(false);
 
    const [formData, setFormData] = useState({
@@ -184,7 +184,13 @@ export const CreateCourseModal = ({ onClose, trainers, categories, showToast, re
                discount_pay: Number(formData.discount_pay) || 0
             })
          });
-         if (res.ok) { showToast('Course profile initialized'); refresh(); onClose(); }
+         if (res.ok) { 
+            showToast('Course profile initialized'); 
+            clearCache('admin_course_ids');
+            clearCache('admin_categories');
+            refresh(); 
+            onClose(); 
+         }
          else { const err = await res.json(); showToast(err.detail || err.message || 'Creation failed', 'error'); }
       } catch (err) { showToast('Sync error', 'error'); }
       finally { setLoading(false); }
@@ -276,7 +282,7 @@ export const CreateCourseModal = ({ onClose, trainers, categories, showToast, re
 };
 
 export const EditCourseModal = ({ course, onClose, trainers, categories, showToast, refresh }) => {
-   const { authFetch } = useAuth();
+   const { authFetch, clearCache } = useAuth();
    const [loading, setLoading] = useState(false);
 
    const [formData, setFormData] = useState({
@@ -320,7 +326,13 @@ export const EditCourseModal = ({ course, onClose, trainers, categories, showToa
                discount_pay: Number(formData.discount_pay) || 0
             })
          });
-         if (res.ok) { showToast('Course profile updated'); refresh(); onClose(); }
+         if (res.ok) { 
+            showToast('Course profile updated'); 
+            clearCache('admin_course_ids');
+            clearCache(`details_${course.course_id}`);
+            refresh(); 
+            onClose(); 
+         }
          else { const err = await res.json(); showToast(err.detail || err.message || 'Update failed', 'error'); }
       } catch (err) { showToast('Sync error', 'error'); }
       finally { setLoading(false); }

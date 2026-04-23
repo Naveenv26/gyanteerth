@@ -86,8 +86,14 @@ const AdminCategories = () => {
           showToast('Category Deleted'); 
           clearCache('admin_categories');
           fetchCategories(true); 
+      } else {
+          try {
+              const errData = await res.json();
+              showToast(errData.message || errData.detail || 'Operation failed', 'error');
+          } catch (e) {
+              showToast('Operation failed', 'error');
+          }
       }
-      else showToast('Operation failed', 'error');
     } catch (err) { showToast('Network Error', 'error'); }
   };
 
@@ -201,7 +207,7 @@ const AdminCategories = () => {
 
       {isModalOpen && <CategoryModal mode={modalMode} category={selectedCategory} categories={categories} onClose={() => { setIsModalOpen(false); setSelectedCategory(null); }} refresh={() => fetchCategories(true)} showToast={showToast} />}
       
-      {isCreateCourseModalOpen && <CreateCourseModal onClose={() => setIsCreateCourseModalOpen(false)} trainers={trainers} categories={categories} showToast={showToast} refresh={() => {}} initialCategoryId={selectedCategoryIdForCourse} />}
+      {isCreateCourseModalOpen && <CreateCourseModal onClose={() => setIsCreateCourseModalOpen(false)} trainers={trainers} categories={categories} showToast={showToast} refresh={() => fetchCategories(true)} initialCategoryId={selectedCategoryIdForCourse} />}
 
       {toast && (
         <div style={{ position: 'fixed', bottom: '4rem', left: '50%', transform: 'translateX(-50%)', zIndex: 2500, padding: '1.15rem 3rem', borderRadius: '4rem', backgroundColor: '#111827', color: 'white', fontWeight: '900', boxShadow: '0 30px 60px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '1rem', animation: 'slideUp 0.5s' }}>
