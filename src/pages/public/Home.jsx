@@ -344,7 +344,7 @@ const Home = () => {
                   >
                      <div className="flex items-center gap-1 mb-6">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} size={16} fill={i < Math.round(parseFloat(item.course_rating || 0)) ? "var(--color-accent)" : "transparent"} stroke={i < Math.round(parseFloat(item.course_rating || 0)) ? "var(--color-accent)" : "var(--color-border-strong)"} />
+                          <Star key={i} size={16} fill={i < Math.round(parseFloat(item.course_rating || item.rating || item.Rating || 0)) ? "var(--color-accent)" : "transparent"} stroke={i < Math.round(parseFloat(item.course_rating || item.rating || item.Rating || 0)) ? "var(--color-accent)" : "var(--color-border-strong)"} />
                         ))}
                      </div>
                      <p className="text-lg md:text-2xl text-[var(--color-text)] font-black leading-tight tracking-tight mb-10 italic">

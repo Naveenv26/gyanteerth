@@ -144,6 +144,12 @@ const AdminCurriculum = () => {
         body: JSON.stringify({ Course_ID: courseId, Title: moduleForm.Title, Course_Description: moduleForm.Description, Position: parseInt(moduleForm.Position) || 1 })
       });
       if (res.ok) { showToast(moduleForm.editingId ? 'Chapter updated' : 'Chapter created'); setShowModuleForm(false); setModuleForm({ Title: '', Description: '', Position: 0, editingId: null }); await fetchCurriculum(); }
+      else { 
+        const errData = await res.json().catch(() => ({})); 
+        showToast(errData.detail || errData.message || `Action failed (${res.status} error)`, 'error'); 
+      }
+    } catch (err) { 
+      showToast('Network or server error', 'error'); 
     } finally { setActionLoading(false); }
   };
 
@@ -181,7 +187,12 @@ const AdminCurriculum = () => {
         showToast(`${conf.label} Saved`);
         setEditModal({ show: false, type: '', data: null });
         await fetchCurriculum();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        showToast(errorData.detail || errorData.message || `Failed to create ${conf.label} (${res.status} error)`, 'error');
       }
+    } catch (err) {
+      showToast(`Network or server error occurred`, 'error');
     } finally { setActionLoading(false); }
   };
 

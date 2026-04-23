@@ -35,7 +35,9 @@ export default function Courses() {
                   course_id: c.course_id || id,
                   title: c.course_title || c.title || 'Untitled',
                   type: c.type || c.course_Type || 'recorded',
-                  thumbnail: c.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800'
+                  thumbnail: c.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800',
+                  rating: c.course_rating || c.rating || c.average_rating || 0,
+                  students: c.students || c.enrollment_count || c.student_count || (c.enrollments ? c.enrollments.length : 0)
                 });
               }
             } catch (e) { console.error(`Failed to fetch course ${id}`, e); }
@@ -97,7 +99,7 @@ export default function Courses() {
               <div className="w-full md:w-1/2 p-8 lg:p-12 flex flex-col justify-center">
                  <div className="flex items-center gap-2 mb-4">
                   <span className="bg-emerald-100/80 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full">{topSeller.type === 'recorded' ? 'Recorded Course' : 'Live Interactive'}</span>
-                  <span className="flex items-center gap-1 text-slate-500 text-sm font-medium"><Star className="w-4 h-4 text-amber-400 fill-amber-400"/> {topSeller.rating || '4.5'}</span>
+                  <span className="flex items-center gap-1 text-slate-500 text-sm font-medium"><Star className="w-4 h-4 text-amber-400 fill-amber-400"/> {topSeller.rating || '0'}</span>
                   <span className="flex items-center gap-1 text-slate-500 text-sm font-medium"><Users className="w-4 h-4"/> {topSeller.students || '0'}</span>
                 </div>
                 <h2 className="text-3xl font-extrabold text-slate-900 mb-4 tracking-tight">{topSeller.title}</h2>
@@ -161,7 +163,7 @@ export default function Courses() {
               </div>
               <div className="p-6 flex flex-col flex-1">
                  <div className="flex items-center gap-4 text-sm text-slate-500 mb-3 font-medium border-b border-slate-100 pb-3">
-                  <span className="flex items-center gap-1"><Star className="w-4 h-4 text-amber-400 fill-amber-400"/> {course.rating || '4.5'}</span>
+                  <span className="flex items-center gap-1"><Star className="w-4 h-4 text-amber-400 fill-amber-400"/> {course.rating || '0'}</span>
                   <span className="flex items-center gap-1"><Users className="w-4 h-4"/> {course.students || '0'}</span>
                   <span className="flex items-center gap-1 ml-auto"><Clock className="w-4 h-4"/> {course.duration}</span>
                 </div>

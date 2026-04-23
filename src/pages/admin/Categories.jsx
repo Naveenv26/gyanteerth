@@ -14,7 +14,7 @@ import { ADMIN_API } from '../../config';
 import { CreateCourseModal } from '../../components/admin/CourseModals';
 
 const AdminCategories = () => {
-  const { user, authFetch, smartFetch } = useAuth();
+  const { user, authFetch, smartFetch, clearCache } = useAuth();
   const navigate = useNavigate();
   
   const [categories, setCategories] = useState([]);
@@ -38,13 +38,13 @@ const AdminCategories = () => {
   };
 
 
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (force = false) => {
     if (!user) return;
     setLoading(true);
     try {
       const [data, sData] = await Promise.all([
-        smartFetch(`${ADMIN_API}/get-categories`, { cacheKey: 'admin_categories' }),
-        smartFetch(`${ADMIN_API}/courses/ids-by-status`, { cacheKey: 'admin_course_ids' })
+        smartFetch(`${ADMIN_API}/get-categories`, { cacheKey: 'admin_categories', forceRefresh: force }),
+        smartFetch(`${ADMIN_API}/courses/ids-by-status`, { cacheKey: 'admin_course_ids', forceRefresh: force })
       ]);
 
       if (data) setCategories(data.categories || []);
@@ -82,7 +82,11 @@ const AdminCategories = () => {
     if (!window.confirm('Caution: Delete this category and all its associations? This action is permanent.')) return;
     try {
       const res = await authFetch(`${ADMIN_API}/delete-category/${catId}`, { method: 'DELETE' });
-      if (res.ok) { showToast('Category Deleted'); fetchCategories(); }
+      if (res.ok) { 
+          showToast('Category Deleted'); 
+          clearCache('admin_categories');
+          fetchCategories(true); 
+      }
       else showToast('Operation failed', 'error');
     } catch (err) { showToast('Network Error', 'error'); }
   };
@@ -195,7 +199,7 @@ const AdminCategories = () => {
          </div>
       </div>
 
-      {isModalOpen && <CategoryModal mode={modalMode} category={selectedCategory} categories={categories} onClose={() => { setIsModalOpen(false); setSelectedCategory(null); }} refresh={fetchCategories} showToast={showToast} />}
+      {isModalOpen && <CategoryModal mode={modalMode} category={selectedCategory} categories={categories} onClose={() => { setIsModalOpen(false); setSelectedCategory(null); }} refresh={() => fetchCategories(true)} showToast={showToast} />}
       
       {isCreateCourseModalOpen && <CreateCourseModal onClose={() => setIsCreateCourseModalOpen(false)} trainers={trainers} categories={categories} showToast={showToast} refresh={() => {}} initialCategoryId={selectedCategoryIdForCourse} />}
 
@@ -325,7 +329,7 @@ const PremiumCategoryListRow = ({ cat, onEdit, onDelete, onView, onCreateCourse,
 );
 
 const CategoryModal = ({ mode, category, categories, onClose, refresh, showToast }) => {
-  const { authFetch } = useAuth();
+  const { authFetch, clearCache } = useAuth();
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -384,7 +388,12 @@ const CategoryModal = ({ mode, category, categories, onClose, refresh, showToast
         body: JSON.stringify(payload)
       });
 
-      if (res.ok) { showToast(`Category Saved`); refresh(); onClose(); }
+      if (res.ok) { 
+          showToast(`Category Saved`); 
+          clearCache('admin_categories');
+          refresh(); 
+          onClose(); 
+      }
       else { const d = await res.json(); showToast(d.detail || 'Error', 'error'); }
     } catch (e) { showToast('Sync failed', 'error'); }
     finally { setLoading(false); }
