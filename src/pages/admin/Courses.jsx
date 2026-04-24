@@ -306,9 +306,9 @@ const PremiumCourseCardSmall = ({ course, onEdit, onDelete, onManage, onPublish,
  
           <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem' }}>
              {isDraft ? (
-                <button onClick={onPublish} disabled={isPublishing} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '0.45rem 1rem', borderRadius: '0.75rem', fontWeight: 950, fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                   <ShieldCheck size={12} /> GO LIVE
-                </button>
+                <div style={{ backgroundColor: 'rgba(249,115,22,0.9)', backdropFilter: 'blur(10px)', color: 'white', padding: '0.45rem 1rem', borderRadius: '0.75rem', fontWeight: 950, fontSize: '0.65rem', letterSpacing: '0.05em' }}>
+                   DRAFT
+                </div>
              ) : (
                 <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', color: 'white', padding: '0.45rem 1rem', borderRadius: '0.75rem', fontWeight: 950, fontSize: '0.65rem', letterSpacing: '0.05em' }}>
                    ACTIVE
@@ -328,9 +328,16 @@ const PremiumCourseCardSmall = ({ course, onEdit, onDelete, onManage, onPublish,
              <MinStat icon={<Layers size={12} color="#f97316"/>} value={`${course.modules?.length || 0} Layers`} />
           </div>
  
-          <button onClick={onManage} style={{ marginTop: 'auto', backgroundColor: '#10b981', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '1rem', fontWeight: 950, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', transition: 'all 0.3s' }}>
-             Studio Architect <ArrowRight size={14} />
-          </button>
+          <div style={{ display: 'grid', gridTemplateColumns: isDraft ? '1fr 1fr' : '1fr', gap: '0.75rem', marginTop: 'auto' }}>
+             {isDraft && (
+                <button onClick={onPublish} disabled={isPublishing} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '1rem', fontWeight: 950, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', transition: 'all 0.3s' }}>
+                   <ShieldCheck size={14} /> Publish
+                </button>
+             )}
+             <button onClick={onManage} style={{ backgroundColor: '#1e3a8a', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '1rem', fontWeight: 950, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', transition: 'all 0.3s' }}>
+                Studio Architect <ArrowRight size={14} />
+             </button>
+          </div>
        </div>
     </div>
   );
