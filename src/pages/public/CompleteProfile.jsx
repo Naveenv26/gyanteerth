@@ -145,12 +145,6 @@ const CompleteProfile = () => {
       return;
     }
 
-    // Frontend validation for username spaces (common requirement in this app)
-    if (formData.user_name && formData.user_name.trim().includes(' ')) {
-      setError("Username must not contain spaces. Please use underscores or keep it as one word.");
-      setLoading(false);
-      return;
-    }
 
     try {
       const data = new FormData();
