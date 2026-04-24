@@ -447,8 +447,21 @@ const AdminCurriculum = () => {
                       <AMSelect label="Platform" value={editModal.data.Provider} onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, Provider: e.target.value } })} options={['Zoom', 'Google Meet', 'Teams', 'Other']} />
                       <AMSelect label="Session Status" value={editModal.data.Status} onChange={e => {
                         const newStatus = e.target.value;
-                        const nowStr = newStatus === 'live' ? new Date().toISOString().slice(0, 16) : editModal.data.Start_time;
-                        setEditModal({ ...editModal, data: { ...editModal.data, Status: newStatus, Start_time: nowStr, End_time: nowStr } });
+                        let startStr = editModal.data.Start_time;
+                        let endStr = editModal.data.End_time;
+                        if (newStatus === 'live') {
+                          const now = new Date();
+                          const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                          const istTime = new Date(utc + (5.5 * 3600000));
+                          const istEndTime = new Date(utc + (6.5 * 3600000));
+                          const formatStr = (d) => {
+                            const p = n => n.toString().padStart(2, '0');
+                            return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+                          };
+                          startStr = formatStr(istTime);
+                          endStr = formatStr(istEndTime);
+                        }
+                        setEditModal({ ...editModal, data: { ...editModal.data, Status: newStatus, Start_time: startStr, End_time: endStr } });
                       }} options={[{ label: 'Scheduled', val: 'scheduled' }, { label: 'Live Now', val: 'live' }]} />
                     </div>
                     {editModal.data.Status !== 'live' && (
