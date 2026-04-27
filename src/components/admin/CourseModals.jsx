@@ -191,7 +191,12 @@ export const CreateCourseModal = ({ onClose, trainers, categories, showToast, re
             refresh(); 
             onClose(); 
          }
-         else { const err = await res.json(); showToast(err.detail || err.message || 'Creation failed', 'error'); }
+         else { 
+            const err = await res.json(); 
+            let msg = err.detail || err.message || 'Creation failed';
+            if (Array.isArray(err.detail)) msg = err.detail.map(d => `${d.loc?.join('.')}: ${d.msg}`).join(', ');
+            showToast(typeof msg === 'string' ? msg : JSON.stringify(msg), 'error'); 
+         }
       } catch (err) { showToast('Sync error', 'error'); }
       finally { setLoading(false); }
    };
@@ -313,6 +318,7 @@ export const EditCourseModal = ({ course, onClose, trainers, categories, showToa
             body: JSON.stringify({
                category_id: formData.category_id,
                course_Type: formData.course_Type.toLowerCase().trim(),
+               type: formData.course_Type.toLowerCase().trim(),
                course_title: formData.course_title,
                course_description: formData.course_description,
                skill_set: formData.skill_set,
@@ -333,7 +339,12 @@ export const EditCourseModal = ({ course, onClose, trainers, categories, showToa
             refresh(); 
             onClose(); 
          }
-         else { const err = await res.json(); showToast(err.detail || err.message || 'Update failed', 'error'); }
+         else { 
+            const err = await res.json(); 
+            let msg = err.detail || err.message || 'Update failed';
+            if (Array.isArray(err.detail)) msg = err.detail.map(d => `${d.loc?.join('.')}: ${d.msg}`).join(', ');
+            showToast(typeof msg === 'string' ? msg : JSON.stringify(msg), 'error'); 
+         }
       } catch (err) { showToast('Sync error', 'error'); }
       finally { setLoading(false); }
    };

@@ -124,7 +124,12 @@ export const AuthProvider = ({ children }) => {
       return activeRequests.current[storageKey];
     }
 
-    // 3. Background Refresh Logic (SWR)
+    // 3. Cache-First: Return immediately without background refresh if cache is fresh
+    if (cachedData && !forceRefresh) {
+      return cachedData;
+    }
+
+    // 4. Background Refresh Logic
     const fetchPromise = (async () => {
       try {
         const res = await authFetch(url, options);
@@ -146,8 +151,7 @@ export const AuthProvider = ({ children }) => {
 
     activeRequests.current[storageKey] = fetchPromise;
 
-    // Return cached immediately if available (unless forced), else wait for fetch
-    return (cachedData && !forceRefresh) ? cachedData : fetchPromise;
+    return fetchPromise;
   }, [authFetch]);
 
   // 🧹 CACHE MANAGEMENT: Wipe specific entries (e.g. on data mutation)
