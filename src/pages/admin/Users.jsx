@@ -363,6 +363,9 @@ const PremiumUserCard = ({ trainer, onView, onEdit, onToggle, isActionLoading, i
                    {isInactive ? 'Inactive' : 'Active'}
                 </div>
                 <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 900 }}>{name}</h3>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginTop: '0.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px' }}>
+                   {trainer.email || 'No email provided'}
+                </div>
              </div>
           </div>
           <div style={{ display: 'flex', gap: '0.25rem' }}>

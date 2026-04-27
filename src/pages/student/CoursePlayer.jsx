@@ -821,7 +821,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
                             {isDone ? '✓ Done' : lesson.type === 'assessment' ? 'Assessment' : lesson.type === 'live' ? (lesson.end_time && new Date(lesson.end_time) < new Date() ? 'Past Session' : 'Live Session') : lesson.type === 'note' ? 'Resource' : 'Video'}
                           </div>
                         </div>
-                        {isActive && !isDone && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: tc, flexShrink: 0, boxShadow: `0 0 6px ${tc}` }} />}
+                        {isActive && !isDone && lesson.type !== 'live' && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: tc, flexShrink: 0, boxShadow: `0 0 6px ${tc}` }} />}
                       </button>
                     );
                   })}
