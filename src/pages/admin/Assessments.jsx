@@ -387,7 +387,7 @@ const ASInfo = ({ icon, label, value }) => (
 );
 
 const EditAssessmentModal = ({ asm, onClose, showToast, refresh }) => {
-  const { authFetch } = useAuth();
+  const { authFetch, clearCache } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     Module_ID: asm.module_id,
@@ -409,7 +409,12 @@ const EditAssessmentModal = ({ asm, onClose, showToast, refresh }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
-      if (res.ok) { showToast('Assessment Updated'); refresh(); onClose(); }
+      if (res.ok) { 
+          showToast('Assessment Updated'); 
+          clearCache(`details_${asm.course_id}`);
+          refresh(); 
+          onClose(); 
+      }
       else showToast('Save failed', 'error');
     } catch (e) { showToast('Network failure', 'error'); }
     finally { setLoading(false); }

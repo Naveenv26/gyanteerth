@@ -44,12 +44,12 @@ const AdminStudents = () => {
     
     try {
         // 1. Get Course IDs and Titles from enrollment-stats securely cached
-        const statsData = await smartFetch(`${ADMIN_API}/enrollment-stats`, { cacheKey: 'admin_enrollment_stats' });
+        const statsData = await smartFetch(`${ADMIN_API}/enrollment-stats`, { cacheKey: 'admin_enrollment_stats', forceRefresh: true });
         let courseList = statsData?.data || [];
         
         if (courseList.length === 0) {
             // Fallback directly to ids-by-status 
-            const courseData = await smartFetch(`${ADMIN_API}/courses/ids-by-status`, { cacheKey: 'admin_course_ids' });
+            const courseData = await smartFetch(`${ADMIN_API}/courses/ids-by-status`, { cacheKey: 'admin_course_ids', forceRefresh: true });
             if (courseData) {
                 const { active, draft, inactive } = courseData.courses || {};
                 const ids = [...(active || []), ...(draft || []), ...(inactive || [])];
@@ -64,7 +64,7 @@ const AdminStudents = () => {
             
             // Try to get progress data from Trainer endpoint, applying Smart Fetch for caching
             try {
-                const progressData = await smartFetch(`${TRAINER_API}/course/${id}/students-progress`, { cacheKey: `st_prog_${id}` });
+                const progressData = await smartFetch(`${TRAINER_API}/course/${id}/students-progress`, { cacheKey: `st_prog_${id}`, forceRefresh: true });
                 if (progressData && progressData.data) {
                     const sData = progressData.data || [];
                     return sData.map((st, index) => ({
