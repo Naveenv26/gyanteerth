@@ -739,7 +739,9 @@ export const ManageModuleModal = ({ course, onClose, showToast, refresh }) => {
             setAssessmentForm({ Title: '', Description: '', Total_Mark: 100, Passing_Mark: 40, Duration: 30, Attempt_Limit: 3, Status: 'active', editingId: null });
          } else {
             const err = await res.json();
-            showToast(err.detail || err.message || 'Assessment operation failed', 'error');
+            let msg = err.detail || err.message || 'Assessment operation failed';
+            if (Array.isArray(err.detail)) msg = err.detail.map(d => `${d.loc?.join('.')}: ${d.msg}`).join(', ');
+            showToast(typeof msg === 'string' ? msg : JSON.stringify(msg), 'error');
          }
       } catch (err) { showToast('Sync error', 'error'); } finally { setLoading(false); }
    };
