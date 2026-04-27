@@ -229,11 +229,16 @@ const StudentCourses = () => {
                           {status.label}
                         </div>
 
-                        {progress > 0 && (
-                          <div style={{ position: 'absolute', bottom: '12px', right: '12px', background: 'rgba(15, 23, 42, 0.8)', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '0.5rem', fontSize: '0.68rem', fontWeight: 800 }}>
-                            {progress}% Complete
-                          </div>
-                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setFeedbackCourse(course); }}
+                          style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.15)', backdropFilter: 'blur(4px)', color: '#64748b', transition: 'all 0.2s' }}
+                          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.background = 'white'; e.currentTarget.style.color = '#334155'; }}
+                          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.95)'; e.currentTarget.style.color = '#64748b'; }}
+                          title="Rate Course"
+                        >
+                          <Star size={16} />
+                        </button>
+
                       </div>
 
                       <div style={{ padding: '1.25rem 1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -248,11 +253,15 @@ const StudentCourses = () => {
                         </h3>
 
                         <div style={{ marginTop: 'auto' }}>
-                          <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden', marginBottom: '1.25rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0.4rem' }}>
+                            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Overall Progress</span>
+                            <span style={{ fontSize: '0.95rem', fontWeight: 900, color: '#10b981' }}>{progress}%</span>
+                          </div>
+                          <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '10px', overflow: 'hidden', marginBottom: '1.25rem', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)' }}>
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${progress}%` }}
-                              style={{ height: '100%', background: 'linear-gradient(90deg, #10b981, #34d399)', borderRadius: '10px' }}
+                              style={{ height: '100%', background: 'linear-gradient(90deg, #10b981, #34d399)', borderRadius: '10px', boxShadow: '0 0 10px rgba(16,185,129,0.4)' }}
                             />
                           </div>
 
@@ -264,12 +273,6 @@ const StudentCourses = () => {
                               gap: '0.5rem', boxShadow: '0 4px 15px rgba(249, 115, 22, 0.2)'
                             }}>
                               <PlayCircle size={18} /> {progress === 0 ? 'Start' : 'Resume'}
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setFeedbackCourse(course); }}
-                              style={{ width: '44px', height: '44px', background: 'white', border: '1.5px solid #f1f5f9', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', cursor: 'pointer' }}
-                            >
-                              <Star size={18} />
                             </button>
                           </div>
                         </div>

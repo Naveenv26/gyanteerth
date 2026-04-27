@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate, ScrollRestoration } from 'react-router-dom';
 import { 
   LogIn, 
   LogOut, 
@@ -51,6 +51,7 @@ const MainLayout = () => {
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-[var(--color-bg)] font-sans text-[var(--color-text)] selection:bg-emerald-500/30">
+      <ScrollRestoration />
       
       {/* 🛡️ Verification Modal Overlay */}
       <AnimatePresence>

@@ -30,7 +30,7 @@ const Dashboard = () => {
     });
 
     const completed = mapped.filter(c => c.currentProgress === 100).length;
-    const ongoing = mapped.filter(c => c.currentProgress > 0 && c.currentProgress < 100).length;
+    const ongoing = mapped.filter(c => (c.currentProgress || 0) < 100).length;
 
     return { enrolledWithProgress: sorted, totalCompleted: completed, inProgress: ongoing };
   }, [enrolledCourses, getCourseProgress]);

@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Star, Clock, Loader2,
@@ -32,6 +33,11 @@ const CourseSkeleton = () => (
 
 /* ── Enrollment Confirmation Modal ── */
 function EnrollModal({ course, onConfirm, onCancel }) {
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, []);
+
   const typeLower = (course?.type || course?.course_type || course?.course_Type || 'recorded').toLowerCase();
   const isLive = typeLower === 'live' || typeLower === 'live_course' || typeLower === 'live session';
 
@@ -42,8 +48,8 @@ function EnrollModal({ course, onConfirm, onCancel }) {
     return 'Free';
   };
 
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+  const modalContent = (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
       {/* Optimized Backdrop */}
       <div onClick={onCancel} style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.7)', backdropFilter: 'blur(5px)', willChange: 'transform' }} />
 
@@ -85,6 +91,8 @@ function EnrollModal({ course, onConfirm, onCancel }) {
       </motion.div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
 
 /* ── Success Toast ── */

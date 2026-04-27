@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate, ScrollRestoration } from 'react-router-dom';
 import { useAuth } from '../shared/AuthContext';
 import { useTheme } from '../shared/ThemeContext';
 import Logo from '../components/Logo';
@@ -61,6 +61,15 @@ const DashboardLayout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef(null);
+  const scrollRef = useRef(null);
+
+  // Auto-scroll to top on route change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo(0, 0);
+    }
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   // Close profile menu on outside click
   useEffect(() => {
@@ -135,6 +144,7 @@ const DashboardLayout = () => {
 
   return (
     <div className="dashboard-container">
+      <ScrollRestoration />
       
       {/* Sidebar - Responsive */}
       <aside className={`dashboard-sidebar ${mobileMenuOpen ? 'mobile-open' : 'mobile-closed'}`}>
@@ -327,7 +337,7 @@ const DashboardLayout = () => {
         </header>
 
         {/* Page Content with Motion Orchestration */}
-        <div className="dashboard-content-scroll" style={{ padding: 'var(--page-padding)' }}>
+        <div className="dashboard-content-scroll" ref={scrollRef} style={{ padding: 'var(--page-padding)' }}>
           <div className="max-container" style={{ maxWidth: '1600px', margin: '0 auto', width: '100%' }}>
                 <Outlet />
           </div>

@@ -12,8 +12,20 @@ const AdminFeedbacks = () => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [courseFilter, setCourseFilter] = useState('All');
   const [actionLoading, setActionLoading] = useState(null);
   const [toast, setToast] = useState(null);
+
+  const availableCourses = React.useMemo(() => {
+    const courseMap = {};
+    feedbacks.forEach(f => {
+      if (f.course_id && f.course_title) {
+        if (!courseMap[f.course_id]) courseMap[f.course_id] = { id: f.course_id, title: f.course_title, count: 0 };
+        courseMap[f.course_id].count++;
+      }
+    });
+    return Object.values(courseMap).sort((a, b) => b.count - a.count);
+  }, [feedbacks]);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -63,6 +75,7 @@ const AdminFeedbacks = () => {
   };
 
   const filteredFeedbacks = feedbacks.filter(f => {
+    if (courseFilter !== 'All' && f.course_id !== courseFilter) return false;
     const q = searchQuery.toLowerCase();
     return (f.user_name || '').toLowerCase().includes(q) || 
            (f.course_title || '').toLowerCase().includes(q) ||
@@ -97,7 +110,45 @@ const AdminFeedbacks = () => {
          </div>
       </div>
 
-      <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '2.5rem var(--page-padding)' }}>
+      <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '1.5rem var(--page-padding) 2.5rem var(--page-padding)' }}>
+        
+        {/* Domain Navigation (Categories) */}
+        <div style={{ display: 'flex', gap: '0.85rem', overflowX: 'auto', paddingBottom: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }} className="no-scrollbar">
+           <button 
+             onClick={() => setCourseFilter('All')}
+             style={{ 
+               padding: '0.5rem 1rem', borderRadius: '1rem', 
+               border: courseFilter === 'All' ? '1px solid transparent' : '1px solid var(--color-border)', 
+               backgroundColor: courseFilter === 'All' ? 'var(--color-primary)' : 'var(--color-surface)', 
+               color: courseFilter === 'All' ? 'white' : 'var(--color-text)', 
+               fontWeight: 850, fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+               boxShadow: courseFilter === 'All' ? 'var(--shadow-md)' : 'none',
+               display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap'
+             }}
+           >
+             <MessageSquare size={14} /> All Feedbacks
+             <span style={{ background: courseFilter === 'All' ? 'rgba(255,255,255,0.2)' : 'var(--color-surface-muted)', color: courseFilter === 'All' ? 'white' : 'var(--color-text-muted)', padding: '0.1rem 0.5rem', borderRadius: '0.5rem', fontSize: '0.7rem' }}>{feedbacks.length}</span>
+           </button>
+           {availableCourses.map(c => (
+              <button 
+                key={c.id}
+                onClick={() => setCourseFilter(c.id)}
+                style={{ 
+                  padding: '0.5rem 1rem', borderRadius: '1rem', 
+                  border: courseFilter === c.id ? '1px solid transparent' : '1px solid var(--color-border)', 
+                  backgroundColor: courseFilter === c.id ? 'var(--color-primary)' : 'var(--color-surface)', 
+                  color: courseFilter === c.id ? 'white' : 'var(--color-text)', 
+                  fontWeight: 850, fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+                  boxShadow: courseFilter === c.id ? 'var(--shadow-md)' : 'none',
+                  display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap'
+                }}
+              >
+                <Star size={14} /> {c.title}
+                <span style={{ background: courseFilter === c.id ? 'rgba(255,255,255,0.2)' : 'var(--color-surface-muted)', color: courseFilter === c.id ? 'white' : 'var(--color-text-muted)', padding: '0.1rem 0.5rem', borderRadius: '0.5rem', fontSize: '0.7rem' }}>{c.count}</span>
+              </button>
+           ))}
+        </div>
+
         <AnimatePresence mode="wait">
           {loading ? (
              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ textAlign: 'center', padding: '10rem 0' }}>

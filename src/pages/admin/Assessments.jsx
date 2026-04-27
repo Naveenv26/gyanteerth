@@ -73,7 +73,11 @@ const AdminAssessments = () => {
               });
            });
         }
-        setCourses(courseRegistry);
+        const clist = courseRegistry.map(c => {
+           const count = allAsms.filter(a => a.course_id === c.course_id).length;
+           return { ...c, count };
+        }).filter(c => c.count > 0);
+        setCourses(clist);
         setAssessments(allAsms);
       }
     } catch (err) {
@@ -110,32 +114,34 @@ const AdminAssessments = () => {
          <button 
            onClick={() => setSelectedCourse('all')}
            style={{ 
-             padding: '0.65rem 1.25rem', borderRadius: '1.15rem', 
+             padding: '0.5rem 1rem', borderRadius: '1rem', 
              border: selectedCourse === 'all' ? '1px solid transparent' : '1px solid var(--color-border)', 
              backgroundColor: selectedCourse === 'all' ? '#f97316' : 'var(--color-surface)', 
              color: selectedCourse === 'all' ? 'white' : 'var(--color-text)', 
-             fontWeight: 850, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+             fontWeight: 850, fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
              boxShadow: selectedCourse === 'all' ? 'var(--shadow-md)' : 'none',
-             display: 'flex', alignItems: 'center', gap: '0.5rem'
+             display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap'
            }}
          >
            <Globe size={14} /> Every Course
+           <span style={{ background: selectedCourse === 'all' ? 'rgba(255,255,255,0.2)' : 'var(--color-surface-muted)', color: selectedCourse === 'all' ? 'white' : 'var(--color-text-muted)', padding: '0.1rem 0.5rem', borderRadius: '0.5rem', fontSize: '0.7rem' }}>{assessments.length}</span>
          </button>
          {courses.map(c => (
             <button 
               key={c.course_id}
               onClick={() => setSelectedCourse(c.course_id)}
               style={{ 
-                padding: '0.65rem 1.25rem', borderRadius: '1.15rem', 
+                padding: '0.5rem 1rem', borderRadius: '1rem', 
                 border: selectedCourse === c.course_id ? '1px solid transparent' : '1px solid var(--color-border)', 
                 backgroundColor: selectedCourse === c.course_id ? '#f97316' : 'var(--color-surface)', 
                 color: selectedCourse === c.course_id ? 'white' : 'var(--color-text)', 
-                fontWeight: 850, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+                fontWeight: 850, fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
                 boxShadow: selectedCourse === c.course_id ? 'var(--shadow-md)' : 'none',
-                display: 'flex', alignItems: 'center', gap: '0.5rem'
+                display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap'
               }}
             >
               <BookOpen size={14} /> {c.course_title}
+              <span style={{ background: selectedCourse === c.course_id ? 'rgba(255,255,255,0.2)' : 'var(--color-surface-muted)', color: selectedCourse === c.course_id ? 'white' : 'var(--color-text-muted)', padding: '0.1rem 0.5rem', borderRadius: '0.5rem', fontSize: '0.7rem' }}>{c.count}</span>
             </button>
          ))}
       </div>
@@ -407,7 +413,13 @@ const EditAssessmentModal = ({ asm, onClose, showToast, refresh }) => {
       const res = await authFetch(`${ADMIN_API}/update_assessment/${asm.assessment_id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          Total_Mark: parseInt(formData.Total_Mark) || 0,
+          Passing_Mark: parseInt(formData.Passing_Mark) || 0,
+          Duration: parseInt(formData.Duration) || 0,
+          Attempt_Limit: parseInt(formData.Attempt_Limit) || 1
+        })
       });
       if (res.ok) { 
           showToast('Assessment Updated'); 

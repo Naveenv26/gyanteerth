@@ -614,11 +614,14 @@ const CoursePlayer = ({ isTrainer = false }) => {
     lessonsByModule[l.moduleId].push({ ...l, globalIdx: idx });
   });
 
-  const lessonTypeColor = t => {
-    if (t === 'live')       return '#ef4444';
-    if (t === 'assessment') return '#10b981';
-    if (t === 'note')       return '#f59e0b'; // Amber for notes
-    return '#6366f1';
+  const lessonTypeColor = (type) => {
+    switch (type) {
+      case 'video': return '#6366f1';
+      case 'note': return '#f59e0b';
+      case 'assessment': return '#8b5cf6';
+      case 'live': return '#ec4899'; // Changed from red to pink to avoid 'recording' confusion
+      default: return '#10b981';
+    }
   };
   const lessonTypeIcon  = t => {
     if (t === 'live')       return <Monitor size={13} />;
@@ -659,31 +662,21 @@ const CoursePlayer = ({ isTrainer = false }) => {
         {/* Back */}
         <button
           onClick={() => navigate(isTrainer ? '/trainer/courses' : '/student/courses')}
-          style={{ height: '100%', padding: '0 1.25rem', background: 'none', border: 'none', borderRight: '1px solid rgba(255,255,255,0.07)', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', fontWeight: 600, transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-          onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'none'; }}
+          style={{ height: '100%', padding: '0 1.25rem', background: 'none', border: 'none', borderRight: '1px solid var(--color-border)', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#0f172a'; e.currentTarget.style.background = 'rgba(0,0,0,0.03)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.background = 'none'; }}
         >
-          <ArrowLeft size={15} /> {isTrainer ? 'Exit Preview' : 'My Learning'}
+          <ArrowLeft size={18} /> {isTrainer ? 'Exit Preview' : 'My Learning'}
         </button>
 
-        {/* Sidebar toggle */}
-        <button
-          onClick={() => setSidebarOpen(o => !o)}
-          style={{ height: '100%', padding: '0 1rem', background: 'none', border: 'none', borderRight: '1px solid rgba(255,255,255,0.07)', cursor: 'pointer', color: sidebarOpen ? '#a5b4fc' : '#64748b', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 600, transition: 'all 0.15s', flexShrink: 0 }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'none'}
-        >
-          <Menu size={15} /> Chapters
-        </button>
 
-        {/* Breadcrumb */}
         <div style={{ flex: 1, padding: '0 1.25rem', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
-            <span style={{ color: '#64748b', fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{course.title}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
+            <span style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{course.title}</span>
             {currentLesson && (
               <>
-                <ChevronRight size={12} color="#334155" style={{ flexShrink: 0 }} />
-                <span style={{ color: '#e2e8f0', fontSize: '0.82rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentLesson.title}</span>
+                <ChevronRight size={14} color="#94a3b8" style={{ flexShrink: 0 }} />
+                <span style={{ color: '#0f172a', fontSize: '0.85rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentLesson.title}</span>
               </>
             )}
           </div>
@@ -715,30 +708,59 @@ const CoursePlayer = ({ isTrainer = false }) => {
         )}
 
         {/* Prev / Next */}
-        <div style={{ display: 'flex', alignItems: 'center', height: '100%', borderLeft: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
-          <button onClick={() => go(currentIdx - 1)} disabled={currentIdx === 0} style={{ height: '100%', padding: '0 1rem', background: 'none', border: 'none', borderRight: '1px solid rgba(255,255,255,0.07)', cursor: currentIdx === 0 ? 'not-allowed' : 'pointer', color: currentIdx === 0 ? '#2d3748' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.15s' }}
-            onMouseEnter={e => { if (currentIdx > 0) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-            onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-            <ChevronLeft size={15} /> Prev
+        <div style={{ display: 'flex', alignItems: 'center', height: '100%', borderLeft: '1px solid var(--color-border)', flexShrink: 0 }}>
+          <button onClick={() => go(currentIdx - 1)} disabled={currentIdx === 0} style={{ height: '100%', padding: '0 1.25rem', background: 'none', border: 'none', borderRight: '1px solid var(--color-border)', cursor: currentIdx === 0 ? 'not-allowed' : 'pointer', color: currentIdx === 0 ? '#cbd5e1' : '#64748b', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 700, transition: 'all 0.15s' }}
+            onMouseEnter={e => { if (currentIdx > 0) { e.currentTarget.style.color = '#0f172a'; e.currentTarget.style.background = 'rgba(0,0,0,0.03)'; } }}
+            onMouseLeave={e => { if (currentIdx > 0) { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.background = 'none'; } }}>
+            <ChevronLeft size={16} /> Prev
           </button>
-          <button onClick={() => go(currentIdx + 1)} disabled={currentIdx >= lessons.length - 1} style={{ height: '100%', padding: '0 1.25rem', background: (currentIdx < lessons.length - 1) ? 'rgba(99,102,241,0.15)' : 'none', border: 'none', cursor: currentIdx >= lessons.length - 1 ? 'not-allowed' : 'pointer', color: currentIdx >= lessons.length - 1 ? '#2d3748' : '#a5b4fc', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 700, transition: 'all 0.15s' }}
-            onMouseEnter={e => { if (currentIdx < lessons.length - 1) e.currentTarget.style.background = 'rgba(99,102,241,0.25)'; }}
-            onMouseLeave={e => { if (currentIdx < lessons.length - 1) e.currentTarget.style.background = 'rgba(99,102,241,0.15)'; }}>
-            Next <ChevronRight size={15} />
+          <button onClick={() => go(currentIdx + 1)} disabled={currentIdx >= lessons.length - 1} style={{ height: '100%', padding: '0 1.25rem', background: (currentIdx < lessons.length - 1) ? 'rgba(5,150,105,0.05)' : 'none', border: 'none', cursor: currentIdx >= lessons.length - 1 ? 'not-allowed' : 'pointer', color: currentIdx >= lessons.length - 1 ? '#cbd5e1' : '#059669', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 800, transition: 'all 0.15s' }}
+            onMouseEnter={e => { if (currentIdx < lessons.length - 1) { e.currentTarget.style.background = 'rgba(5,150,105,0.1)'; } }}
+            onMouseLeave={e => { if (currentIdx < lessons.length - 1) { e.currentTarget.style.background = 'rgba(5,150,105,0.05)'; } }}>
+            Next <ChevronRight size={16} />
           </button>
         </div>
       </header>
 
       {/* ═══════════ BODY ═══════════ */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+
+        {/* Floating Sidebar Toggle */}
+        {!sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: '1.5rem',
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderLeft: 'none',
+              padding: '0.6rem 0.8rem',
+              borderRadius: '0 12px 12px 0',
+              cursor: 'pointer',
+              boxShadow: '4px 4px 15px rgba(0,0,0,0.05)',
+              zIndex: 45,
+              color: 'var(--color-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'translateX(2px)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+          >
+            <Menu size={20} />
+          </button>
+        )}
 
         {/* ── Sidebar ── */}
         <aside style={{ width: sidebarOpen ? '260px' : '0', minWidth: sidebarOpen ? '260px' : '0', background: 'var(--color-surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)', borderRight: '1px solid var(--color-border)', zIndex: 40 }}>
 
           {/* Sidebar header */}
           <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
-            <h3 style={{ color: 'var(--color-text)', fontWeight: 800, fontSize: '0.875rem', margin: '0 0 0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Layers size={14} color="var(--color-primary)" /> Course Content
+            <h3 style={{ color: 'var(--color-text)', fontWeight: 800, fontSize: '0.875rem', margin: '0 0 0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Menu size={16} color="var(--color-primary)" onClick={() => setSidebarOpen(false)} style={{ cursor: 'pointer' }} /> Course Content
             </h3>
             {/* Sidebar progress bar */}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>
@@ -768,7 +790,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 800, fontSize: '0.85rem', color: isExp ? 'var(--color-text)' : 'var(--color-text-muted)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mod.title}</div>
                       <div style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--color-text-light)' }}>
-                        {doneCount}/{modLessons.length} completed
+                        {doneCount}/{modLessons.length} completed &bull; {modLessons.length > 0 ? Math.round((doneCount / modLessons.length) * 100) : 0}%
                       </div>
                     </div>
                     {/* Module completion ring */}
@@ -796,7 +818,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: isActive ? 700 : 400, fontSize: '0.78rem', color: isDone ? '#10b981' : isActive ? '#e2e8f0' : '#64748b', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', textDecoration: isDone && !isActive ? 'none' : 'none' }}>{lesson.title}</div>
                           <div style={{ fontSize: '0.67rem', color: isDone ? '#10b981' : '#334155', textTransform: 'capitalize', marginTop: '0.1rem' }}>
-                            {isDone ? '✓ Done' : lesson.type === 'assessment' ? 'Assessment' : lesson.type === 'live' ? 'Live' : lesson.type === 'note' ? 'Resource' : 'Video'}
+                            {isDone ? '✓ Done' : lesson.type === 'assessment' ? 'Assessment' : lesson.type === 'live' ? (lesson.end_time && new Date(lesson.end_time) < new Date() ? 'Past Session' : 'Live Session') : lesson.type === 'note' ? 'Resource' : 'Video'}
                           </div>
                         </div>
                         {isActive && !isDone && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: tc, flexShrink: 0, boxShadow: `0 0 6px ${tc}` }} />}

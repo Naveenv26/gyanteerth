@@ -141,8 +141,9 @@ const AdminUsers = () => {
     } catch (e) {}
   };
 
-  const handleToggleStatus = async (email, currentStatus) => {
-    if (!window.confirm(`Toggle status for ${email}?`)) return;
+  const handleToggleStatus = async (email, currentStatus, name) => {
+    const action = currentStatus === 'active' ? 'deactivate' : 'activate';
+    if (!window.confirm(`Would you like to ${action} ${name || email}?`)) return;
     setActionLoading(true);
     try {
       const targetStatus = currentStatus === 'active' ? 'inactive' : 'active';
@@ -255,7 +256,7 @@ const AdminUsers = () => {
                           trainer={trainer} index={index}
                           onView={(e) => { setClickPos({ x: e.clientX, y: e.clientY }); setSelectedTrainer(trainer); setShowViewModal(true); }}
                           onEdit={() => { setSelectedTrainer(trainer); setShowEditModal(true); }}
-                          onToggle={() => handleToggleStatus(trainer.email, trainer.trainer_status)}
+                          onToggle={() => handleToggleStatus(trainer.email, trainer.trainer_status, trainer.user_name)}
                           isActionLoading={actionLoading}
                        />
                     ) : (
@@ -264,7 +265,7 @@ const AdminUsers = () => {
                           trainer={trainer} index={index}
                           onView={(e) => { setClickPos({ x: e.clientX, y: e.clientY }); setSelectedTrainer(trainer); setShowViewModal(true); }}
                           onEdit={() => { setSelectedTrainer(trainer); setShowEditModal(true); }}
-                          onToggle={() => handleToggleStatus(trainer.email, trainer.trainer_status)}
+                          onToggle={() => handleToggleStatus(trainer.email, trainer.trainer_status, trainer.user_name)}
                        />
                     )
                  ))}
@@ -432,25 +433,7 @@ const CInfo = ({ icon, label, value }) => (
 );
 
 const ViewTrainerModal = ({ trainer, onClose, origin }) => {
-  const [liveSessions, setLiveSessions] = useState(null);
   const { authFetch } = useAuth();
-  
-  useEffect(() => {
-    const fetchLiveSessions = async () => {
-      try {
-        const res = await authFetch(`${ADMIN_API}/instructor/${trainer.user_id}/live-sessions`);
-        if (res.ok) {
-          const data = await res.json();
-          setLiveSessions(data || []);
-        } else {
-          setLiveSessions([]);
-        }
-      } catch (e) {
-        setLiveSessions([]);
-      }
-    };
-    if (trainer?.user_id) fetchLiveSessions();
-  }, [trainer, authFetch]);
 
   const isInactive = trainer.trainer_status === 'inactive';
   const name = trainer.user_name || (trainer.email || '').split('@')[0] || 'Unknown';
@@ -469,41 +452,26 @@ const ViewTrainerModal = ({ trainer, onClose, origin }) => {
              <span style={{ fontSize: '0.6rem', fontWeight: 950, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Faculty Node Trace</span>
              <button onClick={onClose} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', cursor: 'pointer', width: '2rem', height: '2rem', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16}/></button>
           </header>
-          <div style={{ padding: '1.75rem 2.25rem', textAlign: 'center' }}>
+          <div style={{ padding: '2rem 2.5rem', textAlign: 'center' }}>
              <motion.div 
-               initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.15 }}
-               style={{ width: '4.5rem', height: '4.5rem', borderRadius: '1.5rem', background: isInactive ? 'linear-gradient(135deg, #fee2e2, #fecaca)' : 'linear-gradient(135deg, #dcfce7, #bbf7d0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 950, fontSize: '1.75rem', color: isInactive ? '#ef4444' : '#10b981', margin: '0 auto 1rem', border: `1px solid ${isInactive ? '#fca5a5' : '#86efac'}` }}>
+               initial={{ scale: 0.5, opacity: 0, rotate: -10 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ type: 'spring', damping: 20 }}
+               style={{ width: '5.5rem', height: '5.5rem', borderRadius: '1.75rem', background: isInactive ? 'linear-gradient(135deg, #fecaca, #f87171)' : 'linear-gradient(135deg, #a7f3d0, #34d399)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 950, fontSize: '2.5rem', color: '#fff', margin: '0 auto 1.25rem', boxShadow: isInactive ? '0 10px 25px -5px rgba(239, 68, 68, 0.4)' : '0 10px 25px -5px rgba(16, 185, 129, 0.4)' }}>
                 {name.charAt(0).toUpperCase()}
              </motion.div>
-             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', color: isInactive ? '#ef4444' : '#10b981', fontSize: '0.55rem', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '0.25rem' }}><div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'currentColor' }} />{isInactive ? 'Access Restricted' : 'Active Member'}</div>
-             <h3 style={{ fontSize: '1.35rem', fontWeight: 950, margin: 0, color: '#111827' }}>{name}</h3>
-             <p style={{ color: 'var(--color-text-muted)', fontWeight: 800, marginTop: '0.2rem', marginBottom: '1.75rem', fontSize: '0.8rem' }}>{trainer.email}</p>
-             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', padding: '1.25rem', backgroundColor: 'var(--color-surface-muted)', borderRadius: '1.5rem', border: '1px solid var(--color-border)', textAlign: 'left', marginBottom: '1.5rem' }}>
-                <VItem icon={<Phone size={12} />} label="Phone" value={trainer.user_number || '—'} />
-                <VItem icon={<Calendar size={12} />} label="Origin" value={trainer.user_dob || '—'} />
-                <VItem icon={<Activity size={12} />} label="Type" value={trainer.user_gender || 'Admin'} />
-                <VItem icon={<MapPin size={12} />} label="Hub" value={trainer.user_city || 'HQ'} />
+             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: isInactive ? '#ef4444' : '#10b981', fontSize: '0.65rem', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.4rem' }}>
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'currentColor', boxShadow: `0 0 10px currentColor` }} />
+                {isInactive ? 'Access Restricted' : 'Active Faculty Member'}
              </div>
+             <h3 style={{ fontSize: '1.65rem', fontWeight: 950, margin: 0, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>{trainer.trainer_name || name}</h3>
+             <p style={{ color: 'var(--color-text-muted)', fontWeight: 800, marginTop: '0.35rem', marginBottom: '2rem', fontSize: '0.9rem' }}>{trainer.trainer_email || trainer.email}</p>
              
-             <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
-                <h4 style={{ fontSize: '0.8rem', fontWeight: 900, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Zap size={14} color="var(--color-primary)" /> Live Sessions
-                </h4>
-                {liveSessions === null ? (
-                  <div style={{ padding: '2rem', textAlign: 'center' }}><Loader2 size={24} className="animate-spin mx-auto" /></div>
-                ) : liveSessions.length === 0 ? (
-                  <div style={{ padding: '1rem', backgroundColor: 'var(--color-surface-muted)', borderRadius: '1rem', border: '1px dashed var(--color-border-strong)', textAlign: 'center', fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 800 }}>No active sessions</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {liveSessions.map((session, i) => (
-                      <div key={i} style={{ padding: '0.75rem', backgroundColor: 'var(--color-surface-muted)', borderRadius: '1rem', border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                         <div style={{ fontSize: '0.8rem', fontWeight: 800 }}>{session.title || 'Live Session'}</div>
-                         <div style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 800 }}>{session.status || 'Scheduled'}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', padding: '1.5rem', backgroundColor: 'var(--color-bg)', borderRadius: '1.75rem', border: '1px solid var(--color-border)', textAlign: 'left', marginBottom: '2rem', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.02)' }}>
+                <VItem icon={<Phone size={14} color="#3b82f6" />} label="Phone Contact" value={trainer.user_number || trainer.trainer_number || '—'} />
+                <VItem icon={<Calendar size={14} color="#f97316" />} label="Date of Birth" value={trainer.user_dob || trainer.trainer_dob || '—'} />
+                <VItem icon={<Activity size={14} color="#8b5cf6" />} label="Gender" value={trainer.user_gender || trainer.trainer_gender || '—'} />
+                <VItem icon={<MapPin size={14} color="#10b981" />} label="Location Hub" value={`${trainer.user_city || trainer.trainer_city || '—'}${trainer.trainer_state ? `, ${trainer.trainer_state}` : ''}`} />
              </div>
+
 
              <button onClick={onClose} className="btn btn-primary" style={{ marginTop: '0.5rem', width: '100%', padding: '0.8rem', borderRadius: '1rem', fontWeight: 950, fontSize: '0.85rem' }}>Dismiss Review</button>
           </div>

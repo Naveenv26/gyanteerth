@@ -87,8 +87,12 @@ const AdminStudents = () => {
         const progressResults = await Promise.all(progressPromises);
         const allStudents = progressResults.flat();
         
-        // Setup dropdown available courses
-        const clist = courseList.map(c => ({ id: c.course_id, title: c.course_title }));
+        // Setup dropdown available courses with student counts
+        const clist = courseList.map(c => {
+           const id = c.course_id;
+           const count = allStudents.filter(s => s.course_id === id).length;
+           return { id, title: c.course_title, count };
+        }).filter(c => c.count > 0);
 
         setStudents(allStudents.sort((a,b) => b.progress - a.progress));
         setAvailableCourses(clist);
@@ -125,32 +129,34 @@ const AdminStudents = () => {
          <button 
            onClick={() => setCourseFilter('All')}
            style={{ 
-             padding: '0.65rem 1.25rem', borderRadius: '1.15rem', 
+             padding: '0.5rem 1rem', borderRadius: '1rem', 
              border: courseFilter === 'All' ? '1px solid transparent' : '1px solid var(--color-border)', 
              backgroundColor: courseFilter === 'All' ? 'var(--color-primary)' : 'var(--color-surface)', 
              color: courseFilter === 'All' ? 'white' : 'var(--color-text)', 
-             fontWeight: 850, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+             fontWeight: 850, fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
              boxShadow: courseFilter === 'All' ? 'var(--shadow-md)' : 'none',
-             display: 'flex', alignItems: 'center', gap: '0.5rem'
+             display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap'
            }}
          >
            <Globe size={14} /> Global Catalog
+           <span style={{ background: courseFilter === 'All' ? 'rgba(255,255,255,0.2)' : 'var(--color-surface-muted)', color: courseFilter === 'All' ? 'white' : 'var(--color-text-muted)', padding: '0.1rem 0.5rem', borderRadius: '0.5rem', fontSize: '0.7rem' }}>{students.length}</span>
          </button>
          {availableCourses.map(c => (
             <button 
               key={c.id}
               onClick={() => setCourseFilter(c.id)}
               style={{ 
-                padding: '0.65rem 1.25rem', borderRadius: '1.15rem', 
+                padding: '0.5rem 1rem', borderRadius: '1rem', 
                 border: courseFilter === c.id ? '1px solid transparent' : '1px solid var(--color-border)', 
                 backgroundColor: courseFilter === c.id ? 'var(--color-primary)' : 'var(--color-surface)', 
                 color: courseFilter === c.id ? 'white' : 'var(--color-text)', 
-                fontWeight: 850, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+                fontWeight: 850, fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
                 boxShadow: courseFilter === c.id ? 'var(--shadow-md)' : 'none',
-                display: 'flex', alignItems: 'center', gap: '0.5rem'
+                display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap'
               }}
             >
               <BookOpen size={14} /> {c.title}
+              <span style={{ background: courseFilter === c.id ? 'rgba(255,255,255,0.2)' : 'var(--color-surface-muted)', color: courseFilter === c.id ? 'white' : 'var(--color-text-muted)', padding: '0.1rem 0.5rem', borderRadius: '0.5rem', fontSize: '0.7rem' }}>{c.count}</span>
             </button>
          ))}
       </div>

@@ -71,7 +71,9 @@ const StudentLiveSessions = () => {
     (sessions || []).forEach(s => {
       const startTime = new Date(s.start_time);
       const endTime = new Date(s.end_time);
-      const isLive = s.status === 'live' || (now >= startTime && now <= endTime);
+      
+      const forceEndThresh = new Date(endTime.getTime() + 4 * 60 * 60 * 1000);
+      const isLive = (s.status === 'live' && now <= forceEndThresh) || (now >= startTime && now <= endTime);
       const isUpcoming = !isLive && startTime > now;
       
       if (isLive) groups.liveSessions.push(s);

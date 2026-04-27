@@ -70,7 +70,12 @@ const LiveSessionTracker = ({ limit = 3 }) => {
     (sessions || []).forEach(s => {
       const startTime = new Date(s.start_time);
       const endTime = new Date(s.end_time);
-      const isLive = s.status === 'live' || (now >= startTime && now <= endTime);
+      
+      // Buffer of 4 hours after end time before we forcefully consider it passed, 
+      // even if the backend still says 'live'.
+      const forceEndThresh = new Date(endTime.getTime() + 4 * 60 * 60 * 1000);
+
+      const isLive = (s.status === 'live' && now <= forceEndThresh) || (now >= startTime && now <= endTime);
       const isUpcoming = !isLive && startTime > now;
       
       if (isLive) groups.liveSessions.push(s);
@@ -166,7 +171,7 @@ const LiveSessionTracker = ({ limit = 3 }) => {
     );
   }
 
-  const allFiltered = [...liveSessions, ...upcomingSessions, ...passedSessions].slice(0, limit);
+  const allFiltered = [...liveSessions, ...upcomingSessions].slice(0, limit);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -248,30 +253,6 @@ const LiveSessionTracker = ({ limit = 3 }) => {
         `}</style>
       </div>
 
-      {/* History Summary if needed */}
-      {passedSessions.length > 0 && (
-        <div style={{ background: '#f8fafc', borderRadius: '2rem', padding: '1.5rem', border: '1px solid #f1f5f9' }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-             <Archive size={16} color="#64748b" />
-             <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 900, color: '#1e293b' }}>Recent Recordings</h4>
-           </div>
-           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-             {passedSessions.slice(0, 2).map((s, i) => (
-               <div key={s.live_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                 <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
-                   {s.title}
-                 </div>
-                 <button 
-                  onClick={() => navigate(`/student/course/${s.course_id}`)}
-                  style={{ background: 'none', border: 'none', color: '#059669', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', padding: 0 }}
-                 >
-                   Watch
-                 </button>
-               </div>
-             ))}
-           </div>
-        </div>
-      )}
     </div>
   );
 };
