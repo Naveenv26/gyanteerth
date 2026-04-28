@@ -127,6 +127,7 @@ const DashboardLayout = () => {
           { to: '/trainer/courses', icon: <Book size={20} />, label: 'My Courses' },
           { to: '/trainer/students', icon: <Users size={20} />, label: 'Students' },
           { to: '/trainer/live-sessions', icon: <Video size={20} />, label: 'Live Sessions' },
+          { to: '/trainer/assessments', icon: <FileText size={20} />, label: 'Assessments' },
         ];
       case 'student':
       default:
@@ -193,12 +194,12 @@ const DashboardLayout = () => {
                   border: '1px solid var(--color-border)'
                 }}
               >
-                {(user?.role === 'student' || user?.role === 'user') && (
+                {(user?.role === 'student' || user?.role === 'user' || user?.role === 'trainer') && (
                   <>
                     <button
                       onClick={() => {
                         setProfileMenuOpen(false);
-                        navigate('/complete-profile');
+                        navigate(`/${user.role}/profile`);
                       }}
                       style={{
                         width: '100%',

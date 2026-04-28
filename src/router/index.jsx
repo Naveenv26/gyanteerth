@@ -6,11 +6,9 @@ import ProtectedRoute from '../components/ProtectedRoute';
 // Public
 import Home from '../pages/public/Home';
 import Login from '../pages/public/Login';
-import Signup from '../pages/public/Signup';
 import ForgotPassword from '../pages/public/ForgotPassword';
 import ResetPassword from '../pages/public/ResetPassword';
 import PublicCourses from '../pages/public/Courses';
-import CompleteProfile from '../pages/public/CompleteProfile';
 import UnderConstruction from '../pages/public/UnderConstruction';
 
 // Student
@@ -38,6 +36,9 @@ import AdminCurriculum from '../pages/admin/Curriculum';
 import AdminFeedbacks from '../pages/admin/Feedbacks';
 import AdminStudents from '../pages/admin/Students';
 
+// Shared
+import Profile from '../pages/shared/Profile';
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -52,10 +53,7 @@ export const router = createBrowserRouter([
     path: '/login',
     element: <Login />
   },
-  {
-    path: '/signup',
-    element: <Signup />
-  },
+
   {
     path: '/forgot-password',
     element: <ForgotPassword />
@@ -64,13 +62,7 @@ export const router = createBrowserRouter([
     path: '/reset-password',
     element: <ResetPassword />
   },
-  {
-    path: '/complete-profile',
-    element: <ProtectedRoute allowedRoles={['student', 'user']} />,
-    children: [
-      { index: true, element: <CompleteProfile /> }
-    ]
-  },
+
   {
     path: '/student',
     element: <ProtectedRoute allowedRoles={['student']} />,
@@ -82,7 +74,8 @@ export const router = createBrowserRouter([
           { path: 'browse', element: <StudentCatalog /> },
           { path: 'courses', element: <StudentCourses /> },
           { path: 'live-sessions', element: <StudentLiveSessions /> },
-          { path: 'certificates', element: <StudentCertificates /> }
+          { path: 'certificates', element: <StudentCertificates /> },
+          { path: 'profile', element: <Profile /> }
         ]
       },
       // Course player is full-screen — no sidebar/nav layout
@@ -100,6 +93,8 @@ export const router = createBrowserRouter([
           { path: 'courses', element: <TrainerCourses /> },
           { path: 'students', element: <TrainerStudents /> },
           { path: 'live-sessions', element: <TrainerLiveSessions /> },
+          { path: 'assessments', element: <AdminAssessments /> },
+          { path: 'profile', element: <Profile /> }
         ]
       },
       // Full-screen trainer preview

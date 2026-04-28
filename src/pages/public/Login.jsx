@@ -3,7 +3,6 @@ import { useAuth } from '../../shared/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, BookOpen, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import GoogleLogin from '../../components/auth/GoogleLogin';
 import Logo from '../../components/Logo';
 import { USER_API, API_BASE } from '../../config';
 
@@ -210,24 +209,11 @@ const Login = () => {
                 )}
               </button>
 
-              <div className="relative flex items-center justify-center py-2">
-                <div className="flex-grow border-t border-slate-300"></div>
-                <span className="flex-shrink mx-4 text-slate-500 text-xs font-bold uppercase tracking-wider">Or</span>
-                <div className="flex-grow border-t border-slate-300"></div>
-              </div>
-              <GoogleLogin 
-                onLoginSuccess={handleAuthSuccess}
-                onLoginError={setError}
-              />
+
             </div>
           </form>
 
-          <div className="mt-8 text-center text-sm">
-            <span className="text-[var(--color-text-muted)] font-medium">Don't have an account? </span>
-            <Link to="/signup" className="font-bold text-[var(--color-primary)] hover:underline underline-offset-4">
-              Create one now
-            </Link>
-          </div>
+
         </motion.div>
       </div>
     </div>

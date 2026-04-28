@@ -2,7 +2,7 @@ import {
   Search, Plus, Edit, Mail, Phone, MapPin, Calendar, X, UserX, UserCheck, 
   Loader2, AlertCircle, CheckCircle2, User, Users, Layout, ArrowLeft, ArrowRight,
   ShieldCheck, Zap, Archive, Settings2, Trash2, Globe, Palette, Save, 
-  Fingerprint, Briefcase, Activity, Grid, List, ChevronRight
+  Fingerprint, Briefcase, Activity, Grid, List, ChevronRight, Upload, Database, FileText
 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -10,6 +10,109 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../shared/AuthContext';
 import { ADMIN_API, getHeaders } from '../../config';
+
+
+
+const BulkImportModal = ({ onClose, onImport, loading, type = 'faculty' }) => {
+  const [file, setFile] = useState(null);
+  const [error, setError] = useState(null);
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      if (selectedFile.name.endsWith('.xlsx') || selectedFile.name.endsWith('.xls')) {
+        setFile(selectedFile);
+        setError(null);
+      } else {
+        setError('Please upload a valid Excel file (.xlsx or .xls)');
+        setFile(null);
+      }
+    }
+  };
+
+  const handleProcessFile = () => {
+    if (!file) return;
+    onImport(file);
+  };
+
+
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = 'auto'; };
+  }, []);
+
+  const [vibrate, setVibrate] = useState(false);
+
+  useEffect(() => {
+    if (error) {
+      setVibrate(true);
+      const timer = setTimeout(() => setVibrate(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  return createPortal(
+    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.75)', backdropFilter: 'blur(20px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={onClose}>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+        style={{ width: 'min(95vw, 550px)', backgroundColor: 'var(--color-surface)', borderRadius: '2.5rem', boxShadow: '0 25px 70px -15px rgba(0, 0, 0, 0.4)', border: '1px solid var(--color-border)', padding: '2.5rem' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 950 }}>Bulk Import Faculty</h2>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginTop: '0.25rem' }}>Upload an Excel (.xlsx) file to create multiple accounts</p>
+          </div>
+          <button onClick={onClose} style={{ width: '2.5rem', height: '2.5rem', borderRadius: '50%', border: 'none', backgroundColor: 'var(--color-surface-muted)', color: 'var(--color-text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20}/></button>
+        </div>
+
+        <div style={{ marginBottom: '2rem' }}>
+          <div 
+            style={{ 
+              width: '100%', border: `2px ${error ? 'solid' : 'dashed'} ${error ? '#ef4444' : 'var(--color-border)'}`, borderRadius: '2rem', padding: '3rem 2rem', textAlign: 'center', backgroundColor: error ? 'rgba(239, 68, 68, 0.05)' : 'var(--color-surface-muted)', cursor: 'pointer', transition: 'all 0.3s', position: 'relative'
+            }}
+            onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-primary)'; }}
+            onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = error ? '#ef4444' : 'var(--color-border)'; }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+              const droppedFile = e.dataTransfer.files[0];
+              if (droppedFile && (droppedFile.name.endsWith('.xlsx') || droppedFile.name.endsWith('.xls'))) { setFile(droppedFile); setError(null); }
+              else setError('Only .xlsx files are supported');
+            }}
+          >
+            <input type="file" accept=".xlsx, .xls" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ width: '4rem', height: '4rem', borderRadius: '1.25rem', backgroundColor: error ? 'rgba(239, 68, 68, 0.1)' : 'var(--color-primary-bg)', color: error ? '#ef4444' : 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Upload size={32} />
+              </div>
+              <div>
+                <p style={{ margin: 0, fontWeight: 800, fontSize: '1rem', color: error ? '#ef4444' : 'var(--color-text)' }}>{file ? file.name : 'Select Excel File'}</p>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Drag and drop or click to browse</p>
+              </div>
+            </div>
+          </div>
+          
+          {error && <div style={{ marginTop: '1.25rem', color: '#ef4444', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}><AlertCircle size={14}/> {error}</div>}
+        </div>
+
+        <motion.button 
+          animate={vibrate ? { x: [-5, 5, -5, 5, 0] } : {}}
+          onClick={handleProcessFile}
+          disabled={loading || !file}
+          className="btn btn-primary"
+          style={{ width: '100%', padding: '1.15rem', borderRadius: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', boxShadow: 'var(--shadow-lg)', backgroundColor: error ? '#ef4444' : undefined, borderColor: error ? '#ef4444' : undefined }}
+        >
+          {loading ? <Loader2 size={18} className="animate-spin" /> : <Database size={18} />}
+          {loading ? 'Initializing Nodes...' : error ? 'Retry Import' : 'Begin Bulk Upload'}
+        </motion.button>
+      </motion.div>
+    </div>,
+    document.body
+  );
+};
 
 const AdminUsers = () => {
   const { authFetch, smartFetch, clearCache } = useAuth();
@@ -20,6 +123,7 @@ const AdminUsers = () => {
   const [viewMode, setViewMode] = useState('grid');
   
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedTrainer, setSelectedTrainer] = useState(null);
@@ -132,6 +236,35 @@ const AdminUsers = () => {
     finally { setActionLoading(false); }
   };
 
+  const handleBulkImport = async (file) => {
+    setActionLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await authFetch(`${ADMIN_API}/bulk_create_trainers`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        showToast('Faculty initialized successfully');
+        setShowImportModal(false);
+        clearCache('admin_all_trainers');
+        fetchTrainers();
+      } else {
+        const errorData = await response.json();
+        console.error("Bulk Import Error Details:", errorData);
+        const detail = Array.isArray(errorData.detail) ? errorData.detail[0]?.msg : errorData.detail;
+        showToast(detail ? `Import failed: ${detail}` : 'Unable to import data', 'error');
+      }
+    } catch (err) {
+      showToast('Neural link failed', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const refreshSingleTrainer = async (email, status) => {
     try {
       const detail = await smartFetch(`${ADMIN_API}/get_trainer?trainer_email=${email}`, { forceRefresh: true });
@@ -201,13 +334,22 @@ const AdminUsers = () => {
                   <button onClick={() => setViewMode('list')} style={{ padding: '0.6rem 0.85rem', borderRadius: '0.9rem', border: 'none', background: viewMode === 'list' ? 'var(--color-surface)' : 'transparent', color: viewMode === 'list' ? 'var(--color-primary)' : 'var(--color-text-light)', cursor: 'pointer', boxShadow: viewMode === 'list' ? 'var(--shadow-md)' : 'none', transition: 'all 0.3s' }}><List size={20}/></button>
                </div>
 
-               <button 
-                 onClick={() => setShowCreateModal(true)}
-                 className="btn btn-primary"
-                 style={{ padding: '0.75rem 1.75rem', borderRadius: '1.15rem' }}
-               >
-                 <Plus size={18} /> <span className="hide-on-mobile">Add Trainer</span>
-               </button>
+                <button 
+                  onClick={() => setShowImportModal(true)}
+                  style={{ padding: '0.65rem 1.25rem', borderRadius: '1rem', border: 'none', backgroundColor: '#0f172a', color: 'white', fontSize: '0.85rem', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.2)' }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <Upload size={16} /> Bulk Import
+                </button>
+
+                <button 
+                  onClick={() => setShowCreateModal(true)}
+                  className="btn btn-primary"
+                  style={{ padding: '0.75rem 1.75rem', borderRadius: '1.15rem' }}
+                >
+                  <Plus size={18} /> <span className="hide-on-mobile">Add Trainer</span>
+                </button>
             </div>
          </div>
       </div>
@@ -274,6 +416,16 @@ const AdminUsers = () => {
          </AnimatePresence>
       </div>
 
+      <AnimatePresence>
+        {showImportModal && (
+          <BulkImportModal 
+            onClose={() => setShowImportModal(false)}
+            onImport={handleBulkImport}
+            loading={actionLoading}
+          />
+        )}
+      </AnimatePresence>
+
       {showCreateModal && (
         <TrainerFormModal
           title="Add New Trainer"
@@ -310,11 +462,12 @@ const AdminUsers = () => {
          )}
       </AnimatePresence>
 
-      {toast && (
-        <div style={{ position: 'fixed', bottom: '4rem', left: '50%', transform: 'translateX(-50%)', zIndex: 3500, padding: '1.15rem 3rem', borderRadius: '4rem', backgroundColor: '#111827', color: 'white', fontWeight: '900', boxShadow: '0 30px 60px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '1rem', animation: 'slideUp 0.5s' }}>
+      {toast && createPortal(
+        <div style={{ position: 'fixed', bottom: '4rem', left: '50%', transform: 'translateX(-50%)', zIndex: 1000001, padding: '1.15rem 3rem', borderRadius: '4rem', backgroundColor: '#111827', color: 'white', fontWeight: '900', boxShadow: '0 30px 60px rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', gap: '1rem', animation: 'slideUp 0.5s' }}>
           {toast.type === 'success' ? <CheckCircle2 size={20} color="var(--color-primary)" /> : <AlertCircle size={20} color="#ef4444" />}
           {toast.message}
-        </div>
+        </div>,
+        document.body
       )}
 
       <style>{`

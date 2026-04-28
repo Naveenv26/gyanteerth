@@ -123,10 +123,10 @@ const Home = () => {
               <div className="flex flex-col sm:flex-row items-center gap-6 justify-center lg:justify-start">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
                   <Link
-                    to="/signup"
+                    to="/courses"
                     className="group btn btn-primary px-12 py-6 text-lg rounded-3xl"
                   >
-                    <span className="text-white group-hover:text-[var(--color-accent)] font-black transition-colors">Join Now</span>
+                    <span className="text-white group-hover:text-[var(--color-accent)] font-black transition-colors">Start Learning</span>
                     <ArrowRight className="w-6 h-6 text-white group-hover:text-[var(--color-accent)] group-hover:translate-x-1 transition-all" />
                   </Link>
                 </motion.div>
@@ -310,10 +310,10 @@ const Home = () => {
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
                 <Link
-                  to="/signup"
+                  to="/courses"
                   className="group flex items-center justify-center gap-3 w-full sm:w-auto px-12 py-6 bg-white text-[var(--navy-950)] font-black rounded-3xl shadow-2xl hover:bg-[var(--color-accent)] hover:text-white transition-all hover:-translate-y-1 text-lg"
                 >
-                  Get Started Free <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform text-[var(--color-primary)] group-hover:text-white" />
+                  Explore Catalog <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform text-[var(--color-primary)] group-hover:text-white" />
                 </Link>
                 <Link
                   to="/under-construction"

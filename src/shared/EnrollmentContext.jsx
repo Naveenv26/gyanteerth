@@ -12,6 +12,7 @@ export const EnrollmentProvider = ({ children }) => {
 
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [completedLessons, setCompletedLessons] = useState({});
+  const [assessmentStats, setAssessmentStats] = useState({}); 
   const [lessonCounts, setLessonCounts] = useState({});
 
 
@@ -177,6 +178,18 @@ export const EnrollmentProvider = ({ children }) => {
           } 
         : c
       ));
+
+      if (data.assessments && Array.isArray(data.assessments)) {
+        const stats = {};
+        data.assessments.forEach(asm => {
+          stats[norm(asm.assessment_id)] = {
+            attempts_used: asm.attempts_used || 0,
+            best_score: asm.best_score || 0,
+            passed: asm.passed || false
+          };
+        });
+        setAssessmentStats(prev => ({ ...prev, ...stats }));
+      }
     }
     return data;
   }, [smartFetch]);
@@ -229,7 +242,7 @@ export const EnrollmentProvider = ({ children }) => {
       registerLessonCount, getCourseProgress,
       markLessonComplete, isLessonComplete, getCompletedCount,
       markLiveAttendance, markVideoProgress, submitAssessment, fetchCourseProgress,
-      completedLessons,
+      completedLessons, assessmentStats
     }}>
       {children}
     </EnrollmentContext.Provider>

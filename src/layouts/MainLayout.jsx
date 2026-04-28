@@ -161,19 +161,11 @@ const MainLayout = () => {
                   <div className="flex items-center gap-4">
                     <Link 
                       to="/login" 
-                      className="hidden sm:flex group flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-emerald-700 bg-emerald-50/50 hover:bg-emerald-50 px-5 py-3 rounded-2xl transition-all"
+                      className="group flex items-center gap-2 text-sm font-black bg-gradient-to-r from-emerald-600 via-emerald-700 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 px-7 py-3 rounded-2xl shadow-xl shadow-emerald-500/20 transition-all"
                     >
-                      <LogIn className="w-4 h-4 text-emerald-600 group-hover:translate-x-0.5 transition-transform" /> Sign In
+                      <span className="text-white group-hover:text-orange-400 transition-colors">Sign In</span>
+                      <LogIn className="w-4 h-4 text-white group-hover:text-orange-400 group-hover:translate-x-0.5 transition-all" />
                     </Link>
-                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
-                      <Link 
-                        to="/signup" 
-                        className="group flex items-center gap-2 text-sm font-black bg-gradient-to-r from-emerald-600 via-emerald-700 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 px-7 py-3 rounded-2xl shadow-xl shadow-emerald-500/20 transition-all"
-                      >
-                        <span className="text-white group-hover:text-orange-400 transition-colors">Start Free</span>
-                        <Sparkles className="w-4 h-4 text-white group-hover:text-orange-400 group-hover:rotate-12 transition-all" />
-                      </Link>
-                    </motion.div>
                   </div>
                 )}
               </div>

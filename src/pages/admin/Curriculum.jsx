@@ -5,7 +5,7 @@ import {
   Award, ChevronRight, Play, Monitor, Link, Clock, Loader2,
   MoreVertical, Settings, Save, X, PlusCircle, CheckCircle2, AlertCircle,
   FileBox, BookOpen, Layers, Grid, Zap, ShieldCheck, ArrowUp, ArrowDown,
-  Layout, Activity, Fingerprint, Briefcase, Trash, Search, Settings2, ExternalLink, Menu
+  Layout, Activity, Fingerprint, Briefcase, Trash, Search, Settings2, ExternalLink, Menu, FileUp
 } from 'lucide-react';
 import { useAuth } from '../../shared/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,6 +22,9 @@ const AdminCurriculum = () => {
   const [activeModule, setActiveModule] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = React.useRef(null);
+  const [importTargetId, setImportTargetId] = useState(null);
   const [activeTab, setActiveTab] = useState('lessons');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -44,6 +47,36 @@ const AdminCurriculum = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
+  const handleBulkImportQuestions = async (e) => {
+    const file = e.target.files[0];
+    const assessmentId = importTargetId;
+    if (!file || !assessmentId) return;
+
+    setImporting(true);
+    const importData = new FormData();
+    importData.append('file', file);
+
+    try {
+      const res = await authFetch(`${ADMIN_API}/bulk_upload_questions/${assessmentId}`, {
+        method: 'POST',
+        body: importData
+      });
+
+      if (res.ok) {
+        showToast('Questions Imported Successfully');
+        fetchCurriculum();
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      } else {
+        const error = await res.json().catch(() => ({}));
+        showToast(error.detail || 'Import failed', 'error');
+      }
+    } catch (err) {
+      showToast('Network error during import', 'error');
+    } finally {
+      setImporting(false);
+      setImportTargetId(null);
+    }
+  };
 
   const fetchCurriculum = useCallback(async () => {
     if (!user) return;
@@ -61,7 +94,6 @@ const AdminCurriculum = () => {
         };
         setCourse(mappedCourse);
         
-        // Auto-switch tab based on type if current tab is not applicable
         if (mappedCourse.course_type === 'live' && activeTab === 'lessons') {
           setActiveTab('live');
         } else if (mappedCourse.course_type === 'recorded' && activeTab === 'live') {
@@ -127,11 +159,11 @@ const AdminCurriculum = () => {
       }
     } catch (err) { console.error('fetchCurriculum failed:', err); showToast('Data synchronization failed', 'error'); }
     finally { setLoading(false); }
-  }, [courseId, authFetch, activeModule, activeAssessment]);
+  }, [courseId, authFetch]);
 
   useEffect(() => {
     fetchCurriculum();
-  }, [courseId, authFetch]);
+  }, [fetchCurriculum]);
 
   const handleModuleSubmit = async (e) => {
     e.preventDefault();
@@ -222,7 +254,6 @@ const AdminCurriculum = () => {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-bg)', fontFamily: "'Outfit', sans-serif", color: 'var(--color-text)', display: 'flex', flexDirection: 'column' }}>
 
-      {/* REFINED COMMAND HEADER */}
       <header style={{ backgroundColor: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', padding: '1.25rem var(--page-padding)', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="mobile-only-btn" style={{ padding: '0.5rem', background: 'var(--color-surface-muted)', border: 'none', borderRadius: '0.75rem', cursor: 'pointer' }}><Menu size={20} /></button>
@@ -236,7 +267,6 @@ const AdminCurriculum = () => {
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <button onClick={() => {
-            // Gap-aware: find the first unused position (e.g. 1,2,4 → next is 3, not 5)
             const usedPositions = new Set(modules.map(m => m.position || m.Position || 0));
             let nextPos = 2;
             while (usedPositions.has(nextPos)) nextPos++;
@@ -298,6 +328,7 @@ const AdminCurriculum = () => {
         </AnimatePresence>
 
         <main style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-surface)', padding: 'clamp(1rem, 5vw, 3.5rem)', position: 'relative' }}>
+          <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".xlsx, .xls" onChange={handleBulkImportQuestions} />
           {!activeModule ? (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontWeight: 950, fontSize: '0.9rem', letterSpacing: '0.1em', textAlign: 'center', padding: '2rem' }}>
               CHOOSE A CHAPTER TO BEGIN CRAFTING KNOWLEDGE
@@ -319,12 +350,14 @@ const AdminCurriculum = () => {
                   <SubTab active={activeTab === 'assessments'} icon={<Award size={12} />} label="Assessments" onClick={() => setActiveTab('assessments')} color="#f97316" />
                   {activeAssessment && <SubTab active={activeTab === 'builder'} icon={<Settings2 size={12} />} label="Builder" onClick={() => setActiveTab('builder')} color="#854dff" />}
                 </div>
-                <button
-                  onClick={() => setEditModal({ show: true, type: activeTab === 'assessments' ? 'assessment' : activeTab === 'notes' ? 'notes' : activeTab === 'live' ? 'live' : 'video', data: activeTab === 'assessments' ? { Title: '', Description: '', Total_Mark: 100, Passing_Mark: 40, Duration: 30, Attempt_Limit: 3, Status: 'active' } : activeTab === 'notes' ? { Title: '', Note_URL: '' } : activeTab === 'live' ? { Title: '', Meeting_URL: '', Provider: 'Zoom', Start_time: '', End_time: '', Status: 'scheduled' } : { video_url: '', course_description: '' } })}
-                  className="btn btn-primary" style={{ padding: '0.75rem 1.5rem', borderRadius: '1.25rem', fontSize: '0.85rem' }}
-                >
-                  <Plus size={16} /> Add {activeTab === 'lessons' ? 'Lesson' : activeTab === 'assessments' ? 'Exam' : 'Asset'}
-                </button>
+                <div style={{ display: 'flex', gap: '0.85rem' }}>
+                  <button
+                    onClick={() => setEditModal({ show: true, type: activeTab === 'assessments' ? 'assessment' : activeTab === 'notes' ? 'notes' : activeTab === 'live' ? 'live' : 'video', data: activeTab === 'assessments' ? { Title: '', Description: '', Total_Mark: 100, Passing_Mark: 40, Duration: 30, Attempt_Limit: 3, Status: 'active' } : activeTab === 'notes' ? { Title: '', Note_URL: '' } : activeTab === 'live' ? { Title: '', Meeting_URL: '', Provider: 'Zoom', Start_time: '', End_time: '', Status: 'scheduled' } : { video_url: '', course_description: '' } })}
+                    className="btn btn-primary" style={{ padding: '0.45rem 1.15rem', borderRadius: '0.85rem', fontSize: '0.75rem' }}
+                  >
+                    <Plus size={14} /> Add {activeTab === 'lessons' ? 'Lesson' : activeTab === 'assessments' ? 'Exam' : 'Asset'}
+                  </button>
+                </div>
               </div>
 
               <div style={{ minHeight: '60vh' }}>
@@ -356,7 +389,23 @@ const AdminCurriculum = () => {
                               onEdit={() => setEditModal({ show: true, type: 'assessment', data: { editingId: a.assessment_id, Title: a.title, Description: a.description, Total_Mark: a.total_mark, Passing_Mark: a.passing_mark, Duration: a.duration, Attempt_Limit: a.attempt_limit, Status: a.status } })}
                               onDelete={() => genericDelete('assessment', a.assessment_id)}
                             />
-                            <button onClick={() => { setActiveAssessment(a); setActiveTab('builder'); }} className="btn btn-ghost" style={{ alignSelf: 'flex-start', marginLeft: '4.5rem', padding: '0.4rem 1.25rem', borderRadius: '1rem', border: '1px solid var(--color-border-strong)', fontSize: '0.75rem', fontWeight: 950, color: '#f97316', background: '#fff7ed' }}>Question Builder ({a.questions?.length || 0})</button>
+                            <div style={{ display: 'flex', gap: '0.75rem', alignSelf: 'flex-start', marginLeft: '4.5rem' }}>
+                              <button onClick={() => { setActiveAssessment(a); setActiveTab('builder'); }} className="btn btn-ghost" style={{ padding: '0.4rem 1.25rem', borderRadius: '1rem', border: '1px solid var(--color-border-strong)', fontSize: '0.75rem', fontWeight: 950, color: '#f97316', background: '#fff7ed' }}>Question Builder ({a.questions?.length || 0})</button>
+                              <button 
+                                onClick={() => { setImportTargetId(a.assessment_id); setTimeout(() => fileInputRef.current?.click(), 0); }} 
+                                disabled={importing}
+                                style={{ 
+                                  display: 'flex', alignItems: 'center', gap: '0.5rem', 
+                                  padding: '0.4rem 1.25rem', borderRadius: '1rem', 
+                                  background: '#0f172a', color: 'white', 
+                                  border: 'none', fontWeight: 900, fontSize: '0.75rem',
+                                  cursor: importing ? 'not-allowed' : 'pointer', transition: 'all 0.2s'
+                                }}
+                              >
+                                {importing && importTargetId === a.assessment_id ? <Loader2 size={12} className="animate-spin" /> : <FileUp size={12} />}
+                                Bulk Import
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -368,34 +417,48 @@ const AdminCurriculum = () => {
                     <motion.div key="builder" initial={{ opacity: 0, x: 5 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -5 }} style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1.5rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '1.5rem' }}>
                         <div>
-                          <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{activeAssessment.title} Builder</h2>
-                          <p style={{ margin: '0.25rem 0 0 0', color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: 700 }}>Curating {activeAssessment.questions?.length || 0} evaluation nodes</p>
+                          <h2 style={{ margin: 0, fontSize: '1rem' }}>{activeAssessment.title} Builder</h2>
+                          <p style={{ margin: '0.15rem 0 0 0', color: 'var(--color-text-muted)', fontSize: '0.7rem', fontWeight: 700 }}>Curating {activeAssessment.questions?.length || 0} evaluation nodes</p>
                         </div>
-                        <div style={{ display: 'flex', gap: '0.75rem' }}>
-                          <button onClick={() => setShowQuestionForm(true)} className="btn btn-primary" style={{ padding: '0.75rem 1.5rem', borderRadius: '1.25rem', fontSize: '0.85rem', background: '#854dff', border: 'none' }}>+ New Question</button>
-                          <button onClick={() => setActiveTab('assessments')} className="btn btn-ghost" style={{ padding: '0.75rem 1.5rem', borderRadius: '1.25rem', fontSize: '0.85rem', border: '1px solid var(--color-border-strong)' }}>Close Builder</button>
-                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                           <button 
+                             onClick={() => { setImportTargetId(activeAssessment.assessment_id); setTimeout(() => fileInputRef.current?.click(), 0); }} 
+                             disabled={importing}
+                             style={{ 
+                               display: 'flex', alignItems: 'center', gap: '0.5rem', 
+                               padding: '0.45rem 1.15rem', borderRadius: '0.85rem', 
+                               background: '#0f172a', color: 'white', 
+                               border: 'none', fontWeight: 900, fontSize: '0.75rem',
+                               cursor: importing ? 'not-allowed' : 'pointer', transition: 'all 0.2s'
+                             }}
+                           >
+                             {importing ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} />}
+                             Bulk Import Questions
+                           </button>
+                           <button onClick={() => setShowQuestionForm(true)} className="btn btn-primary" style={{ padding: '0.45rem 1.15rem', borderRadius: '0.85rem', fontSize: '0.75rem', background: '#854dff', border: 'none' }}>+ New Question</button>
+                           <button onClick={() => setActiveTab('assessments')} className="btn btn-ghost" style={{ padding: '0.45rem 1.15rem', borderRadius: '0.85rem', fontSize: '0.75rem', border: '1px solid var(--color-border-strong)' }}>Close Builder</button>
+                         </div>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 550px), 1fr))', gap: '2rem' }}>
                         {activeAssessment.questions?.map((q, idx) => (
                           <motion.div
                             key={q.question_id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
-                            style={{ padding: '2rem', borderRadius: '2.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '1.75rem', position: 'relative', boxShadow: 'var(--shadow-sm)' }}
+                            style={{ padding: '1.25rem', borderRadius: '1.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '1.25rem', position: 'relative', boxShadow: 'var(--shadow-sm)' }}
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                              <div style={{ display: 'flex', gap: '1.25rem', flex: 1 }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', marginTop: '0.25rem' }}>
-                                  <button onClick={() => swapPositions('swap-question-position', q.question_id, activeAssessment.questions[idx - 1].question_id)} disabled={idx === 0} style={{ border: 'none', background: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 0 }}><ArrowUp size={14} /></button>
-                                  <button onClick={() => swapPositions('swap-question-position', q.question_id, activeAssessment.questions[idx + 1].question_id)} disabled={idx === activeAssessment.questions.length - 1} style={{ border: 'none', background: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 0 }}><ArrowDown size={14} /></button>
+                              <div style={{ display: 'flex', gap: '1rem', flex: 1 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', marginTop: '0.2rem' }}>
+                                  <button onClick={() => swapPositions('swap-question-position', q.question_id, activeAssessment.questions[idx - 1].question_id)} disabled={idx === 0} style={{ border: 'none', background: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 0 }}><ArrowUp size={12} /></button>
+                                  <button onClick={() => swapPositions('swap-question-position', q.question_id, activeAssessment.questions[idx + 1].question_id)} disabled={idx === activeAssessment.questions.length - 1} style={{ border: 'none', background: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 0 }}><ArrowDown size={12} /></button>
                                 </div>
-                                <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '1rem', backgroundColor: 'var(--color-primary-bg)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 950, flexShrink: 0 }}>{idx + 1}</div>
-                                <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 950, color: 'var(--color-text)', lineHeight: 1.5 }}>{q.question_txt}</p>
+                                <div style={{ width: '1.75rem', height: '1.75rem', borderRadius: '0.6rem', backgroundColor: 'var(--color-primary-bg)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 950, fontSize: '0.8rem', flexShrink: 0 }}>{idx + 1}</div>
+                                <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 950, color: 'var(--color-text)', lineHeight: 1.4 }}>{q.question_txt}</p>
                               </div>
-                              <button onClick={() => genericDelete('question', q.question_id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem' }}><Trash2 size={18} /></button>
+                              <button onClick={() => genericDelete('question', q.question_id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '0.4rem' }}><Trash2 size={14} /></button>
                             </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginLeft: '5.25rem' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginLeft: '3.75rem' }}>
                               {q.options.map(o => (
-                                <div key={o.option_id} style={{ padding: '0.5rem 1.25rem', borderRadius: '1rem', background: o.is_correct ? 'var(--color-primary-bg)' : 'var(--color-bg)', border: '1px solid', borderColor: o.is_correct ? 'var(--color-primary)' : 'var(--color-border-strong)', fontSize: '0.8rem', fontWeight: 900, color: o.is_correct ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>
+                                <div key={o.option_id} style={{ padding: '0.35rem 0.85rem', borderRadius: '0.6rem', background: o.is_correct ? 'var(--color-primary-bg)' : 'var(--color-bg)', border: '1px solid', borderColor: o.is_correct ? 'var(--color-primary)' : 'var(--color-border-strong)', fontSize: '0.7rem', fontWeight: 900, color: o.is_correct ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>
                                   {o.option_txt}
                                 </div>
                               ))}
@@ -599,7 +662,18 @@ const AdminCurriculum = () => {
                       showToast(err.message || 'Sync Refused', 'error');
                     }
                   } finally { setActionLoading(false); }
-                }} className="btn btn-primary" style={{ padding: '1.25rem', borderRadius: '1.5rem', fontSize: '1rem', marginTop: '1.5rem' }}>Commit Question</button>
+                }} 
+                  disabled={actionLoading}
+                  className="btn btn-primary" 
+                  style={{ 
+                    padding: '1.25rem', borderRadius: '1.5rem', fontSize: '1rem', marginTop: '1.5rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
+                    opacity: actionLoading ? 0.7 : 1, cursor: actionLoading ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {actionLoading ? <Loader2 size={20} className="animate-spin" /> : <ShieldCheck size={20} />}
+                  {actionLoading ? 'Forging Question...' : 'Commit Question'}
+                </button>
               </div>
             </motion.div>
           </div>
@@ -639,10 +713,10 @@ const SubTab = ({ active, icon, label, onClick, color }) => (
 const ContentItem = ({ icon, title, sub, color, onEdit, onDelete, index }) => (
   <motion.div
     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
-    style={{ padding: '1.25rem 1.75rem', borderRadius: '2rem', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '1.25rem', boxShadow: 'var(--shadow-sm)' }}
+    style={{ padding: '0.85rem 1.25rem', borderRadius: '1.25rem', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: 'var(--shadow-sm)' }}
     className="premium-card"
   >
-    <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '1rem', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', color: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
+    <div style={{ width: '2rem', height: '2rem', borderRadius: '0.75rem', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', color: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
     <div style={{ flex: 1, minWidth: 0 }}>
       <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 950, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</p>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
