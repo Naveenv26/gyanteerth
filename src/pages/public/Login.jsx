@@ -166,7 +166,7 @@ const Login = () => {
                     <Mail className="w-5 h-5" />
                   </div>
                   <input
-                    type="email" required placeholder="you@example.com"
+                    type="email" name="email" required placeholder="you@example.com"
                     value={email} onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-10 pr-4 py-3.5 bg-[var(--color-surface-muted)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-light)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all shadow-sm"
                   />
@@ -183,7 +183,7 @@ const Login = () => {
                     <Lock className="w-5 h-5" />
                   </div>
                   <input
-                    type={showPassword ? 'text' : 'password'} required placeholder="••••••••"
+                    type={showPassword ? 'text' : 'password'} name="password" required placeholder="••••••••"
                     value={password} onChange={(e) => setPassword(e.target.value)}
                     className="w-full pl-10 pr-12 py-3.5 bg-[var(--color-surface-muted)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-light)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all shadow-sm"
                   />

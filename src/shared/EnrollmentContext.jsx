@@ -204,6 +204,10 @@ export const EnrollmentProvider = ({ children }) => {
       });
       const data = await response?.json();
       
+      if (!response.ok) {
+        throw new Error(data?.message || data?.error || 'Maximum Attempts Reached. Contact Admin to reset');
+      }
+
       // Cache Busting: Force progress to re-fetch from server
       clearCache(`progress_${courseId}`);
       await fetchCourseProgress(courseId, true); 

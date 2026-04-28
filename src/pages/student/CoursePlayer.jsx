@@ -85,7 +85,7 @@ function buildLessons(modules, courseNotes) {
         totalMark: a.total_mark || a.Total_Mark, 
         passingMark: a.passing_mark || a.Passing_Mark, 
         duration: a.duration || a.Duration, 
-        attemptLimit: a.attempt_limit || a.Attempt_Limit,
+        attemptLimit: (a.attempt_limit !== undefined && a.attempt_limit !== null) ? a.attempt_limit : a.Attempt_Limit,
         questions: a.questions || [] 
       });
     });
@@ -357,7 +357,7 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
   const [toast, setToast] = useState(null);
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setToast(null), 7000);
   };
   const [selected, setSelected]   = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -365,8 +365,9 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
   const [submitting, setSubmitting] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   
-  const stats = assessmentStats[lesson.id] || { attempts_used: 0, passed: false };
-  const attemptsLeft = Math.max(0, (lesson.attemptLimit || 3) - stats.attempts_used);
+  const stats = assessmentStats[String(lesson.id).toLowerCase()] || { attempts_used: 0, passed: false };
+  const limit = (lesson.attemptLimit !== undefined && lesson.attemptLimit !== null) ? Number(lesson.attemptLimit) : 3;
+  const attemptsLeft = Math.max(0, limit - stats.attempts_used);
   const isBlocked = attemptsLeft <= 0 && !stats.passed;
   const alreadyPassed = stats.passed;
 
@@ -377,9 +378,12 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
 
   // ── Session Persistence ──
   useEffect(() => {
-    if (submitted) return;
-    const sessionStart = localStorage.getItem(`asm_start_${lesson.id}`);
-    const sessionStrikes = localStorage.getItem(`asm_strikes_${lesson.id}`);
+    if (submitted || !user?.user_id) return;
+    const sessionKey = `asm_start_${user.user_id}_${lesson.id}`;
+    const strikeKey = `asm_strikes_${user.user_id}_${lesson.id}`;
+    
+    const sessionStart = localStorage.getItem(sessionKey);
+    const sessionStrikes = localStorage.getItem(strikeKey);
     
     if (sessionStart) {
       const start = parseInt(sessionStart);
@@ -393,17 +397,18 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
         setIsStarted(true);
       } else {
         // Session expired while user was away
-        localStorage.removeItem(`asm_start_${lesson.id}`);
-        localStorage.removeItem(`asm_strikes_${lesson.id}`);
+        localStorage.removeItem(sessionKey);
+        localStorage.removeItem(strikeKey);
         setStrikes(parseInt(sessionStrikes || '0'));
-        handleSubmit(); 
+        handleSubmit(true); 
       }
     }
-  }, [lesson.id, lesson.duration]);
+  }, [lesson.id, lesson.duration, user?.user_id]);
 
   const handleStart = () => {
-    localStorage.setItem(`asm_start_${lesson.id}`, Date.now().toString());
-    localStorage.setItem(`asm_strikes_${lesson.id}`, '0');
+    if (!user?.user_id) return;
+    localStorage.setItem(`asm_start_${user.user_id}_${lesson.id}`, Date.now().toString());
+    localStorage.setItem(`asm_strikes_${user.user_id}_${lesson.id}`, '0');
     setIsStarted(true);
   };
 
@@ -424,8 +429,10 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
         setSubmitted(true);
         setIsStarted(false);
         // Clean up session
-        localStorage.removeItem(`asm_start_${lesson.id}`);
-        localStorage.removeItem(`asm_strikes_${lesson.id}`);
+        if (user?.user_id) {
+          localStorage.removeItem(`asm_start_${user.user_id}_${lesson.id}`);
+          localStorage.removeItem(`asm_strikes_${user.user_id}_${lesson.id}`);
+        }
       } catch (err) {
         console.error(`Submission attempt ${attemptNum} failed:`, err);
         const msg = err.message || 'Submission failed';
@@ -441,8 +448,10 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
         if (msg.toLowerCase().includes('attempt')) {
           setSubmitted(true);
           setIsStarted(false);
-          localStorage.removeItem(`asm_start_${lesson.id}`);
-          localStorage.removeItem(`asm_strikes_${lesson.id}`);
+          if (user?.user_id) {
+            localStorage.removeItem(`asm_start_${user.user_id}_${lesson.id}`);
+            localStorage.removeItem(`asm_strikes_${user.user_id}_${lesson.id}`);
+          }
         }
       } finally {
         if (attemptNum >= 3 || !submitting) {
@@ -479,7 +488,9 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
       if (document.visibilityState === 'hidden') {
         setStrikes(s => {
           const next = s + 1;
-          localStorage.setItem(`asm_strikes_${lesson.id}`, next.toString());
+          if (user?.user_id) {
+            localStorage.setItem(`asm_strikes_${user.user_id}_${lesson.id}`, next.toString());
+          }
           if (next >= 3) {
             handleSubmit(true); 
             showToast('Security Breach: 3 strikes reached. Attempt submitted.', 'error');
@@ -575,13 +586,19 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
 
       {submitted && (
         <div style={{ background: passed ? '#f0fdf4' : '#fef2f2', border: `2px solid ${passed ? '#10b981' : '#ef4444'}`, borderRadius: '24px', padding: '3.5rem 2rem', textAlign: 'center', animation: 'zoomIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>{passed ? '🏆' : '💪'}</div>
-          <h3 style={{ fontSize: '1.75rem', fontWeight: 900, color: passed ? '#065f46' : '#991b1b', marginBottom: '0.5rem' }}>{passed ? 'Passed Successfully!' : 'Keep Pushing!'}</h3>
-          <p style={{ color: passed ? '#047857' : '#b91c1c', fontSize: '1.1rem', marginBottom: '2.5rem' }}>Your Score: <strong>{score} / {lesson.totalMark}</strong></p>
+          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: passed ? '#065f46' : '#991b1b', marginBottom: '0.5rem' }}>{passed ? 'Assessment Passed' : 'Assessment Failed'}</div>
+          <h3 style={{ fontSize: '1.75rem', fontWeight: 900, color: passed ? '#065f46' : '#991b1b', marginBottom: '0.5rem' }}>{passed ? 'Excellent Work!' : 'Please Review and Try Again'}</h3>
+          <p style={{ color: passed ? '#047857' : '#b91c1c', fontSize: '1.1rem', marginBottom: '2.5rem' }}>Your Final Score: <strong>{score} / {lesson.totalMark}</strong></p>
           
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
             {!passed && attemptsLeft > 0 && (
-              <button onClick={() => { setSubmitted(false); setSelected({}); setScore(0); setTimeLeft(lesson.duration * 60); setStrikes(0); localStorage.removeItem(`asm_start_${lesson.id}`); localStorage.removeItem(`asm_strikes_${lesson.id}`); }} style={{ background: '#6366f1', color: 'white', border: 'none', borderRadius: '12px', padding: '1rem 2.5rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 8px 20px rgba(99,102,241,0.2)' }}>Retake Assessment</button>
+              <button onClick={() => { 
+                setSubmitted(false); setSelected({}); setScore(0); setTimeLeft(lesson.duration * 60); setStrikes(0); 
+                if (user?.user_id) {
+                  localStorage.removeItem(`asm_start_${user.user_id}_${lesson.id}`); 
+                  localStorage.removeItem(`asm_strikes_${user.user_id}_${lesson.id}`); 
+                }
+              }} style={{ background: '#6366f1', color: 'white', border: 'none', borderRadius: '12px', padding: '1rem 2.5rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 8px 20px rgba(99,102,241,0.2)' }}>Retake Assessment</button>
             )}
             <button onClick={() => window.location.reload()} style={{ background: 'white', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem 2.5rem', fontWeight: 800, cursor: 'pointer' }}>Back to Course</button>
           </div>
