@@ -36,7 +36,7 @@ const AdminAssessments = () => {
     setLoading(true);
     try {
       // For trainers, we might need a different endpoint to get their specific courses
-      const statusEndpoint = isTrainer ? `${TRAINER_API}/my-courses-ids` : `${ADMIN_API}/courses/ids-by-status`;
+      const statusEndpoint = isTrainer ? `${TRAINER_API}/trainer_course_ids` : `${ADMIN_API}/courses/ids-by-status`;
       const statusData = await smartFetch(statusEndpoint, { 
         cacheKey: isTrainer ? 'trainer_course_ids' : 'admin_course_ids',
         forceRefresh: true 
