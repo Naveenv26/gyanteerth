@@ -11,9 +11,28 @@ export const EnrollmentProvider = ({ children }) => {
   const { user, authFetch, smartFetch, clearCache } = useAuth(); // Inherit secure global fetcher
 
   const [enrolledCourses, setEnrolledCourses] = useState([]);
-  const [completedLessons, setCompletedLessons] = useState({});
+  const [completedLessons, setCompletedLessons] = useState({}); 
   const [assessmentStats, setAssessmentStats] = useState({}); 
   const [lessonCounts, setLessonCounts] = useState({});
+
+  // 1. Hydrate completions from localStorage on mount
+  useEffect(() => {
+    const hydrated = {};
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('completed_')) {
+        const parts = key.split('_');
+        if (parts.length >= 3) {
+          const cid = parts[1];
+          const lid = parts[2];
+          if (localStorage.getItem(key) === 'true') {
+            if (!hydrated[cid]) hydrated[cid] = [];
+            hydrated[cid].push(lid);
+          }
+        }
+      }
+    });
+    setCompletedLessons(hydrated);
+  }, []);
 
 
   /* ── Initialization & Background Sync ── */
@@ -102,29 +121,38 @@ export const EnrollmentProvider = ({ children }) => {
 
   const isLessonComplete = useCallback((courseId, lessonId) => {
     const cid = norm(courseId);
-    return cid ? (completedLessons[cid] || []).includes(lessonId) : false;
+    const lid = norm(lessonId);
+    if (!cid || !lid) return false;
+    
+    // Check state first
+    if (completedLessons[cid]?.includes(lid)) return true;
+    
+    // Check localStorage fallback
+    return localStorage.getItem(`completed_${cid}_${lid}`) === 'true';
   }, [completedLessons]);
 
   const getCompletedCount = useCallback((courseId) => {
     const cid = norm(courseId);
-    return cid ? (completedLessons[cid] || []).length : 0;
+    if (!cid) return 0;
+    return (completedLessons[cid] || []).length;
   }, [completedLessons]);
-
 
   /* ── Local Mutators ── */
   const markLessonComplete = useCallback((courseId, lessonId, totalLessons) => {
-    const sId = norm(courseId);
-    if (!sId) return;
+    const cid = norm(courseId);
+    const lid = norm(lessonId);
+    if (!cid || !lid) return;
 
+    localStorage.setItem(`completed_${cid}_${lid}`, 'true');
+    
     if (totalLessons) {
-      setLessonCounts(prev => ({ ...prev, [sId]: totalLessons }));
+      setLessonCounts(prev => ({ ...prev, [cid]: totalLessons }));
     }
 
     setCompletedLessons(prev => {
-      const curr = prev[sId] || [];
-      const exists = curr.includes(lessonId);
-      const next = exists ? curr.filter(id => id !== lessonId) : [...curr, lessonId];
-      return { ...prev, [sId]: next };
+      const current = prev[cid] || [];
+      if (current.includes(lid)) return prev;
+      return { ...prev, [cid]: [...current, lid] };
     });
   }, []);
 
@@ -183,7 +211,7 @@ export const EnrollmentProvider = ({ children }) => {
       if (assessmentsData && Array.isArray(assessmentsData)) {
         const stats = {};
         assessmentsData.forEach(asm => {
-          stats[norm(asm.assessment_id)] = {
+          stats[norm(asm.assessment_id).toLowerCase()] = {
             attempts_used: asm.attempts_used || 0,
             best_score: asm.best_score || 0,
             passed: asm.passed || false
@@ -240,6 +268,13 @@ export const EnrollmentProvider = ({ children }) => {
     }, courseId);
   };
 
+  const markNoteProgress = (courseId, moduleId, noteId) => {
+    // 💡 Use the same endpoint as video if a dedicated note endpoint isn't available
+    return triggerProgressUpdate('mark-video-progress', {
+      course_id: String(courseId), module_id: String(moduleId), video_id: String(noteId)
+    }, courseId);
+  };
+
   return (
     <EnrollmentContext.Provider value={{
       enrolledCourses,
@@ -247,6 +282,7 @@ export const EnrollmentProvider = ({ children }) => {
       registerLessonCount, getCourseProgress,
       markLessonComplete, isLessonComplete, getCompletedCount,
       markLiveAttendance, markVideoProgress, submitAssessment, fetchCourseProgress,
+      markNoteProgress,
       completedLessons, assessmentStats
     }}>
       {children}

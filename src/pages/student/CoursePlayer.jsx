@@ -13,8 +13,11 @@ import { useAuth } from '../../shared/AuthContext'; // <-- ADD THIS
 import { ADMIN_API, USER_API } from '../../config'; // <-- ADD USER_API
 
 /* ── helpers ─────────────────────────────────── */
+const norm = (id) => (id === undefined || id === null || String(id) === 'NaN' || String(id) === 'undefined') ? null : String(id);
+
 function buildLessons(modules, courseNotes) {
   const lessons = [];
+  const countLessons = (list) => list.filter(l => l.type !== 'note' && l.type !== 'resource').length;
 
   // 0. Course-Level Notes (Prepend if they exist)
   (courseNotes || []).forEach((n, ni) => {
@@ -36,29 +39,29 @@ function buildLessons(modules, courseNotes) {
 
     // 1. Videos (Recorded Content)
     vc.forEach((v, vi) => {
-      lessons.push({ 
-        id: v.video_id || v.Video_ID, 
-        moduleId: mod.module_id || mod.Module_ID, 
-        moduleTitle: mod.title || mod.Title, 
-        title: v.description || v.course_description || v.Title || v.title || `Video ${vi + 1}`, 
-        type: 'video', 
-        url: v.video_url || v.Video_URL 
+      lessons.push({
+        id: v.video_id || v.Video_ID,
+        moduleId: mod.module_id || mod.Module_ID,
+        moduleTitle: mod.title || mod.Title,
+        title: v.description || v.course_description || v.Title || v.title || `Video ${vi + 1}`,
+        type: 'video',
+        url: v.video_url || v.Video_URL
       });
     });
 
     // 2. Live Sessions
     lc.forEach((ls, li) => {
-      lessons.push({ 
-        id: ls.live_id || ls.Live_ID, 
-        moduleId: mod.module_id || mod.Module_ID, 
-        moduleTitle: mod.title || mod.Title, 
-        title: ls.title || ls.Title || `Live Session ${li + 1}${ls.provider ? ' — ' + ls.provider : ''}`, 
-        type: 'live', 
-        url: ls.meeting_url || ls.Meeting_URL, 
-        start_time: ls.start_time || ls.Start_time, 
-        end_time: ls.end_time || ls.End_time, 
-        status: ls.status || ls.Status, 
-        recordings: ls.recordings || [] 
+      lessons.push({
+        id: ls.live_id || ls.Live_ID,
+        moduleId: mod.module_id || mod.Module_ID,
+        moduleTitle: mod.title || mod.Title,
+        title: ls.title || ls.Title || `Live Session ${li + 1}${ls.provider ? ' — ' + ls.provider : ''}`,
+        type: 'live',
+        url: ls.meeting_url || ls.Meeting_URL,
+        start_time: ls.start_time || ls.Start_time,
+        end_time: ls.end_time || ls.End_time,
+        status: ls.status || ls.Status,
+        recordings: ls.recordings || []
       });
     });
 
@@ -76,17 +79,17 @@ function buildLessons(modules, courseNotes) {
 
     // 4. Assessments
     ac.forEach(a => {
-      lessons.push({ 
-        id: a.assessment_id || a.Assessment_ID, 
-        moduleId: mod.module_id || mod.Module_ID, 
-        moduleTitle: mod.title || mod.Title, 
-        title: a.title || a.Title, 
-        type: 'assessment', 
-        totalMark: a.total_mark || a.Total_Mark, 
-        passingMark: a.passing_mark || a.Passing_Mark, 
-        duration: a.duration || a.Duration, 
+      lessons.push({
+        id: a.assessment_id || a.Assessment_ID,
+        moduleId: mod.module_id || mod.Module_ID,
+        moduleTitle: mod.title || mod.Title,
+        title: a.title || a.Title,
+        type: 'assessment',
+        totalMark: a.total_mark || a.Total_Mark,
+        passingMark: a.passing_mark || a.Passing_Mark,
+        duration: a.duration || a.Duration,
         attemptLimit: (a.attempt_limit !== undefined && a.attempt_limit !== null) ? a.attempt_limit : a.Attempt_Limit,
-        questions: a.questions || [] 
+        questions: a.questions || []
       });
     });
   });
@@ -95,7 +98,7 @@ function buildLessons(modules, courseNotes) {
 
 function getEmbedUrl(url) {
   if (!url) return null;
-  
+
   // YouTube
   if (url.includes('youtube.com') || url.includes('youtu.be')) {
     const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/);
@@ -110,13 +113,13 @@ function getEmbedUrl(url) {
       return `${baseUrl}?${params.toString()}`;
     }
   }
-  
+
   // Vimeo
   if (url.includes('vimeo.com')) {
     const m = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/);
     return m ? `https://player.vimeo.com/video/${m[1]}?autoplay=1` : null;
   }
-  
+
   // Google Drive
   if (url.includes('drive.google.com')) {
     const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
@@ -155,11 +158,11 @@ function VideoPlayer({ lesson }) {
 
   return (
     <div style={{ width: '100%', background: '#000', borderRadius: '12px', overflow: 'hidden', aspectRatio: '16/9', boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}>
-      <iframe 
-        src={embedUrl} 
+      <iframe
+        src={embedUrl}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
-        style={{ width: '100%', height: '100%', border: 'none' }} 
+        style={{ width: '100%', height: '100%', border: 'none' }}
         title={lesson.title || 'Video Player'}
       />
     </div>
@@ -183,16 +186,16 @@ function useCountdown(targetDate) {
 
 function LivePanel({ lesson, onJoin }) {
   const target = lesson.start_time ? new Date(lesson.start_time) : null;
-  const end    = lesson.end_time   ? new Date(lesson.end_time)   : null;
+  const end = lesson.end_time ? new Date(lesson.end_time) : null;
   const timeLeft = useCountdown(target);
   const now = new Date();
-  
-  const isOngoing  = target && end && now >= target && now <= end;
+
+  const isOngoing = target && end && now >= target && now <= end;
   const isUpcoming = target && now < target;
-  
+
   // 30 minute restriction
   const canJoin = target && (now >= (new Date(target.getTime() - 30 * 60 * 1000)));
-  
+
   const accent = isOngoing ? '#ef4444' : isUpcoming ? '#f59e0b' : '#6366f1';
 
   const formatCountdown = (ms) => {
@@ -223,7 +226,7 @@ function LivePanel({ lesson, onJoin }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)', borderRadius: '20px', padding: '3.5rem 2rem', textAlign: 'center', border: `1px solid ${accent}25`, position: 'relative', overflow: 'hidden' }}>
         {isOngoing && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '200%', height: '200%', background: `radial-gradient(circle, ${accent}10 0%, transparent 70%)`, animation: 'pulse 3s ease-in-out infinite' }} />}
-        
+
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ width: '88px', height: '88px', borderRadius: '50%', margin: '0 auto 1.5rem', background: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${accent}40`, boxShadow: isOngoing ? `0 0 20px ${accent}30` : 'none' }}>
             <Monitor size={40} color={accent} />
@@ -234,7 +237,7 @@ function LivePanel({ lesson, onJoin }) {
           </span>
 
           <h2 style={{ color: 'white', fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.75rem', letterSpacing: '-0.02em' }}>{lesson.title}</h2>
-          
+
           {target && <p style={{ color: '#94a3b8', marginBottom: '2rem', fontSize: '1rem', fontWeight: 500 }}>{new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' }).format(target)}</p>}
 
           {countdownStr && (
@@ -247,11 +250,11 @@ function LivePanel({ lesson, onJoin }) {
           {lesson.url && (isOngoing || isUpcoming) && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
               {canJoin ? (
-                <button 
-                  onClick={handleJoin} 
-                  style={{ 
-                    display: 'inline-flex', alignItems: 'center', gap: '0.75rem', 
-                    background: `linear-gradient(135deg, ${accent}, ${accent}cc)`, 
+                <button
+                  onClick={handleJoin}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.75rem',
+                    background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
                     color: 'white', padding: '1rem 2.5rem', borderRadius: '12px', border: 'none',
                     fontWeight: 800, fontSize: '1rem', cursor: 'pointer',
                     boxShadow: `0 8px 25px ${accent}40`, transition: 'transform 0.2s'
@@ -300,48 +303,48 @@ function NotePanel({ lesson }) {
       <div style={{ padding: '3.5rem 2rem', background: 'white', borderRadius: '24px', border: '1px solid #f1f5f9', textAlign: 'center', boxShadow: '0 10px 40px rgba(0,0,0,0.04)', position: 'relative', overflow: 'hidden' }}>
         {/* Decorative background */}
         <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #ef4444, #f59e0b)' }} />
-        
+
         <div style={{ width: '80px', height: '80px', borderRadius: '20px', background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', border: '1px solid #fee2e2' }}>
           <BookOpen size={36} color="#ef4444" />
         </div>
-        
+
         <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#0f172a', marginBottom: '0.75rem', letterSpacing: '-0.02em' }}>{lesson.title}</h2>
         <p style={{ color: '#64748b', fontSize: '0.95rem', maxWidth: '400px', margin: '0 auto 2.5rem', lineHeight: 1.6 }}>
           This resource is available for your learning. You can view it directly or download it for offline study.
         </p>
-        
+
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-           <a 
-            href={lesson.url} 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: '0.6rem', 
-              background: 'linear-gradient(135deg, #0f172a, #1e293b)', 
-              color: 'white', textDecoration: 'none', padding: '0.85rem 2rem', 
-              borderRadius: '12px', fontSize: '0.9rem', fontWeight: 800, 
-              boxShadow: '0 8px 20px rgba(15,23,42,0.2)', transition: 'transform 0.2s' 
+          <a
+            href={lesson.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.6rem',
+              background: 'linear-gradient(135deg, #0f172a, #1e293b)',
+              color: 'white', textDecoration: 'none', padding: '0.85rem 2rem',
+              borderRadius: '12px', fontSize: '0.9rem', fontWeight: 800,
+              boxShadow: '0 8px 20px rgba(15,23,42,0.2)', transition: 'transform 0.2s'
             }}
             onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
             onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-           >
+          >
             <ExternalLink size={18} /> Open Resource
-           </a>
+          </a>
         </div>
       </div>
 
       {isPdf && (
         <div style={{ width: '100%', height: '800px', borderRadius: '24px', overflow: 'hidden', border: '1px solid #e2e8f0', background: 'white', boxShadow: '0 20px 50px rgba(0,0,0,0.08)' }}>
-           <iframe 
-            src={`${lesson.url}#toolbar=0&navpanes=0`} 
-            width="100%" 
-            height="100%" 
-            style={{ border: 'none' }} 
+          <iframe
+            src={`${lesson.url}#toolbar=0&navpanes=0`}
+            width="100%"
+            height="100%"
+            style={{ border: 'none' }}
             title={lesson.title}
-           />
+          />
         </div>
       )}
-      
+
       {!isPdf && lesson.url && (
         <div style={{ padding: '2rem', background: '#f8fafc', borderRadius: '16px', border: '1px dashed #cbd5e1', textAlign: 'center' }}>
           <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0 }}>
@@ -360,13 +363,13 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
     setToast({ message, type });
     setTimeout(() => setToast(null), 7000);
   };
-  const [selected, setSelected]   = useState({});
+  const [selected, setSelected] = useState({});
   const [submitted, setSubmitted] = useState(false);
-  const [score, setScore]         = useState(0);
+  const [score, setScore] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  
-  const stats = assessmentStats[String(lesson.id).toLowerCase()] || { attempts_used: 0, passed: false };
+
+  const stats = assessmentStats[norm(lesson.id)?.toLowerCase()] || { attempts_used: 0, passed: false };
   const limit = (lesson.attemptLimit !== undefined && lesson.attemptLimit !== null) ? Number(lesson.attemptLimit) : 3;
   const attemptsLeft = Math.max(0, limit - stats.attempts_used);
   const isBlocked = attemptsLeft <= 0 && !stats.passed;
@@ -375,23 +378,26 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
   // Rule Enforcement State
   const [isStarted, setIsStarted] = useState(false);
   const [timeLeft, setTimeLeft] = useState((lesson.duration || 30) * 60);
-  const [strikes, setStrikes] = useState(0);
+  const strikeKey = user?.user_id ? `asm_strikes_${user.user_id}_${lesson.id}` : null;
+  const [strikes, setStrikes] = useState(() => {
+    if (!strikeKey) return 0;
+    return parseInt(localStorage.getItem(strikeKey) || '0');
+  });
 
   // ── Session Persistence ──
   useEffect(() => {
     if (submitted || !user?.user_id) return;
     const sessionKey = `asm_start_${user.user_id}_${lesson.id}`;
-    const strikeKey = `asm_strikes_${user.user_id}_${lesson.id}`;
-    
+
     const sessionStart = localStorage.getItem(sessionKey);
     const sessionStrikes = localStorage.getItem(strikeKey);
-    
+
     if (sessionStart) {
       const start = parseInt(sessionStart);
       const now = Date.now();
       const elapsed = Math.floor((now - start) / 1000);
       const remaining = (lesson.duration * 60) - elapsed;
-      
+
       if (remaining > 0) {
         setTimeLeft(remaining);
         setStrikes(parseInt(sessionStrikes || '0'));
@@ -402,13 +408,13 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
         localStorage.removeItem(sessionKey);
         localStorage.removeItem(strikeKey);
         setStrikes(parseInt(sessionStrikes || '0'));
-        handleSubmit(true); 
+        handleSubmit(true);
       }
     }
   }, [lesson.id, lesson.duration, user?.user_id]);
 
   const handleStart = () => {
-    if (!user?.user_id) return;
+    if (!user?.user_id || alreadyPassed) return;
     localStorage.setItem(`asm_start_${user.user_id}_${lesson.id}`, Date.now().toString());
     localStorage.setItem(`asm_strikes_${user.user_id}_${lesson.id}`, '0');
     setIsStarted(true);
@@ -424,7 +430,7 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
   const handleSubmit = useCallback(async (isAuto = false) => {
     if (submitting || submitted) return;
     setSubmitting(true);
-    
+
     const performSubmit = async (attemptNum = 1) => {
       try {
         const result = await onComplete(selected);
@@ -440,7 +446,7 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
       } catch (err) {
         console.error(`Submission attempt ${attemptNum} failed:`, err);
         const msg = err.message || 'Submission failed';
-        
+
         // If it's a network/server error and we have retries left, try again
         if (attemptNum < 3 && !msg.toLowerCase().includes('attempt')) {
           setRetryCount(attemptNum);
@@ -497,7 +503,7 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
             localStorage.setItem(`asm_strikes_${user.user_id}_${lesson.id}`, next.toString());
           }
           if (next >= 3) {
-            handleSubmit(true); 
+            handleSubmit(true);
             showToast('Security Breach: 3 strikes reached. Attempt submitted.', 'error');
           }
           return next;
@@ -513,7 +519,7 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
 
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -550,14 +556,14 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
 
         {alreadyPassed ? (
           <div style={{ padding: '1.5rem', background: '#f0fdf4', borderRadius: '16px', border: '1px solid #bbf7d0', color: '#166534', fontWeight: 800 }}>
-             ✓ You have already passed this assessment.
+            ✓ You have already passed this assessment.
           </div>
         ) : isBlocked ? (
           <div style={{ padding: '1.5rem', background: '#fef2f2', borderRadius: '16px', border: '1px solid #fecaca', color: '#991b1b', fontWeight: 800 }}>
-             ✕ Attempt limit reached. Please contact your instructor.
+            ✕ Attempt limit reached. Please contact your instructor.
           </div>
         ) : (
-          <button 
+          <button
             onClick={handleStart}
             style={{ background: 'linear-gradient(135deg, #6366f1, #4338ca)', color: 'white', border: 'none', padding: '1.25rem 3rem', borderRadius: '16px', fontSize: '1.1rem', fontWeight: 900, cursor: 'pointer', boxShadow: '0 10px 25px rgba(99,102,241,0.3)' }}
           >
@@ -579,7 +585,7 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
             <p style={{ color: '#94a3b8', margin: 0, fontSize: '0.75rem', fontWeight: 600 }}>{Object.keys(selected).length} of {lesson.questions?.length} Answered</p>
           </div>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
           {strikes > 0 && <div style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 900, background: 'rgba(239,68,68,0.1)', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.2)' }}>⚠️ Security Warning ({strikes})</div>}
           <div style={{ textAlign: 'right' }}>
@@ -594,14 +600,14 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
           <div style={{ fontSize: '1.25rem', fontWeight: 900, color: passed ? '#065f46' : '#991b1b', marginBottom: '0.5rem' }}>{passed ? 'Assessment Passed' : 'Assessment Failed'}</div>
           <h3 style={{ fontSize: '1.75rem', fontWeight: 900, color: passed ? '#065f46' : '#991b1b', marginBottom: '0.5rem' }}>{passed ? 'Excellent Work!' : 'Please Review and Try Again'}</h3>
           <p style={{ color: passed ? '#047857' : '#b91c1c', fontSize: '1.1rem', marginBottom: '2.5rem' }}>Your Final Score: <strong>{score} / {lesson.totalMark}</strong></p>
-          
+
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
             {!passed && attemptsLeft > 0 && (
-              <button onClick={() => { 
-                setSubmitted(false); setSelected({}); setScore(0); setTimeLeft(lesson.duration * 60); setStrikes(0); 
+              <button onClick={() => {
+                setSubmitted(false); setSelected({}); setScore(0); setTimeLeft(lesson.duration * 60); setStrikes(0);
                 if (user?.user_id) {
-                  localStorage.removeItem(`asm_start_${user.user_id}_${lesson.id}`); 
-                  localStorage.removeItem(`asm_strikes_${user.user_id}_${lesson.id}`); 
+                  localStorage.removeItem(`asm_start_${user.user_id}_${lesson.id}`);
+                  localStorage.removeItem(`asm_strikes_${user.user_id}_${lesson.id}`);
                 }
               }} style={{ background: '#6366f1', color: 'white', border: 'none', borderRadius: '12px', padding: '1rem 2.5rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 8px 20px rgba(99,102,241,0.2)' }}>Retake Assessment</button>
             )}
@@ -613,7 +619,7 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
       {/* Toast Notification */}
       <AnimatePresence>
         {toast && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
@@ -649,8 +655,8 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
 
       {!submitted && isStarted && (
         <div style={{ padding: '2rem', background: '#f8fafc', borderRadius: '20px', border: '1px dashed #cbd5e1', textAlign: 'center', marginTop: '1rem' }}>
-          <button 
-            onClick={() => handleSubmit(false)} 
+          <button
+            onClick={() => handleSubmit(false)}
             disabled={submitting}
             style={{ background: 'linear-gradient(135deg,#10b981,#059669)', color: 'white', border: 'none', borderRadius: '14px', padding: '1.25rem 4rem', fontSize: '1.1rem', fontWeight: 900, cursor: submitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', opacity: submitting ? 0.7 : 1, margin: '0 auto', boxShadow: '0 10px 25px rgba(16,185,129,0.2)' }}
           >
@@ -691,35 +697,59 @@ const CoursePlayer = ({ isTrainer = false }) => {
   const navigate = useNavigate();
   const enrollment = useEnrollment();
   const { isEnrolled } = enrollment || {};
-  const { user, authFetch } = useAuth(); // <-- Inject Secure Wrapper
-  
+  const { user, authFetch, smartFetch } = useAuth(); // <-- Inject Secure Wrapper
+  const [isExamInProgress, setIsExamInProgress] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [expandedModules, setExpandedModules] = useState({});
+  const [justCompleted, setJustCompleted] = useState(false);
+  const enrolled = isTrainer || (id && isEnrolled && isEnrolled(id));
+  const [showReview, setShowReview] = useState(false);
+
+  // Anti-Cheat: Prevent navigation while exam is in progress
+  useEffect(() => {
+    if (isExamInProgress) {
+      const handlePopState = () => {
+        // Force stay on page by pushing state back
+        window.history.pushState(null, '', window.location.href);
+      };
+
+      const handleBeforeUnload = (e) => {
+        e.preventDefault();
+        e.returnValue = 'Exam in progress. Leaving will result in auto-submission.';
+        return e.returnValue;
+      };
+
+      window.history.pushState(null, '', window.location.href);
+      
+      window.addEventListener('popstate', handlePopState);
+      window.addEventListener('beforeunload', handleBeforeUnload);
+
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }
+  }, [isExamInProgress]);
+
   // Safe extraction of enrollment hooks/data
-  const markLessonComplete = isTrainer ? () => {} : enrollment?.markLessonComplete;
+  const markLessonComplete = isTrainer ? () => { } : enrollment?.markLessonComplete;
   const isLessonComplete = isTrainer ? () => false : enrollment?.isLessonComplete;
   const getCompletedCount = isTrainer ? () => 0 : enrollment?.getCompletedCount;
   const enrolledCourses = isTrainer ? [] : enrollment?.enrolledCourses;
-  const registerLessonCount = isTrainer ? () => {} : enrollment?.registerLessonCount;
-  
+  const registerLessonCount = isTrainer ? () => { } : enrollment?.registerLessonCount;
+
   const markLiveAttendance = isTrainer ? async () => ({}) : enrollment?.markLiveAttendance;
   const markVideoProgress = isTrainer ? async () => ({}) : enrollment?.markVideoProgress;
+  const markNoteProgress = isTrainer ? async () => ({}) : enrollment?.markNoteProgress;
   const submitAssessment = isTrainer ? async () => ({}) : enrollment?.submitAssessment;
   const assessmentStats = isTrainer ? {} : enrollment?.assessmentStats || {};
   const fetchCourseProgress = isTrainer ? async () => ({}) : enrollment?.fetchCourseProgress;
 
-  const [course, setCourse]               = useState(null);
-  const [lessons, setLessons]             = useState([]);
-  const [currentIdx, setCurrentIdx]       = useState(0);
-  const [loading, setLoading]             = useState(true);
-  const [error, setError]                 = useState(null);
-  const [sidebarOpen, setSidebarOpen]     = useState(true);
-  const [expandedModules, setExpandedModules] = useState({});
-  const [justCompleted, setJustCompleted] = useState(false);
-  const [isExamInProgress, setIsExamInProgress] = useState(false);
-
-  const enrolled = isTrainer || (id && isEnrolled && isEnrolled(id));
-  
-  // ── Review state ────────────────────────────────────────────────────────
-  const [showReview, setShowReview] = useState(false);
+  const [course, setCourse] = useState(null);
+  const [lessons, setLessons] = useState([]);
   const [feedbackForm, setFeedbackForm] = useState({ Course_rating: '5', Instructor_rating: '5', Review: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState(false);
@@ -748,7 +778,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
   useEffect(() => {
     console.log('CoursePlayer: Active Course ID from URL:', id, 'TrainerMode:', isTrainer);
     if (!isTrainer) {
-      const enrolledItem = enrolledCourses?.find(c => String(c.id || c.course_id) === String(id));
+      const enrolledItem = enrolledCourses?.find(c => norm(c.id || c.course_id)?.toLowerCase() === norm(id)?.toLowerCase());
       console.log('CoursePlayer: Enrollment status:', enrolledItem ? 'ENROLLED' : 'NOT ENROLLED', enrolledItem);
     }
   }, [id, enrolledCourses, isTrainer]);
@@ -757,37 +787,36 @@ const CoursePlayer = ({ isTrainer = false }) => {
     (async () => {
       try {
         setLoading(true);
-        // Securely fetch details
-        const res = await authFetch(`${ADMIN_API}/course/${id}/full-details`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-          if (data.status && data.course) {
+        console.log('CoursePlayer: Fetching details for', id);
+        // 🚀 Use smartFetch to deduplicate and cache course details
+        const data = await smartFetch(`${ADMIN_API}/course/${id}/full-details`, { cacheKey: `details_${id}` });
+        console.log('CoursePlayer: Received data:', !!data);
+        if (data && data.course) {
           const c = data.course;
           setCourse(c);
-          const built  = buildLessons(c.modules, c.notes);
+          const built = buildLessons(c.modules, c.notes);
           setLessons(built);
 
           const typeLower = (c.type || c.course_type || c.course_Type || 'recorded').toLowerCase();
           const isLive = typeLower === 'live' || typeLower === 'live_course' || typeLower === 'live session';
-          
+
           // Auto-select first ongoing or upcoming live session if live course
           if (isLive && built.length > 0) {
-              const now = new Date();
-              const liveIdx = built.findIndex(l => {
-                  if (l.type !== 'live') return false;
-                  const start = l.start_time ? new Date(l.start_time) : null;
-                  const end = l.end_time ? new Date(l.end_time) : null;
-                  // If live OR starting soon OR in future
-                  return (start && end && now >= start && now <= end) || (start && now < start);
-              });
-              if (liveIdx !== -1) setCurrentIdx(liveIdx);
+            const now = new Date();
+            const liveIdx = built.findIndex(l => {
+              if (l.type !== 'live') return false;
+              const start = l.start_time ? new Date(l.start_time) : null;
+              const end = l.end_time ? new Date(l.end_time) : null;
+              // If live OR starting soon OR in future
+              return (start && end && now >= start && now <= end) || (start && now < start);
+            });
+            if (liveIdx !== -1) setCurrentIdx(liveIdx);
           }
 
           // Register total so progress % computes correctly on My Learning page
           if (!isTrainer) {
-            registerLessonCount(id, built.length);
-            // Sync progress from backend
-            fetchCourseProgress(id);
+            const activeBuilt = built.filter(l => l.type !== 'note' && l.type !== 'resource').length;
+            registerLessonCount(id, activeBuilt);
           }
           const exp = {};
           (c.modules || []).forEach(m => { exp[m.module_id] = true; });
@@ -796,18 +825,26 @@ const CoursePlayer = ({ isTrainer = false }) => {
       } catch (e) { setError(e.message); }
       finally { setLoading(false); }
     })();
-  }, [id, isTrainer, authFetch]);
+  }, [id, isTrainer, authFetch, smartFetch, fetchCourseProgress, registerLessonCount]);
+
+  // Sync progress when function is available or course changes
+  useEffect(() => {
+    if (!isTrainer && id && fetchCourseProgress) {
+      fetchCourseProgress(id);
+    }
+  }, [id, isTrainer, fetchCourseProgress]);
 
   // Reset just-completed animation when lesson changes
   useEffect(() => { setJustCompleted(false); }, [currentIdx]);
 
   const currentLesson = lessons[currentIdx];
-  const courseId      = id;
-  const totalLessons  = lessons.length;
+  const courseId = id;
+  const totalLessons = lessons.length;
 
   /* Completed count + progress % */
   const completedCount = getCompletedCount(courseId);
-  const progressPct    = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
+  const activeTotal = lessons.filter(l => l.type !== 'note' && l.type !== 'resource').length;
+  const progressPct = activeTotal > 0 ? Math.round((completedCount / activeTotal) * 100) : 0;
 
   /* Check if current lesson is done */
   const currentDone = currentLesson
@@ -821,10 +858,10 @@ const CoursePlayer = ({ isTrainer = false }) => {
     const lId = currentLesson.id;
     const mid = currentLesson.moduleId;
     const isCurrentlyDone = isLessonComplete(sId, lId);
-    
+
     // Short circuit if already done -- meaning no undo!
     if (isCurrentlyDone) return;
-    
+
     // 1. Sync Backend
     if (currentLesson.type === 'video') {
       await markVideoProgress(sId, mid, lId);
@@ -836,7 +873,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
       // but if they click the header button on a passed exam, we sync it.
       await fetchCourseProgress(sId);
     }
-    
+
     // 2. Update Local UI
     markLessonComplete(sId, lId, totalLessons);
     setJustCompleted(true);
@@ -860,10 +897,10 @@ const CoursePlayer = ({ isTrainer = false }) => {
       default: return '#10b981';
     }
   };
-  const lessonTypeIcon  = t => {
-    if (t === 'live')       return <Monitor size={13} />;
+  const lessonTypeIcon = t => {
+    if (t === 'live') return <Monitor size={13} />;
     if (t === 'assessment') return <Award size={13} />;
-    if (t === 'note')       return <FileText size={13} />;
+    if (t === 'note') return <FileText size={13} />;
     return <Video size={13} />;
   };
 
@@ -897,68 +934,68 @@ const CoursePlayer = ({ isTrainer = false }) => {
       {!isExamInProgress && (
         <header style={{ height: '60px', flexShrink: 0, background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', zIndex: 50, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
 
-        {/* Back */}
-        <button
-          onClick={() => navigate(isTrainer ? '/trainer/courses' : '/student/courses')}
-          style={{ height: '100%', padding: '0 1.25rem', background: 'none', border: 'none', borderRight: '1px solid var(--color-border)', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}
-          onMouseEnter={e => { e.currentTarget.style.color = '#0f172a'; e.currentTarget.style.background = 'rgba(0,0,0,0.03)'; }}
-          onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.background = 'none'; }}
-        >
-          <ArrowLeft size={18} /> {isTrainer ? 'Exit Preview' : 'My Learning'}
-        </button>
+          {/* Back */}
+          <button
+            onClick={() => navigate(isTrainer ? '/trainer/courses' : '/student/courses')}
+            style={{ height: '100%', padding: '0 1.25rem', background: 'none', border: 'none', borderRight: '1px solid var(--color-border)', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#0f172a'; e.currentTarget.style.background = 'rgba(0,0,0,0.03)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.background = 'none'; }}
+          >
+            <ArrowLeft size={18} /> {isTrainer ? 'Exit Preview' : 'My Learning'}
+          </button>
 
 
-        <div style={{ flex: 1, padding: '0 1.25rem', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
-            <span style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{course.title}</span>
-            {currentLesson && (
-              <>
-                <ChevronRight size={14} color="#94a3b8" style={{ flexShrink: 0 }} />
-                <span style={{ color: '#0f172a', fontSize: '0.85rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentLesson.title}</span>
-              </>
-            )}
+          <div style={{ flex: 1, padding: '0 1.25rem', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
+              <span style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{course.title}</span>
+              {currentLesson && (
+                <>
+                  <ChevronRight size={14} color="#94a3b8" style={{ flexShrink: 0 }} />
+                  <span style={{ color: '#0f172a', fontSize: '0.85rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentLesson.title}</span>
+                </>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Progress pill - HIDDEN for trainers */}
-        {!isTrainer && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 1.5rem', flexShrink: 0 }}>
-            {progressPct === 100 && (
-              <button 
-                onClick={() => { setReviewSuccess(false); setShowReview(true); }}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#f97316', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 10px rgba(249,115,22,0.3)', marginRight: '0.5rem' }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-              >
-                <Star size={14} /> Rate Course
-              </button>
-            )}
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.68rem', color: '#475569', fontWeight: 600 }}>PROGRESS</div>
-              <div style={{ fontSize: '0.78rem', color: progressPct === 100 ? '#10b981' : '#a5b4fc', fontWeight: 800 }}>
-                {completedCount}/{totalLessons} · {progressPct}%
+          {/* Progress pill - HIDDEN for trainers */}
+          {!isTrainer && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 1.5rem', flexShrink: 0 }}>
+              {progressPct === 100 && (
+                <button
+                  onClick={() => { setReviewSuccess(false); setShowReview(true); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#f97316', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 10px rgba(249,115,22,0.3)', marginRight: '0.5rem' }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <Star size={14} /> Rate Course
+                </button>
+              )}
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '0.68rem', color: '#475569', fontWeight: 600 }}>PROGRESS</div>
+                <div style={{ fontSize: '0.78rem', color: progressPct === 100 ? '#10b981' : '#a5b4fc', fontWeight: 800 }}>
+                  {completedCount}/{totalLessons} · {progressPct}%
+                </div>
+              </div>
+              <div style={{ width: '80px', height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '99px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', background: progressPct === 100 ? 'linear-gradient(90deg,#10b981,#059669)' : 'linear-gradient(90deg,#6366f1,#8b5cf6)', width: `${progressPct}%`, borderRadius: '99px', transition: 'width 0.5s ease' }} />
               </div>
             </div>
-            <div style={{ width: '80px', height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '99px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: progressPct === 100 ? 'linear-gradient(90deg,#10b981,#059669)' : 'linear-gradient(90deg,#6366f1,#8b5cf6)', width: `${progressPct}%`, borderRadius: '99px', transition: 'width 0.5s ease' }} />
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Prev / Next */}
-        <div style={{ display: 'flex', alignItems: 'center', height: '100%', borderLeft: '1px solid var(--color-border)', flexShrink: 0 }}>
-          <button onClick={() => go(currentIdx - 1)} disabled={currentIdx === 0} style={{ height: '100%', padding: '0 1.25rem', background: 'none', border: 'none', borderRight: '1px solid var(--color-border)', cursor: currentIdx === 0 ? 'not-allowed' : 'pointer', color: currentIdx === 0 ? '#cbd5e1' : '#64748b', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 700, transition: 'all 0.15s' }}
-            onMouseEnter={e => { if (currentIdx > 0) { e.currentTarget.style.color = '#0f172a'; e.currentTarget.style.background = 'rgba(0,0,0,0.03)'; } }}
-            onMouseLeave={e => { if (currentIdx > 0) { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.background = 'none'; } }}>
-            <ChevronLeft size={16} /> Prev
-          </button>
-          <button onClick={() => go(currentIdx + 1)} disabled={currentIdx >= lessons.length - 1} style={{ height: '100%', padding: '0 1.25rem', background: (currentIdx < lessons.length - 1) ? 'rgba(5,150,105,0.05)' : 'none', border: 'none', cursor: currentIdx >= lessons.length - 1 ? 'not-allowed' : 'pointer', color: currentIdx >= lessons.length - 1 ? '#cbd5e1' : '#059669', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 800, transition: 'all 0.15s' }}
-            onMouseEnter={e => { if (currentIdx < lessons.length - 1) { e.currentTarget.style.background = 'rgba(5,150,105,0.1)'; } }}
-            onMouseLeave={e => { if (currentIdx < lessons.length - 1) { e.currentTarget.style.background = 'rgba(5,150,105,0.05)'; } }}>
-            Next <ChevronRight size={16} />
-          </button>
-        </div>
-      </header>
+          {/* Prev / Next */}
+          <div style={{ display: 'flex', alignItems: 'center', height: '100%', borderLeft: '1px solid var(--color-border)', flexShrink: 0 }}>
+            <button onClick={() => go(currentIdx - 1)} disabled={currentIdx === 0} style={{ height: '100%', padding: '0 1.25rem', background: 'none', border: 'none', borderRight: '1px solid var(--color-border)', cursor: currentIdx === 0 ? 'not-allowed' : 'pointer', color: currentIdx === 0 ? '#cbd5e1' : '#64748b', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 700, transition: 'all 0.15s' }}
+              onMouseEnter={e => { if (currentIdx > 0) { e.currentTarget.style.color = '#0f172a'; e.currentTarget.style.background = 'rgba(0,0,0,0.03)'; } }}
+              onMouseLeave={e => { if (currentIdx > 0) { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.background = 'none'; } }}>
+              <ChevronLeft size={16} /> Prev
+            </button>
+            <button onClick={() => go(currentIdx + 1)} disabled={currentIdx >= lessons.length - 1} style={{ height: '100%', padding: '0 1.25rem', background: (currentIdx < lessons.length - 1) ? 'rgba(5,150,105,0.05)' : 'none', border: 'none', cursor: currentIdx >= lessons.length - 1 ? 'not-allowed' : 'pointer', color: currentIdx >= lessons.length - 1 ? '#cbd5e1' : '#059669', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 800, transition: 'all 0.15s' }}
+              onMouseEnter={e => { if (currentIdx < lessons.length - 1) { e.currentTarget.style.background = 'rgba(5,150,105,0.1)'; } }}
+              onMouseLeave={e => { if (currentIdx < lessons.length - 1) { e.currentTarget.style.background = 'rgba(5,150,105,0.05)'; } }}>
+              Next <ChevronRight size={16} />
+            </button>
+          </div>
+        </header>
       )}
 
       {/* ═══════════ BODY ═══════════ */}
@@ -997,87 +1034,100 @@ const CoursePlayer = ({ isTrainer = false }) => {
         {!isExamInProgress && currentLesson?.type !== 'assessment' && (
           <aside style={{ width: sidebarOpen ? '260px' : '0', minWidth: sidebarOpen ? '260px' : '0', background: 'var(--color-surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)', borderRight: '1px solid var(--color-border)', zIndex: 40 }}>
 
-          {/* Sidebar header */}
-          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
-            <h3 style={{ color: 'var(--color-text)', fontWeight: 800, fontSize: '0.875rem', margin: '0 0 0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Menu size={16} color="var(--color-primary)" onClick={() => setSidebarOpen(false)} style={{ cursor: 'pointer' }} /> Course Content
-            </h3>
-            {/* Sidebar progress bar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>
-              <span>{completedCount} of {totalLessons} completed</span>
-              <span style={{ color: progressPct === 100 ? '#10b981' : 'var(--color-primary)', fontWeight: 700 }}>{progressPct}%</span>
+            {/* Sidebar header */}
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
+              <h3 style={{ color: 'var(--color-text)', fontWeight: 800, fontSize: '0.875rem', margin: '0 0 0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Menu size={16} color="var(--color-primary)" onClick={() => setSidebarOpen(false)} style={{ cursor: 'pointer' }} /> Course Content
+              </h3>
+              {/* Sidebar progress bar */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>
+                <span>{completedCount} of {activeTotal} completed</span>
+                <span style={{ color: progressPct === 100 ? '#10b981' : 'var(--color-primary)', fontWeight: 700 }}>{progressPct}%</span>
+              </div>
+              <div style={{ height: '4px', background: 'var(--color-border)', borderRadius: '99px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', background: progressPct === 100 ? 'linear-gradient(90deg,#10b981,#059669)' : 'linear-gradient(90deg,#6366f1,#8b5cf6)', width: `${progressPct}%`, borderRadius: '99px', transition: 'width 0.5s ease' }} />
+              </div>
             </div>
-            <div style={{ height: '4px', background: 'var(--color-border)', borderRadius: '99px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: progressPct === 100 ? 'linear-gradient(90deg,#10b981,#059669)' : 'linear-gradient(90deg,#6366f1,#8b5cf6)', width: `${progressPct}%`, borderRadius: '99px', transition: 'width 0.5s ease' }} />
-            </div>
-          </div>
 
-          {/* Module list */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem 0.625rem' }}>
-            {(() => {
-              const displayModules = [...(course.modules || [])];
-              if (lessonsByModule['global-resources']) {
-                displayModules.unshift({ module_id: 'global-resources', title: 'General Resources' });
-              }
-              return displayModules.map((mod, mi) => {
-                const modLessons = lessonsByModule[mod.module_id] || [];
-              const isExp      = expandedModules[mod.module_id];
-              const doneCount  = modLessons.filter(l => isLessonComplete(courseId, l.id)).length;
-              return (
-                <div key={mod.module_id} style={{ marginBottom: '0.35rem' }}>
-                  <button onClick={() => toggleModule(mod.module_id)} style={{ width: '100%', textAlign: 'left', padding: '0.9rem 1rem', background: isExp ? 'var(--color-primary)08' : 'transparent', border: 'none', borderRadius: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', transition: 'all 0.2s', marginBottom: '0.4rem' }}>
-                    <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: isExp ? 'var(--color-primary)' : 'var(--color-surface-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isExp ? 'white' : 'var(--color-text-muted)', fontSize: '0.7rem', fontWeight: 900, flexShrink: 0, border: '1px solid var(--color-border)' }}>{mi + 1}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 800, fontSize: '0.85rem', color: isExp ? 'var(--color-text)' : 'var(--color-text-muted)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mod.title}</div>
-                      <div style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--color-text-light)' }}>
-                        {doneCount}/{modLessons.length} completed &bull; {modLessons.length > 0 ? Math.round((doneCount / modLessons.length) * 100) : 0}%
-                      </div>
-                    </div>
-                    {/* Module completion ring */}
-                    {doneCount === modLessons.length && modLessons.length > 0 && (
-                      <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} />
-                    )}
-                    <ChevronDown size={14} color="var(--color-text-light)" style={{ transform: isExp ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)', flexShrink: 0 }} />
-                  </button>
-
-                  {isExp && modLessons.map(lesson => {
-                    const isActive = lesson.globalIdx === currentIdx;
-                    const isDone   = isLessonComplete(courseId, lesson.id);
-                    const tc       = lessonTypeColor(lesson.type);
-                    return (
-                      <button key={lesson.id} onClick={() => setCurrentIdx(lesson.globalIdx)}
-                        style={{ width: '100%', textAlign: 'left', padding: '0.6rem 0.75rem 0.6rem 2.5rem', background: isActive ? 'rgba(99,102,241,0.15)' : 'transparent', border: 'none', borderRadius: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.15rem', borderLeft: isActive ? `3px solid ${tc}` : '3px solid transparent', transition: 'all 0.12s', paddingLeft: isActive ? 'calc(2.5rem - 3px)' : '2.5rem' }}
-                        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                        onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}>
-                        {/* Done check or type icon */}
-                        {isDone ? (
-                          <CheckCircle size={13} color="#10b981" style={{ flexShrink: 0 }} />
-                        ) : (
-                          <span style={{ color: isActive ? tc : '#475569', flexShrink: 0 }}>{lessonTypeIcon(lesson.type)}</span>
-                        )}
+            {/* Module list */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem 0.625rem' }}>
+              {(() => {
+                const displayModules = [...(course.modules || [])];
+                if (lessonsByModule['global-resources']) {
+                  displayModules.unshift({ module_id: 'global-resources', title: 'General Resources' });
+                }
+                return displayModules.map((mod, mi) => {
+                  const modLessons = lessonsByModule[mod.module_id] || [];
+                  const activeM = modLessons.filter(l => l.type !== 'note' && l.type !== 'resource');
+                  const totalM = activeM.length;
+                  const doneCount = activeM.filter(l => isLessonComplete(courseId, l.id)).length;
+                  const isExp = expandedModules[mod.module_id];
+                  return (
+                    <div key={mod.module_id} style={{ marginBottom: '0.35rem' }}>
+                      <button onClick={() => toggleModule(mod.module_id)} style={{ width: '100%', textAlign: 'left', padding: '0.9rem 1rem', background: isExp ? 'var(--color-primary)08' : 'transparent', border: 'none', borderRadius: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', transition: 'all 0.2s', marginBottom: '0.4rem' }}>
+                        <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: isExp ? 'var(--color-primary)' : 'var(--color-surface-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isExp ? 'white' : 'var(--color-text-muted)', fontSize: '0.7rem', fontWeight: 900, flexShrink: 0, border: '1px solid var(--color-border)' }}>{mi + 1}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: isActive ? 700 : 400, fontSize: '0.78rem', color: isDone ? '#10b981' : isActive ? '#e2e8f0' : '#64748b', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', textDecoration: isDone && !isActive ? 'none' : 'none' }}>{lesson.title}</div>
-                          <div style={{ fontSize: '0.67rem', color: isDone ? '#10b981' : '#334155', textTransform: 'capitalize', marginTop: '0.1rem' }}>
-                            {isDone ? '✓ Done' : lesson.type === 'assessment' ? 'Assessment' : lesson.type === 'live' ? (lesson.end_time && new Date(lesson.end_time) < new Date() ? 'Past Session' : 'Live Session') : lesson.type === 'note' ? 'Resource' : 'Video'}
+                          <div style={{ fontWeight: 800, fontSize: '0.85rem', color: isExp ? 'var(--color-text)' : 'var(--color-text-muted)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mod.title}</div>
+                          <div style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--color-text-light)' }}>
+                            {totalM > 0 ? (
+                              <>{doneCount}/{totalM} completed &bull; {Math.round((doneCount / totalM) * 100)}%</>
+                            ) : (
+                              <>{modLessons.length} {modLessons.length === 1 ? 'item' : 'items'}</>
+                            )}
                           </div>
                         </div>
-                        {isActive && !isDone && lesson.type !== 'live' && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: tc, flexShrink: 0, boxShadow: `0 0 6px ${tc}` }} />}
+                        {/* Module completion ring */}
+                        {doneCount === modLessons.length && modLessons.length > 0 && (
+                          <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} />
+                        )}
+                        <ChevronDown size={14} color="var(--color-text-light)" style={{ transform: isExp ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)', flexShrink: 0 }} />
                       </button>
-                    );
-                  })}
-                </div>
-              );
-            });
-            })()}
 
-            {lessons.length === 0 && (
-              <div style={{ padding: '2rem', textAlign: 'center' }}>
-                <BookOpen size={32} color="#334155" style={{ marginBottom: '0.75rem' }} />
-                <p style={{ color: '#475569', fontSize: '0.82rem' }}>No lessons available yet.</p>
-              </div>
-            )}
-          </div>
-        </aside>
+                      {isExp && modLessons.map(lesson => {
+                        const isActive = lesson.globalIdx === currentIdx;
+                        const isDone = isLessonComplete(courseId, lesson.id);
+                        const lStats = assessmentStats[norm(lesson.id)?.toLowerCase()] || { attempts_used: 0, passed: false };
+                        const limit = (lesson.attemptLimit !== undefined && lesson.attemptLimit !== null) ? Number(lesson.attemptLimit) : 3;
+                        const isFailed = lesson.type === 'assessment' && lStats.attempts_used >= limit && !lStats.passed;
+                        const tc = lessonTypeColor(lesson.type);
+                        return (
+                          <button key={lesson.id} onClick={() => setCurrentIdx(lesson.globalIdx)}
+                            style={{ width: '100%', textAlign: 'left', padding: '0.6rem 0.75rem 0.6rem 2.5rem', background: isActive ? 'rgba(99,102,241,0.15)' : 'transparent', border: 'none', borderRadius: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.15rem', borderLeft: isActive ? `3px solid ${tc}` : '3px solid transparent', transition: 'all 0.12s', paddingLeft: isActive ? 'calc(2.5rem - 3px)' : '2.5rem' }}
+                            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                            onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}>
+                            {/* Done check or type icon */}
+                            {isDone ? (
+                              <CheckCircle size={13} color="#10b981" style={{ flexShrink: 0 }} />
+                            ) : isFailed ? (
+                              <X size={13} color="#ef4444" style={{ flexShrink: 0 }} />
+                            ) : (
+                              <span style={{ color: isActive ? tc : '#475569', flexShrink: 0 }}>{lessonTypeIcon(lesson.type)}</span>
+                            )}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: isActive ? 700 : 400, fontSize: '0.78rem', color: isDone ? '#10b981' : isActive ? '#e2e8f0' : '#64748b', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', textDecoration: isDone && !isActive ? 'none' : 'none' }}>{lesson.title}</div>
+                              <div style={{ fontSize: '0.67rem', color: isDone ? '#10b981' : '#334155', textTransform: 'capitalize', marginTop: '0.1rem' }}>
+                                {isDone ? (lesson.type === 'assessment' ? '✓ Passed' : '✓ Done') : isFailed ? (
+                                  <span style={{ color: '#ef4444' }}>✕ Failed</span>
+                                ) : lesson.type === 'assessment' ? 'Assessment' : lesson.type === 'live' ? (lesson.end_time && new Date(lesson.end_time) < new Date() ? 'Past Session' : 'Live Session') : lesson.type === 'note' ? 'Resource' : 'Video'}
+                              </div>
+                            </div>
+                            {isActive && !isDone && lesson.type !== 'live' && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: tc, flexShrink: 0, boxShadow: `0 0 6px ${tc}` }} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                });
+              })()}
+
+              {lessons.length === 0 && (
+                <div style={{ padding: '2rem', textAlign: 'center' }}>
+                  <BookOpen size={32} color="#334155" style={{ marginBottom: '0.75rem' }} />
+                  <p style={{ color: '#475569', fontSize: '0.82rem' }}>No lessons available yet.</p>
+                </div>
+              )}
+            </div>
+          </aside>
         )}
 
         {/* ── Main Content ── */}
@@ -1097,37 +1147,37 @@ const CoursePlayer = ({ isTrainer = false }) => {
                 <>
                   {/* Lesson header row */}
                   {!isExamInProgress && (
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.22rem 0.75rem', borderRadius: '99px', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', background: currentLesson.type === 'video' ? 'rgba(99,102,241,0.1)' : currentLesson.type === 'live' ? 'rgba(239,68,68,0.1)' : currentLesson.type === 'note' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)', color: lessonTypeColor(currentLesson.type) }}>
-                          {lessonTypeIcon(currentLesson.type)}
-                          {currentLesson.type === 'live' ? 'Live Session' : currentLesson.type === 'assessment' ? 'Assessment' : currentLesson.type === 'note' ? 'Resource' : 'Video Lesson'}
-                        </span>
-                        <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>· {currentLesson.moduleTitle}</span>
-                        {currentDone && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.65rem', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 700, background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
-                            <CheckCircle size={11} /> Completed
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.22rem 0.75rem', borderRadius: '99px', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', background: currentLesson.type === 'video' ? 'rgba(99,102,241,0.1)' : currentLesson.type === 'live' ? 'rgba(239,68,68,0.1)' : currentLesson.type === 'note' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)', color: lessonTypeColor(currentLesson.type) }}>
+                            {lessonTypeIcon(currentLesson.type)}
+                            {currentLesson.type === 'live' ? 'Live Session' : currentLesson.type === 'assessment' ? 'Assessment' : currentLesson.type === 'note' ? 'Resource' : 'Video Lesson'}
                           </span>
-                        )}
+                          <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>· {currentLesson.moduleTitle}</span>
+                          {currentDone && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.65rem', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 700, background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
+                              <CheckCircle size={11} /> Completed
+                            </span>
+                          )}
+                        </div>
+                        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.25, margin: 0 }}>{currentLesson.title}</h1>
                       </div>
-                      <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.25, margin: 0 }}>{currentLesson.title}</h1>
-                    </div>
 
-                    {/* Mark as complete button — shown for video & live (ONLY FOR STUDENTS) */}
-                    {currentLesson.type !== 'assessment' && !isTrainer && (
-                      <MarkCompleteButton isDone={currentDone} onMark={handleMarkComplete} />
-                    )}
-                  </div>
+                      {/* Mark as complete button — ONLY FOR VIDEO/LIVE/ASSESSMENT (IF MANUAL) */}
+                      {(currentLesson.type === 'video' || currentLesson.type === 'live') && !isTrainer && (
+                        <MarkCompleteButton isDone={currentDone} onMark={handleMarkComplete} />
+                      )}
+                    </div>
                   )}
 
                   {/* Lesson content */}
                   <div style={{ position: 'relative' }}>
                     {!enrolled && (
-                      <div style={{ 
-                        position: 'absolute', inset: 0, zIndex: 100, 
-                        backdropFilter: 'blur(12px)', backgroundColor: 'rgba(255,255,255,0.4)', 
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
+                      <div style={{
+                        position: 'absolute', inset: 0, zIndex: 100,
+                        backdropFilter: 'blur(12px)', backgroundColor: 'rgba(255,255,255,0.4)',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                         borderRadius: '24px', border: '2px dashed var(--color-primary)30',
                         padding: '2rem', textAlign: 'center'
                       }}>
@@ -1138,11 +1188,11 @@ const CoursePlayer = ({ isTrainer = false }) => {
                         <p style={{ color: 'var(--color-text-muted)', fontWeight: 600, maxWidth: '400px', marginBottom: '2rem' }}>
                           You are currently not enrolled in this course. Please enroll to access lectures, resources, and assessments.
                         </p>
-                        <button 
+                        <button
                           onClick={() => navigate('/student/browse')}
-                          style={{ 
-                            background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))', 
-                            color: 'white', padding: '1rem 2.5rem', borderRadius: '1rem', border: 'none', 
+                          style={{
+                            background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
+                            color: 'white', padding: '1rem 2.5rem', borderRadius: '1rem', border: 'none',
                             fontWeight: 850, cursor: 'pointer', boxShadow: 'var(--shadow-lg)',
                             display: 'flex', alignItems: 'center', gap: '0.75rem'
                           }}
@@ -1154,19 +1204,19 @@ const CoursePlayer = ({ isTrainer = false }) => {
                     <div style={{ opacity: enrolled ? 1 : 0.3, filter: enrolled ? 'none' : 'blur(4px)', pointerEvents: enrolled ? 'auto' : 'none' }}>
                       {currentLesson.type === 'video' && <VideoPlayer lesson={currentLesson} />}
                       {currentLesson.type === 'note' && <NotePanel lesson={currentLesson} />}
-                      {currentLesson.type === 'live'  && (
-                        <LivePanel 
-                          lesson={currentLesson} 
+                      {currentLesson.type === 'live' && (
+                        <LivePanel
+                          lesson={currentLesson}
                           courseId={courseId}
                           onJoin={async (liveId, mid, isRecording = false) => {
-                             await markLiveAttendance(courseId, liveId, mid, !isRecording, isRecording);
-                             markLessonComplete(courseId, liveId, totalLessons);
+                            await markLiveAttendance(courseId, liveId, mid, !isRecording, isRecording);
+                            markLessonComplete(courseId, liveId, totalLessons);
                           }}
                         />
                       )}
                       {currentLesson.type === 'assessment' && (
-                        <AssessmentPanel 
-                          lesson={currentLesson} 
+                        <AssessmentPanel
+                          lesson={currentLesson}
                           assessmentStats={assessmentStats}
                           onComplete={async (answers) => {
                             const res = await submitAssessment(courseId, currentLesson.moduleId, currentLesson.id, answers);
@@ -1180,36 +1230,36 @@ const CoursePlayer = ({ isTrainer = false }) => {
                   </div>
 
                   {/* ── Bottom nav + advance ── */}
-                  {!isExamInProgress && currentLesson?.type !== 'assessment' && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', borderRadius: '14px', padding: '1rem 1.5rem', boxShadow: '0 2px 12px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <button onClick={() => go(currentIdx - 1)} disabled={currentIdx === 0}
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.25rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '99px', cursor: currentIdx === 0 ? 'not-allowed' : 'pointer', color: currentIdx === 0 ? '#cbd5e1' : '#475569', fontWeight: 600, fontSize: '0.875rem', transition: 'all 0.15s' }}
-                      onMouseEnter={e => { if (currentIdx > 0) { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.color = '#6366f1'; } }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = currentIdx === 0 ? '#cbd5e1' : '#475569'; }}>
-                      <ChevronLeft size={16} /> Previous
-                    </button>
-
-                    <span style={{ color: '#94a3b8', fontSize: '0.82rem' }}>
-                      Lesson <strong style={{ color: '#6366f1' }}>{currentIdx + 1}</strong> / {lessons.length}
-                    </span>
-
-                    {currentIdx < lessons.length - 1 ? (
-                      <button
-                        onClick={() => go(currentIdx + 1)}
-                        style={{ 
-                          display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.4rem', border: 'none', borderRadius: '10px', 
-                          cursor: 'pointer', fontWeight: 700, fontSize: '0.875rem', 
-                          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white', 
-                          boxShadow: '0 4px 12px rgba(99,102,241,0.25)', transition: 'all 0.2s' 
-                        }}>
-                        Next Lesson <ChevronRight size={17} />
+                  {!isExamInProgress && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', borderRadius: '14px', padding: '1rem 1.5rem', boxShadow: '0 2px 12px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '0.75rem' }}>
+                      <button onClick={() => go(currentIdx - 1)} disabled={currentIdx === 0}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.25rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '99px', cursor: currentIdx === 0 ? 'not-allowed' : 'pointer', color: currentIdx === 0 ? '#cbd5e1' : '#475569', fontWeight: 600, fontSize: '0.875rem', transition: 'all 0.15s' }}
+                        onMouseEnter={e => { if (currentIdx > 0) { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.color = '#6366f1'; } }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = currentIdx === 0 ? '#cbd5e1' : '#475569'; }}>
+                        <ChevronLeft size={16} /> Previous
                       </button>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.25rem', borderRadius: '99px', fontWeight: 700, fontSize: '0.875rem', background: (!isTrainer && progressPct === 100) ? 'linear-gradient(135deg,#10b981,#059669)' : '#f1f5f9', color: (!isTrainer && progressPct === 100) ? 'white' : '#94a3b8' }}>
-                        {(!isTrainer && progressPct === 100) ? <><CheckCircle size={16} /> Course Complete! 🎉</> : 'Last Lesson'}
-                      </div>
-                    )}
-                  </div>
+
+                      <span style={{ color: '#94a3b8', fontSize: '0.82rem' }}>
+                        Lesson <strong style={{ color: '#6366f1' }}>{currentIdx + 1}</strong> / {lessons.length}
+                      </span>
+
+                      {currentIdx < lessons.length - 1 ? (
+                        <button
+                          onClick={() => go(currentIdx + 1)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.4rem', border: 'none', borderRadius: '10px',
+                            cursor: 'pointer', fontWeight: 700, fontSize: '0.875rem',
+                            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white',
+                            boxShadow: '0 4px 12px rgba(99,102,241,0.25)', transition: 'all 0.2s'
+                          }}>
+                          Next Lesson <ChevronRight size={17} />
+                        </button>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.25rem', borderRadius: '99px', fontWeight: 700, fontSize: '0.875rem', background: (!isTrainer && progressPct === 100) ? 'linear-gradient(135deg,#10b981,#059669)' : '#f1f5f9', color: (!isTrainer && progressPct === 100) ? 'white' : '#94a3b8' }}>
+                          {(!isTrainer && progressPct === 100) ? <><CheckCircle size={16} /> Course Complete! 🎉</> : 'Last Lesson'}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </>
               )}
@@ -1221,16 +1271,17 @@ const CoursePlayer = ({ isTrainer = false }) => {
       {/* ── Review Modal ────────────────────────────────────────────────── */}
       {/* ── Review Modal ────────────────────────────────────────────────── */}
       {showReview && createPortal(
+        <div
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+          onClick={() => setShowReview(false)}
+        >
           <div
-            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
-            onClick={() => setShowReview(false)}
+            style={{ position: 'relative', width: 'min(95vw, 440px)', backgroundColor: 'white', borderRadius: '1.5rem', overflow: 'hidden', boxShadow: '0 30px 60px rgba(0,0,0,0.3)', border: '1px solid #f1f5f9' }}
+            onClick={e => e.stopPropagation()}
           >
-            <div
-              style={{ position: 'relative', width: 'min(95vw, 440px)', backgroundColor: 'white', borderRadius: '1.5rem', overflow: 'hidden', boxShadow: '0 30px 60px rgba(0,0,0,0.3)', border: '1px solid #f1f5f9' }}
-              onClick={e => e.stopPropagation()}
-            >
-              {/* Stepped Journey Background */}
-              <div style={{ position: 'absolute', inset: 0, opacity: 0.85, pointerEvents: 'none', zIndex: 0, background: `linear-gradient(135deg, 
+            {/* Stepped Journey Background */}
+            <div style={{
+              position: 'absolute', inset: 0, opacity: 0.85, pointerEvents: 'none', zIndex: 0, background: `linear-gradient(135deg, 
                 rgba(249,115,22,0.18) 0%, rgba(249,115,22,0.18) 15%,
                 rgba(249,115,22,0.10) 15%, rgba(249,115,22,0.10) 30%,
                 rgba(249,115,22,0.04) 30%, rgba(249,115,22,0.04) 45%,
@@ -1238,68 +1289,68 @@ const CoursePlayer = ({ isTrainer = false }) => {
                 rgba(16,185,129,0.04) 55%, rgba(16,185,129,0.04) 70%,
                 rgba(16,185,129,0.10) 70%, rgba(16,185,129,0.10) 85%,
                 rgba(16,185,129,0.18) 85%, rgba(16,185,129,0.18) 100%)` }} />
-              
-              {/* Dashing Light Beam across the steps */}
-              <div style={{ position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%', background: 'linear-gradient(115deg, transparent 48.5%, rgba(255,255,255,0.7) 49.5%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.7) 50.5%, transparent 51.5%)', pointerEvents: 'none', zIndex: 0 }} />
-              
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                {reviewSuccess ? (
-                  <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
-                    <div style={{ width: '80px', height: '80px', background: '#f0fdf4', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', border: '2px solid #10b981' }}>
-                      <CheckCircle size={40} color="#10b981" />
-                    </div>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#064e3b' }}>Feedback Received!</h2>
-                    <p style={{ color: '#047857', marginTop: '0.4rem', fontWeight: 600, fontSize: '0.9rem' }}>Thank you for helping us evolve.</p>
+
+            {/* Dashing Light Beam across the steps */}
+            <div style={{ position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%', background: 'linear-gradient(115deg, transparent 48.5%, rgba(255,255,255,0.7) 49.5%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.7) 50.5%, transparent 51.5%)', pointerEvents: 'none', zIndex: 0 }} />
+
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              {reviewSuccess ? (
+                <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
+                  <div style={{ width: '80px', height: '80px', background: '#f0fdf4', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', border: '2px solid #10b981' }}>
+                    <CheckCircle size={40} color="#10b981" />
                   </div>
-                ) : (
-                  <form onSubmit={handleSubmitReview} style={{ padding: '2rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
-                      <div>
-                        <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#1e293b', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                          <Star size={20} color="#f97316" /> Course Evaluation
-                        </h2>
-                        <div style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '0.3rem', marginLeft: '1.75rem' }}>Goal Achieved! You reached the top.</div>
-                      </div>
-                      <button type="button" onClick={() => setShowReview(false)} style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#f8fafc', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0 }} onMouseEnter={e=>e.currentTarget.style.background='#f1f5f9'} onMouseLeave={e=>e.currentTarget.style.background='#f8fafc'}>
-                        <X size={18} color="#64748b" />
-                      </button>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#064e3b' }}>Feedback Received!</h2>
+                  <p style={{ color: '#047857', marginTop: '0.4rem', fontWeight: 600, fontSize: '0.9rem' }}>Thank you for helping us evolve.</p>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmitReview} style={{ padding: '2rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+                    <div>
+                      <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#1e293b', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                        <Star size={20} color="#f97316" /> Course Evaluation
+                      </h2>
+                      <div style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '0.3rem', marginLeft: '1.75rem' }}>Goal Achieved! You reached the top.</div>
                     </div>
-
-                    <div style={{ marginBottom: '1.25rem' }}>
-                      <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>Overall Rating</label>
-                      <div style={{ display: 'flex', gap: '0.35rem' }}>
-                        {[1, 2, 3, 4, 5].map(num => (
-                          <button key={num} type="button" onClick={() => setFeedbackForm(prev => ({ ...prev, Course_rating: String(num) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem', transition: 'transform 0.1s' }} onMouseEnter={e=>e.currentTarget.style.transform='scale(1.1)'} onMouseLeave={e=>e.currentTarget.style.transform='none'}>
-                            <Star size={32} fill={num <= parseInt(feedbackForm.Course_rating) ? '#f97316' : '#f1f5f9'} color={num <= parseInt(feedbackForm.Course_rating) ? '#f97316' : '#cbd5e1'} />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div style={{ marginBottom: '1.75rem' }}>
-                      <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>Your Review</label>
-                      <textarea
-                        required rows="3"
-                        placeholder="Tell us what you liked most..."
-                        value={feedbackForm.Review}
-                        onChange={e => setFeedbackForm(prev => ({ ...prev, Review: e.target.value }))}
-                        style={{ width: '100%', padding: '1rem', borderRadius: '1rem', border: '1px solid #e2e8f0', background: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', resize: 'none', outline: 'none', transition: 'border 0.2s', fontFamily: 'inherit' }}
-                        onFocus={e=>e.currentTarget.style.borderColor='#10b981'}
-                        onBlur={e=>e.currentTarget.style.borderColor='#e2e8f0'}
-                      />
-                    </div>
-
-                    <button type="submit" disabled={submittingReview} style={{ width: '100%', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', border: 'none', padding: '1rem', borderRadius: '1rem', fontWeight: 800, fontSize: '0.95rem', cursor: submittingReview ? 'not-allowed' : 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)', opacity: submittingReview ? 0.7 : 1, transition: 'transform 0.2s' }} onMouseEnter={e=>!submittingReview&&(e.currentTarget.style.transform='translateY(-2px)')} onMouseLeave={e=>!submittingReview&&(e.currentTarget.style.transform='none')}>
-                      {submittingReview ? <Loader2 size={18} className="animate-spin" /> : <Award size={18} />}
-                      {submittingReview ? 'Submitting...' : 'Submit Review'}
+                    <button type="button" onClick={() => setShowReview(false)} style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#f8fafc', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'} onMouseLeave={e => e.currentTarget.style.background = '#f8fafc'}>
+                      <X size={18} color="#64748b" />
                     </button>
-                  </form>
-                )}
-              </div>
+                  </div>
+
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>Overall Rating</label>
+                    <div style={{ display: 'flex', gap: '0.35rem' }}>
+                      {[1, 2, 3, 4, 5].map(num => (
+                        <button key={num} type="button" onClick={() => setFeedbackForm(prev => ({ ...prev, Course_rating: String(num) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem', transition: 'transform 0.1s' }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
+                          <Star size={32} fill={num <= parseInt(feedbackForm.Course_rating) ? '#f97316' : '#f1f5f9'} color={num <= parseInt(feedbackForm.Course_rating) ? '#f97316' : '#cbd5e1'} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '1.75rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>Your Review</label>
+                    <textarea
+                      required rows="3"
+                      placeholder="Tell us what you liked most..."
+                      value={feedbackForm.Review}
+                      onChange={e => setFeedbackForm(prev => ({ ...prev, Review: e.target.value }))}
+                      style={{ width: '100%', padding: '1rem', borderRadius: '1rem', border: '1px solid #e2e8f0', background: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', resize: 'none', outline: 'none', transition: 'border 0.2s', fontFamily: 'inherit' }}
+                      onFocus={e => e.currentTarget.style.borderColor = '#10b981'}
+                      onBlur={e => e.currentTarget.style.borderColor = '#e2e8f0'}
+                    />
+                  </div>
+
+                  <button type="submit" disabled={submittingReview} style={{ width: '100%', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', border: 'none', padding: '1rem', borderRadius: '1rem', fontWeight: 800, fontSize: '0.95rem', cursor: submittingReview ? 'not-allowed' : 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)', opacity: submittingReview ? 0.7 : 1, transition: 'transform 0.2s' }} onMouseEnter={e => !submittingReview && (e.currentTarget.style.transform = 'translateY(-2px)')} onMouseLeave={e => !submittingReview && (e.currentTarget.style.transform = 'none')}>
+                    {submittingReview ? <Loader2 size={18} className="animate-spin" /> : <Award size={18} />}
+                    {submittingReview ? 'Submitting...' : 'Submit Review'}
+                  </button>
+                </form>
+              )}
             </div>
-          </div>,
-          document.body
-        )}
+          </div>
+        </div>,
+        document.body
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
