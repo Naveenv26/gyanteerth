@@ -15,7 +15,7 @@ import { ADMIN_API } from '../../config';
 const AdminCurriculum = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const { user, authFetch } = useAuth();
+  const { user, authFetch, smartFetch, cacheSyncToken } = useAuth();
 
   const [course, setCourse] = useState(null);
   const [modules, setModules] = useState([]);
@@ -82,9 +82,8 @@ const AdminCurriculum = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await authFetch(`${ADMIN_API}/course/${courseId}/full-details`);
-      if (res.ok) {
-        const data = await res.json();
+      const data = await smartFetch(`${ADMIN_API}/course/${courseId}/full-details`, { cacheKey: `details_${courseId}` });
+      if (data) {
         const rawCourse = data.course || data;
         const mappedCourse = {
           ...rawCourse,
@@ -159,7 +158,7 @@ const AdminCurriculum = () => {
       }
     } catch (err) { console.error('fetchCurriculum failed:', err); showToast('Data synchronization failed', 'error'); }
     finally { setLoading(false); }
-  }, [courseId, authFetch]);
+  }, [courseId, smartFetch, cacheSyncToken]);
 
   useEffect(() => {
     fetchCurriculum();

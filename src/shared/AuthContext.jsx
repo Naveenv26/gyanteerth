@@ -19,6 +19,7 @@ const deobfuscate = (str) => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [cacheSyncToken, setCacheSyncToken] = useState(0); // 🚀 REVALIDATION ENGINE
 
   // Initialize Auth State
   useEffect(() => {
@@ -49,6 +50,8 @@ export const AuthProvider = ({ children }) => {
     if (tokens?.refresh_token) {
       localStorage.setItem(REFRESH_KEY, tokens.refresh_token);
     }
+    // Bust all cache on login to ensure fresh data for the new session
+    setCacheSyncToken(v => v + 1);
   }, []);
 
   // Secure Logout
@@ -64,6 +67,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem(key);
       }
     });
+    setCacheSyncToken(0);
   }, []);
 
   const authFetch = useCallback(async (url, options = {}) => {
@@ -99,68 +103,86 @@ export const AuthProvider = ({ children }) => {
     const { 
       cacheKey = btoa(url).slice(0, 16), 
       forceRefresh = false, 
-      ttl = CACHE_TTL 
+      ttl = CACHE_TTL,
+      swr = true // 🔄 Enable Stale-While-Revalidate by default
     } = options;
 
     const storageKey = `${CACHE_PREFIX}${cacheKey}`;
 
     // 1. Instant Cache Retrieval (Deobfuscated)
-    const getCachedData = () => {
+    const getCachedEntry = () => {
       const item = localStorage.getItem(storageKey);
       if (!item) return null;
       const dec = deobfuscate(item);
       if (!dec) return null;
       try {
-        const { data, ts } = JSON.parse(dec);
-        if (Date.now() - ts > ttl) return null;
-        return data;
+        return JSON.parse(dec);
       } catch (e) { return null; }
     };
 
-    const cachedData = getCachedData();
+    const entry = getCachedEntry();
+    const cachedData = entry?.data;
+    const isExpired = entry ? (Date.now() - entry.ts > ttl) : true;
 
     // 2. De-duplication: Return existing in-flight promise if identical URL
     if (activeRequests.current[storageKey]) {
       return activeRequests.current[storageKey];
     }
 
-    // 3. Cache-First: Return immediately without background refresh if cache is fresh
-    if (cachedData && !forceRefresh) {
-      return cachedData;
-    }
-
-    // 4. Background Refresh Logic
-    const fetchPromise = (async () => {
+    // 3. Stale-While-Revalidate Logic
+    const performFetch = async (currentData = null) => {
       try {
         const res = await authFetch(url, options);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        const freshData = await res.json();
 
+        // Only trigger update if data actually changed to prevent render loops
+        const dataChanged = JSON.stringify(freshData) !== JSON.stringify(currentData);
+        
         // 🛡️ SECURITY: Store obfuscated with integrity TS
-        const entry = JSON.stringify({ data, ts: Date.now() });
-        localStorage.setItem(storageKey, obfuscate(entry));
+        const newEntry = JSON.stringify({ data: freshData, ts: Date.now() });
+        localStorage.setItem(storageKey, obfuscate(newEntry));
 
-        return data;
+        if (dataChanged) {
+          setCacheSyncToken(v => v + 1); // 🔔 Signal all listeners to re-sync
+        }
+
+        return freshData;
       } catch (err) {
-        console.error("SmartFetch background sync failed:", err);
-        return cachedData; // Fallback to stale on error
+        console.error("SmartFetch sync failed:", err);
+        return currentData; // Fallback to stale on error
       } finally {
         delete activeRequests.current[storageKey];
       }
-    })();
+    };
 
+    // 4. Return Strategy
+    if (cachedData && !forceRefresh && !isExpired) {
+      if (swr) {
+        // Background refresh: Fire and forget (or rather, store in activeRequests)
+        activeRequests.current[storageKey] = performFetch(cachedData);
+      }
+      return cachedData;
+    }
+
+    // No cache or forced: Await the fresh data
+    const fetchPromise = performFetch(cachedData);
     activeRequests.current[storageKey] = fetchPromise;
-
     return fetchPromise;
   }, [authFetch]);
 
-  // 🧹 CACHE MANAGEMENT: Wipe specific entries (e.g. on data mutation)
+  // 🧹 CACHE MANAGEMENT
   const clearCache = useCallback((key) => {
     localStorage.removeItem(`${CACHE_PREFIX}${key}`);
+    setCacheSyncToken(v => v + 1);
+  }, []);
+
+  // 🔄 Force a global re-sync (useful on page transitions)
+  const revalidateAll = useCallback(() => {
+    setCacheSyncToken(v => v + 1);
   }, []);
 
   return (
-    // Notice we do NOT expose `accessToken` here. Components don't need it anymore.
     <AuthContext.Provider value={{ 
       user, 
       login, 
@@ -168,6 +190,8 @@ export const AuthProvider = ({ children }) => {
       authFetch, 
       smartFetch,
       clearCache,
+      revalidateAll,
+      cacheSyncToken, // 🚀 Exposed for components to use in deps
       loading 
     }}>
       {!loading && children}

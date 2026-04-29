@@ -86,7 +86,7 @@ const BulkImportModal = ({ onClose, onImport, loading }) => {
 };
 
 const TrainerStudents = () => {
-  const { user, smartFetch, authFetch } = useAuth();
+  const { user, smartFetch, authFetch, cacheSyncToken } = useAuth();
   
   const [students, setStudents] = useState([]);
   const [availableCourses, setAvailableCourses] = useState([]);
@@ -166,7 +166,7 @@ const TrainerStudents = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, smartFetch]);
+  }, [user, smartFetch, cacheSyncToken]);
 
   useEffect(() => { fetchStudents(); }, [fetchStudents]);
 

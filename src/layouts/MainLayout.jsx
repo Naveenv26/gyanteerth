@@ -21,12 +21,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CertificateVerifyBox from '../components/CertificateVerifyBox';
 
 const MainLayout = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, revalidateAll } = useAuth();
   const { isDark } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+
+  // 🚀 SWR: Revalidate all background caches when navigating to a new section
+  useEffect(() => {
+    revalidateAll();
+  }, [location.pathname, revalidateAll]);
 
   useEffect(() => {
     const handleScroll = () => {

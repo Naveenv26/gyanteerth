@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { USER_API, ADMIN_API } from '../config';
 
@@ -8,16 +8,18 @@ const EnrollmentContext = createContext(null);
 const norm = (id) => (id === undefined || id === null || String(id) === 'NaN' || String(id) === 'undefined') ? null : String(id);
 
 export const EnrollmentProvider = ({ children }) => {
-  const { user, authFetch, smartFetch, clearCache } = useAuth(); // Inherit secure global fetcher
+  const { user, authFetch, smartFetch, clearCache, cacheSyncToken } = useAuth();
 
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [completedLessons, setCompletedLessons] = useState({}); 
+  const [syncedLessons, setSyncedLessons] = useState({}); // 🚀 Backend-confirmed completions
   const [assessmentStats, setAssessmentStats] = useState({}); 
   const [lessonCounts, setLessonCounts] = useState({});
 
-  // 1. Hydrate completions from localStorage on mount
+  // 1. Hydrate completions & sync status from localStorage on mount
   useEffect(() => {
     const hydrated = {};
+    const synced = {};
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('completed_')) {
         const parts = key.split('_');
@@ -27,11 +29,68 @@ export const EnrollmentProvider = ({ children }) => {
           if (localStorage.getItem(key) === 'true') {
             if (!hydrated[cid]) hydrated[cid] = [];
             hydrated[cid].push(lid);
+            
+            // Check if it was ever successfully synced to backend
+            if (localStorage.getItem(`synced_${cid}_${lid}`) === 'true') {
+              if (!synced[cid]) synced[cid] = [];
+              synced[cid].push(lid);
+            }
           }
         }
       }
     });
     setCompletedLessons(hydrated);
+    setSyncedLessons(synced);
+  }, []);
+
+
+  /* 🚀 BACKGROUND SYNC MANAGER 🚀 */
+  const [syncQueue, setSyncQueue] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('_gt_sync_queue') || '[]');
+    } catch(e) { return []; }
+  });
+
+  const isSyncing = useRef(false);
+
+  useEffect(() => {
+    localStorage.setItem('_gt_sync_queue', JSON.stringify(syncQueue));
+    if (syncQueue.length > 0 && navigator.onLine && !isSyncing.current) {
+      const timer = setTimeout(() => {
+        processSyncQueue();
+      }, 5000); // Attempt sync every 5 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [syncQueue]);
+
+  const processSyncQueue = async () => {
+    if (syncQueue.length === 0 || !navigator.onLine || isSyncing.current) return;
+    isSyncing.current = true;
+    
+    const item = syncQueue[0];
+    try {
+      console.log(`🚀 Retrying sync for ${item.endpoint}...`);
+      await triggerProgressUpdate(item.endpoint, item.payload, item.courseId, true);
+      // Success: Remove first item
+      setSyncQueue(prev => prev.slice(1));
+    } catch (err) {
+      console.warn("Background sync failed, will retry later:", err);
+      // Move to end of queue to try others first
+      setSyncQueue(prev => [...prev.slice(1), prev[0]]);
+    } finally {
+      isSyncing.current = false;
+    }
+  };
+
+  const addToSyncQueue = useCallback((endpoint, payload, courseId) => {
+    setSyncQueue(prev => {
+      const isDup = prev.some(item => 
+        item.endpoint === endpoint && 
+        JSON.stringify(item.payload) === JSON.stringify(payload)
+      );
+      if (isDup) return prev;
+      return [...prev, { endpoint, payload, courseId }];
+    });
   }, []);
 
 
@@ -42,14 +101,12 @@ export const EnrollmentProvider = ({ children }) => {
     const syncEnrollments = async () => {
       if (!user?.user_id) return;
 
-      // 🚀 Use global smartFetch for base enrollment list too (SWR enabled)
       const baseData = await smartFetch(`${USER_API}/enrolled_courses`, { 
         cacheKey: `enrollments_${user.user_id}` 
       });
 
       if (!Array.isArray(baseData)) return;
 
-      // Normalize base data immediately so UI can paint something instantly
       const normalizedBase = baseData.map(c => {
         const cid = norm(c.id || c.course_id || c.Course_id || c.Course_ID || c.courseId || c.CourseId || c.ID);
         const title = c.course_title || c.Course_Title || c.title || c.Title || c.courseTitle || 'Untitled Course';
@@ -62,12 +119,9 @@ export const EnrollmentProvider = ({ children }) => {
 
       if (isMounted) setEnrolledCourses(normalizedBase);
 
-      // Background Enrichment (Details + Progress) using Smart Fetch
-      // This maps over data but ONLY hits the network if cache is missing
       const enrichedData = await Promise.all(normalizedBase.map(async (c) => {
         if (!c.id) return c;
         
-        // Parallel fetch details & progress (safely cached/deduped/obfuscated)
         const [details, progressData] = await Promise.all([
           smartFetch(`${ADMIN_API}/course/${c.id}/full-details`, { cacheKey: `details_${c.id}` }),
           smartFetch(`${USER_API}/course/${c.id}/progress`, { cacheKey: `progress_${c.id}` })
@@ -94,7 +148,7 @@ export const EnrollmentProvider = ({ children }) => {
 
     syncEnrollments();
     return () => { isMounted = false; };
-  }, [user?.user_id, smartFetch]);
+  }, [user?.user_id, smartFetch, cacheSyncToken]);
 
 
   /* ── Local State Calculations ── */
@@ -123,13 +177,17 @@ export const EnrollmentProvider = ({ children }) => {
     const cid = norm(courseId);
     const lid = norm(lessonId);
     if (!cid || !lid) return false;
-    
-    // Check state first
     if (completedLessons[cid]?.includes(lid)) return true;
-    
-    // Check localStorage fallback
     return localStorage.getItem(`completed_${cid}_${lid}`) === 'true';
   }, [completedLessons]);
+
+  const isLessonSynced = useCallback((courseId, lessonId) => {
+    const cid = norm(courseId);
+    const lid = norm(lessonId);
+    if (!cid || !lid) return false;
+    if (syncedLessons[cid]?.includes(lid)) return true;
+    return localStorage.getItem(`synced_${cid}_${lid}`) === 'true';
+  }, [syncedLessons]);
 
   const getCompletedCount = useCallback((courseId) => {
     const cid = norm(courseId);
@@ -138,13 +196,22 @@ export const EnrollmentProvider = ({ children }) => {
   }, [completedLessons]);
 
   /* ── Local Mutators ── */
-  const markLessonComplete = useCallback((courseId, lessonId, totalLessons) => {
+  const markLessonComplete = useCallback((courseId, lessonId, totalLessons, isSynced = false) => {
     const cid = norm(courseId);
     const lid = norm(lessonId);
     if (!cid || !lid) return;
 
     localStorage.setItem(`completed_${cid}_${lid}`, 'true');
     
+    if (isSynced) {
+      localStorage.setItem(`synced_${cid}_${lid}`, 'true');
+      setSyncedLessons(prev => {
+        const current = prev[cid] || [];
+        if (current.includes(lid)) return prev;
+        return { ...prev, [cid]: [...current, lid] };
+      });
+    }
+
     if (totalLessons) {
       setLessonCounts(prev => ({ ...prev, [cid]: totalLessons }));
     }
@@ -180,7 +247,7 @@ export const EnrollmentProvider = ({ children }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ user_id: user.user_id, course_id: cid })
         });
-        clearCache(`enrollments_${user.user_id}`); // Bust base cache
+        clearCache(`enrollments_${user.user_id}`);
       } catch (err) { console.error("Enrollment failed:", err); }
     }
   };
@@ -189,7 +256,6 @@ export const EnrollmentProvider = ({ children }) => {
     const cid = norm(courseId);
     if (!cid) return;
     
-    // Use smartFetch, optionally forcing network bypass of cache
     const data = await smartFetch(`${USER_API}/course/${cid}/progress`, {
       cacheKey: `progress_${cid}`,
       forceRefresh: force
@@ -223,8 +289,7 @@ export const EnrollmentProvider = ({ children }) => {
     return data;
   }, [smartFetch]);
 
- // Helper to trigger API actions and bust cache
-  const triggerProgressUpdate = async (endpoint, payload, courseId) => {
+  const triggerProgressUpdate = async (endpoint, payload, courseId, fromQueue = false) => {
     try {
       const response = await authFetch(`${USER_API}/${endpoint}`, {
         method: 'POST',
@@ -234,16 +299,24 @@ export const EnrollmentProvider = ({ children }) => {
       const data = await response?.json();
       
       if (!response.ok) {
-        throw new Error(data?.message || data?.error || 'Maximum Attempts Reached. Contact Admin to reset');
+        throw new Error(data?.message || data?.error || 'Sync failed');
       }
 
-      // Cache Busting: Force progress to re-fetch from server
+      // Mark as synced locally
+      let lessonId = payload.video_id || payload.live_class_id || payload.assessment_id || payload.note_id;
+      if (lessonId) {
+        markLessonComplete(courseId, lessonId, null, true);
+      }
+
       clearCache(`progress_${courseId}`);
       await fetchCourseProgress(courseId, true); 
       
       return data;
     } catch (err) {
       console.error(`Failed ${endpoint}:`, err);
+      if (!fromQueue) {
+        addToSyncQueue(endpoint, payload, courseId);
+      }
       throw err;
     }
   };
@@ -269,7 +342,6 @@ export const EnrollmentProvider = ({ children }) => {
   };
 
   const markNoteProgress = (courseId, moduleId, noteId) => {
-    // 💡 Use the same endpoint as video if a dedicated note endpoint isn't available
     return triggerProgressUpdate('mark-video-progress', {
       course_id: String(courseId), module_id: String(moduleId), video_id: String(noteId)
     }, courseId);
@@ -280,10 +352,10 @@ export const EnrollmentProvider = ({ children }) => {
       enrolledCourses,
       enroll, isEnrolled,
       registerLessonCount, getCourseProgress,
-      markLessonComplete, isLessonComplete, getCompletedCount,
+      markLessonComplete, isLessonComplete, isLessonSynced, getCompletedCount,
       markLiveAttendance, markVideoProgress, submitAssessment, fetchCourseProgress,
       markNoteProgress,
-      completedLessons, assessmentStats
+      completedLessons, assessmentStats, syncedLessons
     }}>
       {children}
     </EnrollmentContext.Provider>

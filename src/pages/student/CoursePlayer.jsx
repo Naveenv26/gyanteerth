@@ -679,12 +679,49 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
 }
 
 /* ══════════ MARK COMPLETE BUTTON ══════════ */
-function MarkCompleteButton({ isDone, onMark }) {
+function MarkCompleteButton({ isDone, isSynced, onMark }) {
   const [hovered, setHovered] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  const handleClick = async () => {
+    if (syncing) return;
+    if (isDone && isSynced) return;
+    setSyncing(true);
+    try {
+      await onMark();
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
-    <button onClick={isDone ? undefined : onMark} onMouseEnter={() => !isDone && setHovered(true)} onMouseLeave={() => !isDone && setHovered(false)}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1.6rem', borderRadius: '12px', fontWeight: 800, fontSize: '0.9rem', cursor: isDone ? 'default' : 'pointer', transition: 'all 0.2s', background: isDone ? 'linear-gradient(135deg, #10b981, #059669)' : 'white', color: isDone ? 'white' : '#10b981', border: isDone ? '2px solid transparent' : '2px solid #10b981', transform: hovered && !isDone ? 'translateY(-1px)' : 'none', opacity: isDone ? 0.9 : 1 }}>
-      {isDone ? (<><CheckCircle size={18} /> Completed</>) : (<><Check size={18} /> Mark as Complete</>)}
+    <button 
+      onClick={handleClick} 
+      onMouseEnter={() => (!isDone || !isSynced) && setHovered(true)} 
+      onMouseLeave={() => setHovered(false)}
+      style={{ 
+        display: 'inline-flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1.6rem', borderRadius: '12px', fontWeight: 800, fontSize: '0.9rem', 
+        cursor: (isDone && isSynced) ? 'default' : 'pointer', transition: 'all 0.2s', 
+        background: (isDone && isSynced) ? 'linear-gradient(135deg, #10b981, #059669)' : (isDone ? '#f0fdf4' : 'white'), 
+        color: (isDone && isSynced) ? 'white' : '#10b981', 
+        border: (isDone && isSynced) ? '2px solid transparent' : '2px solid #10b981', 
+        transform: hovered && (!isDone || !isSynced) ? 'translateY(-1px)' : 'none', 
+        opacity: (isDone && isSynced) ? 0.9 : 1,
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+    >
+      {syncing ? (
+        <><Loader2 size={18} className="animate-spin" /> Syncing...</>
+      ) : isDone ? (
+        isSynced ? (
+          <><CheckCircle size={18} /> Completed</>
+        ) : (
+          <><AlertCircle size={18} /> Retry Sync</>
+        )
+      ) : (
+        <><Check size={18} /> Mark as Complete</>
+      )}
     </button>
   );
 }
@@ -697,7 +734,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
   const navigate = useNavigate();
   const enrollment = useEnrollment();
   const { isEnrolled } = enrollment || {};
-  const { user, authFetch, smartFetch } = useAuth(); // <-- Inject Secure Wrapper
+  const { user, authFetch, smartFetch, cacheSyncToken } = useAuth(); // <-- Inject Secure Wrapper
   const [isExamInProgress, setIsExamInProgress] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -737,6 +774,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
   // Safe extraction of enrollment hooks/data
   const markLessonComplete = isTrainer ? () => { } : enrollment?.markLessonComplete;
   const isLessonComplete = isTrainer ? () => false : enrollment?.isLessonComplete;
+  const isLessonSynced = isTrainer ? () => true : enrollment?.isLessonSynced;
   const getCompletedCount = isTrainer ? () => 0 : enrollment?.getCompletedCount;
   const enrolledCourses = isTrainer ? [] : enrollment?.enrolledCourses;
   const registerLessonCount = isTrainer ? () => { } : enrollment?.registerLessonCount;
@@ -786,11 +824,11 @@ const CoursePlayer = ({ isTrainer = false }) => {
   useEffect(() => {
     (async () => {
       try {
-        setLoading(true);
+        if (!course) setLoading(true); // Only show full loader if we have NO data at all
         console.log('CoursePlayer: Fetching details for', id);
-        // 🚀 Use smartFetch to deduplicate and cache course details
+        // 🚀 Use smartFetch with SWR (it will return cache immediately and fetch in back)
         const data = await smartFetch(`${ADMIN_API}/course/${id}/full-details`, { cacheKey: `details_${id}` });
-        console.log('CoursePlayer: Received data:', !!data);
+        
         if (data && data.course) {
           const c = data.course;
           setCourse(c);
@@ -825,7 +863,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
       } catch (e) { setError(e.message); }
       finally { setLoading(false); }
     })();
-  }, [id, isTrainer, authFetch, smartFetch, fetchCourseProgress, registerLessonCount]);
+  }, [id, isTrainer, authFetch, smartFetch, fetchCourseProgress, registerLessonCount, cacheSyncToken]);
 
   // Sync progress when function is available or course changes
   useEffect(() => {
@@ -858,9 +896,10 @@ const CoursePlayer = ({ isTrainer = false }) => {
     const lId = currentLesson.id;
     const mid = currentLesson.moduleId;
     const isCurrentlyDone = isLessonComplete(sId, lId);
+    const isCurrentlySynced = isLessonSynced(sId, lId);
 
-    // Short circuit if already done -- meaning no undo!
-    if (isCurrentlyDone) return;
+    // Short circuit only if already done AND synced
+    if (isCurrentlyDone && isCurrentlySynced) return;
 
     // 1. Sync Backend
     if (currentLesson.type === 'video') {
@@ -868,6 +907,8 @@ const CoursePlayer = ({ isTrainer = false }) => {
     } else if (currentLesson.type === 'live') {
       // Attendance logic: Manual completion implies they attended/watched
       await markLiveAttendance(sId, lId, mid, true, true);
+    } else if (currentLesson.type === 'note') {
+      await markNoteProgress(sId, mid, lId);
     } else if (currentLesson.type === 'assessment') {
       // Assessment completion is usually handled inside the AssessmentPanel,
       // but if they click the header button on a passed exam, we sync it.
@@ -1164,9 +1205,13 @@ const CoursePlayer = ({ isTrainer = false }) => {
                         <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.25, margin: 0 }}>{currentLesson.title}</h1>
                       </div>
 
-                      {/* Mark as complete button — ONLY FOR VIDEO/LIVE/ASSESSMENT (IF MANUAL) */}
+                      {/* Mark as complete button — FOR VIDEO/LIVE */}
                       {(currentLesson.type === 'video' || currentLesson.type === 'live') && !isTrainer && (
-                        <MarkCompleteButton isDone={currentDone} onMark={handleMarkComplete} />
+                        <MarkCompleteButton 
+                          isDone={currentDone} 
+                          isSynced={isLessonSynced(courseId, currentLesson.id)}
+                          onMark={handleMarkComplete} 
+                        />
                       )}
                     </div>
                   )}
