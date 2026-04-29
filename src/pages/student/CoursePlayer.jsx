@@ -6,7 +6,7 @@ import {
   PlayCircle, ChevronRight, ChevronLeft, Award,
   Layers, Video, Monitor, Loader2, AlertCircle, ArrowLeft,
   ChevronDown, BookOpen, ExternalLink, CheckCircle, Menu, Check, Star, X,
-  FileText, CheckCircle2
+  FileText, CheckCircle2, ShieldAlert
 } from 'lucide-react';
 import { useEnrollment } from '../../shared/EnrollmentContext';
 import { useAuth } from '../../shared/AuthContext'; // <-- ADD THIS
@@ -354,6 +354,7 @@ function NotePanel({ lesson }) {
 }
 
 function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
+  const { user } = useAuth();
   const [toast, setToast] = useState(null);
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -685,7 +686,8 @@ const CoursePlayer = ({ isTrainer = false }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const enrollment = useEnrollment();
-  const { authFetch } = useAuth(); // <-- Inject Secure Wrapper
+  const { isEnrolled } = enrollment || {};
+  const { user, authFetch } = useAuth(); // <-- Inject Secure Wrapper
   
   // Safe extraction of enrollment hooks/data
   const markLessonComplete = isTrainer ? () => {} : enrollment?.markLessonComplete;
@@ -708,6 +710,8 @@ const CoursePlayer = ({ isTrainer = false }) => {
   const [sidebarOpen, setSidebarOpen]     = useState(true);
   const [expandedModules, setExpandedModules] = useState({});
   const [justCompleted, setJustCompleted] = useState(false);
+
+  const enrolled = isTrainer || (id && isEnrolled && isEnrolled(id));
   
   // ── Review state ────────────────────────────────────────────────────────
   const [showReview, setShowReview] = useState(false);
@@ -1107,29 +1111,61 @@ const CoursePlayer = ({ isTrainer = false }) => {
                   </div>
 
                   {/* Lesson content */}
-                  {currentLesson.type === 'video' && <VideoPlayer lesson={currentLesson} />}
-                  {currentLesson.type === 'note' && <NotePanel lesson={currentLesson} />}
-                  {currentLesson.type === 'live'  && (
-                    <LivePanel 
-                      lesson={currentLesson} 
-                      courseId={courseId}
-                      onJoin={async (liveId, mid, isRecording = false) => {
-                         await markLiveAttendance(courseId, liveId, mid, !isRecording, isRecording);
-                         markLessonComplete(courseId, liveId, totalLessons);
-                      }}
-                    />
-                  )}
-                  {currentLesson.type === 'assessment' && (
-                    <AssessmentPanel 
-                      lesson={currentLesson} 
-                      assessmentStats={assessmentStats}
-                      onComplete={async (answers) => {
-                        const res = await submitAssessment(courseId, currentLesson.moduleId, currentLesson.id, answers);
-                        if (res?.passed) markLessonComplete(courseId, currentLesson.id, totalLessons);
-                        return res;
-                      }}
-                    />
-                  )}
+                  <div style={{ position: 'relative' }}>
+                    {!enrolled && (
+                      <div style={{ 
+                        position: 'absolute', inset: 0, zIndex: 100, 
+                        backdropFilter: 'blur(12px)', backgroundColor: 'rgba(255,255,255,0.4)', 
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
+                        borderRadius: '24px', border: '2px dashed var(--color-primary)30',
+                        padding: '2rem', textAlign: 'center'
+                      }}>
+                        <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--color-primary-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem', border: '1px solid var(--color-primary)20' }}>
+                          <ShieldAlert size={40} color="var(--color-primary)" />
+                        </div>
+                        <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--color-text)', marginBottom: '0.75rem' }}>Content Locked</h2>
+                        <p style={{ color: 'var(--color-text-muted)', fontWeight: 600, maxWidth: '400px', marginBottom: '2rem' }}>
+                          You are currently not enrolled in this course. Please enroll to access lectures, resources, and assessments.
+                        </p>
+                        <button 
+                          onClick={() => navigate('/student/browse')}
+                          style={{ 
+                            background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))', 
+                            color: 'white', padding: '1rem 2.5rem', borderRadius: '1rem', border: 'none', 
+                            fontWeight: 850, cursor: 'pointer', boxShadow: 'var(--shadow-lg)',
+                            display: 'flex', alignItems: 'center', gap: '0.75rem'
+                          }}
+                        >
+                          <BookOpen size={20} /> Browse Catalog
+                        </button>
+                      </div>
+                    )}
+                    <div style={{ opacity: enrolled ? 1 : 0.3, filter: enrolled ? 'none' : 'blur(4px)', pointerEvents: enrolled ? 'auto' : 'none' }}>
+                      {currentLesson.type === 'video' && <VideoPlayer lesson={currentLesson} />}
+                      {currentLesson.type === 'note' && <NotePanel lesson={currentLesson} />}
+                      {currentLesson.type === 'live'  && (
+                        <LivePanel 
+                          lesson={currentLesson} 
+                          courseId={courseId}
+                          onJoin={async (liveId, mid, isRecording = false) => {
+                             await markLiveAttendance(courseId, liveId, mid, !isRecording, isRecording);
+                             markLessonComplete(courseId, liveId, totalLessons);
+                          }}
+                        />
+                      )}
+                      {currentLesson.type === 'assessment' && (
+                        <AssessmentPanel 
+                          lesson={currentLesson} 
+                          assessmentStats={assessmentStats}
+                          onComplete={async (answers) => {
+                            const res = await submitAssessment(courseId, currentLesson.moduleId, currentLesson.id, answers);
+                            if (res?.passed) markLessonComplete(courseId, currentLesson.id, totalLessons);
+                            return res;
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
 
                   {/* ── Bottom nav + advance ── */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', borderRadius: '14px', padding: '1rem 1.5rem', boxShadow: '0 2px 12px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '0.75rem' }}>

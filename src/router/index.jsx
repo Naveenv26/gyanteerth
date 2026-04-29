@@ -39,10 +39,13 @@ import AdminStudents from '../pages/admin/Students';
 // Shared
 import Profile from '../pages/shared/Profile';
 
+import ErrorBoundary from '../components/ErrorBoundary';
+
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <MainLayout />,
+    errorElement: <ErrorBoundary />,
     children: [
       { index: true, element: <Home /> },
       { path: 'courses', element: <PublicCourses /> },
@@ -51,21 +54,25 @@ export const router = createBrowserRouter([
   },
   {
     path: '/login',
-    element: <Login />
+    element: <Login />,
+    errorElement: <ErrorBoundary />
   },
 
   {
     path: '/forgot-password',
-    element: <ForgotPassword />
+    element: <ForgotPassword />,
+    errorElement: <ErrorBoundary />
   },
   {
     path: '/reset-password',
-    element: <ResetPassword />
+    element: <ResetPassword />,
+    errorElement: <ErrorBoundary />
   },
 
   {
     path: '/student',
     element: <ProtectedRoute allowedRoles={['student']} />,
+    errorElement: <ErrorBoundary />,
     children: [
       {
         element: <DashboardLayout />,
@@ -85,6 +92,7 @@ export const router = createBrowserRouter([
   {
     path: '/trainer',
     element: <ProtectedRoute allowedRoles={['trainer']} />,
+    errorElement: <ErrorBoundary />,
     children: [
       {
         element: <DashboardLayout />,
@@ -104,6 +112,7 @@ export const router = createBrowserRouter([
   {
     path: '/admin',
     element: <ProtectedRoute allowedRoles={['admin']} />,
+    errorElement: <ErrorBoundary />,
     children: [
       {
         element: <DashboardLayout />,
@@ -123,6 +132,7 @@ export const router = createBrowserRouter([
   {
     path: '/manage',
     element: <ProtectedRoute allowedRoles={['admin', 'trainer']} />,
+    errorElement: <ErrorBoundary />,
     children: [
       {
         element: <DashboardLayout />,
