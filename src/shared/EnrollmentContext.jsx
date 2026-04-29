@@ -179,9 +179,10 @@ export const EnrollmentProvider = ({ children }) => {
         : c
       ));
 
-      if (data.assessments && Array.isArray(data.assessments)) {
+      const assessmentsData = data.assessments_progress || data.assessments;
+      if (assessmentsData && Array.isArray(assessmentsData)) {
         const stats = {};
-        data.assessments.forEach(asm => {
+        assessmentsData.forEach(asm => {
           stats[norm(asm.assessment_id)] = {
             attempts_used: asm.attempts_used || 0,
             best_score: asm.best_score || 0,

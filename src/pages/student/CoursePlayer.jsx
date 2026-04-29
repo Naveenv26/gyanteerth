@@ -353,7 +353,7 @@ function NotePanel({ lesson }) {
   );
 }
 
-function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
+function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChange }) {
   const { user } = useAuth();
   const [toast, setToast] = useState(null);
   const showToast = (message, type = 'success') => {
@@ -396,6 +396,7 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
         setTimeLeft(remaining);
         setStrikes(parseInt(sessionStrikes || '0'));
         setIsStarted(true);
+        if (onStateChange) onStateChange(true);
       } else {
         // Session expired while user was away
         localStorage.removeItem(sessionKey);
@@ -411,6 +412,7 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
     localStorage.setItem(`asm_start_${user.user_id}_${lesson.id}`, Date.now().toString());
     localStorage.setItem(`asm_strikes_${user.user_id}_${lesson.id}`, '0');
     setIsStarted(true);
+    if (onStateChange) onStateChange(true);
   };
 
   const formatTime = (seconds) => {
@@ -434,6 +436,7 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
           localStorage.removeItem(`asm_start_${user.user_id}_${lesson.id}`);
           localStorage.removeItem(`asm_strikes_${user.user_id}_${lesson.id}`);
         }
+        if (onStateChange) onStateChange(false);
       } catch (err) {
         console.error(`Submission attempt ${attemptNum} failed:`, err);
         const msg = err.message || 'Submission failed';
@@ -453,6 +456,7 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
             localStorage.removeItem(`asm_start_${user.user_id}_${lesson.id}`);
             localStorage.removeItem(`asm_strikes_${user.user_id}_${lesson.id}`);
           }
+          if (onStateChange) onStateChange(false);
         }
       } finally {
         if (attemptNum >= 3 || !submitting) {
@@ -539,8 +543,8 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {} }) {
             <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>{lesson.questions?.length}</div>
           </div>
           <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Attempts Left</div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 900, color: attemptsLeft > 0 ? '#10b981' : '#ef4444' }}>{attemptsLeft}</div>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Attempts Used</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>{stats.attempts_used} / {limit}</div>
           </div>
         </div>
 
@@ -710,6 +714,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
   const [sidebarOpen, setSidebarOpen]     = useState(true);
   const [expandedModules, setExpandedModules] = useState({});
   const [justCompleted, setJustCompleted] = useState(false);
+  const [isExamInProgress, setIsExamInProgress] = useState(false);
 
   const enrolled = isTrainer || (id && isEnrolled && isEnrolled(id));
   
@@ -889,7 +894,8 @@ const CoursePlayer = ({ isTrainer = false }) => {
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-bg)', overflow: 'hidden', color: 'var(--color-text)' }}>
 
       {/* ═══════════ TOP NAVIGATION ═══════════ */}
-      <header style={{ height: '60px', flexShrink: 0, background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', zIndex: 50, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+      {!isExamInProgress && (
+        <header style={{ height: '60px', flexShrink: 0, background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', zIndex: 50, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
 
         {/* Back */}
         <button
@@ -953,12 +959,13 @@ const CoursePlayer = ({ isTrainer = false }) => {
           </button>
         </div>
       </header>
+      )}
 
       {/* ═══════════ BODY ═══════════ */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
         {/* Floating Sidebar Toggle */}
-        {!sidebarOpen && (
+        {!sidebarOpen && !isExamInProgress && currentLesson?.type !== 'assessment' && (
           <button
             onClick={() => setSidebarOpen(true)}
             style={{
@@ -987,7 +994,8 @@ const CoursePlayer = ({ isTrainer = false }) => {
         )}
 
         {/* ── Sidebar ── */}
-        <aside style={{ width: sidebarOpen ? '260px' : '0', minWidth: sidebarOpen ? '260px' : '0', background: 'var(--color-surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)', borderRight: '1px solid var(--color-border)', zIndex: 40 }}>
+        {!isExamInProgress && currentLesson?.type !== 'assessment' && (
+          <aside style={{ width: sidebarOpen ? '260px' : '0', minWidth: sidebarOpen ? '260px' : '0', background: 'var(--color-surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)', borderRight: '1px solid var(--color-border)', zIndex: 40 }}>
 
           {/* Sidebar header */}
           <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
@@ -1070,11 +1078,12 @@ const CoursePlayer = ({ isTrainer = false }) => {
             )}
           </div>
         </aside>
+        )}
 
         {/* ── Main Content ── */}
         <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--color-bg)' }}>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div style={{ maxWidth: '900px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: isExamInProgress ? '0' : '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ maxWidth: isExamInProgress ? '100%' : '900px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', height: isExamInProgress ? '100%' : 'auto' }}>
 
               {lessons.length === 0 && (
                 <div style={{ background: 'white', borderRadius: '16px', padding: '5rem 2rem', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
@@ -1087,6 +1096,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
               {currentLesson && (
                 <>
                   {/* Lesson header row */}
+                  {!isExamInProgress && (
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
@@ -1109,6 +1119,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
                       <MarkCompleteButton isDone={currentDone} onMark={handleMarkComplete} />
                     )}
                   </div>
+                  )}
 
                   {/* Lesson content */}
                   <div style={{ position: 'relative' }}>
@@ -1162,12 +1173,14 @@ const CoursePlayer = ({ isTrainer = false }) => {
                             if (res?.passed) markLessonComplete(courseId, currentLesson.id, totalLessons);
                             return res;
                           }}
+                          onStateChange={setIsExamInProgress}
                         />
                       )}
                     </div>
                   </div>
 
                   {/* ── Bottom nav + advance ── */}
+                  {!isExamInProgress && currentLesson?.type !== 'assessment' && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', borderRadius: '14px', padding: '1rem 1.5rem', boxShadow: '0 2px 12px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '0.75rem' }}>
                     <button onClick={() => go(currentIdx - 1)} disabled={currentIdx === 0}
                       style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.25rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '99px', cursor: currentIdx === 0 ? 'not-allowed' : 'pointer', color: currentIdx === 0 ? '#cbd5e1' : '#475569', fontWeight: 600, fontSize: '0.875rem', transition: 'all 0.15s' }}
@@ -1197,6 +1210,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
                       </div>
                     )}
                   </div>
+                  )}
                 </>
               )}
             </div>
