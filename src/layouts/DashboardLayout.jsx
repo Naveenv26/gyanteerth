@@ -4,7 +4,7 @@ import { useAuth } from '../shared/AuthContext';
 import { useTheme } from '../shared/ThemeContext';
 import Logo from '../components/Logo';
 import ThemeToggle from '../components/ThemeToggle';
-import { LayoutDashboard, Book, Users, Video, FileText, MessageSquare, LogOut, Menu, X, Compass, UserCog, ChevronUp, Folder, Search, Bell } from 'lucide-react';
+import { LayoutDashboard, Book, Users, Video, FileText, MessageSquare, LogOut, Menu, X, Compass, UserCog, ChevronUp, Folder, Search, Bell, Clock } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -120,6 +120,7 @@ const DashboardLayout = () => {
           { index: 3, to: '/admin/students', icon: <Users size={20} />, label: 'Students' },
           { index: 4, to: '/admin/assessments', icon: <FileText size={20} />, label: 'Assessments' },
           { index: 5, to: '/admin/feedbacks', icon: <MessageSquare size={20} />, label: 'Feedbacks' },
+          { index: 6, to: '/admin/reset-requests', icon: <Clock size={20} />, label: 'Reset Requests' },
         ];
       case 'trainer':
         return [

@@ -11,35 +11,31 @@ export const EnrollmentProvider = ({ children }) => {
   const { user, authFetch, smartFetch, clearCache, cacheSyncToken } = useAuth();
 
   const [enrolledCourses, setEnrolledCourses] = useState([]);
-  const [completedLessons, setCompletedLessons] = useState({}); 
+  const [completedLessons, setCompletedLessons] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('_gt_completed') || '{}');
+    } catch(e) { return {}; }
+  });
   const [syncedLessons, setSyncedLessons] = useState({}); // 🚀 Backend-confirmed completions
   const [assessmentStats, setAssessmentStats] = useState({}); 
   const [lessonCounts, setLessonCounts] = useState({});
 
   // 1. Hydrate completions & sync status from localStorage on mount
   useEffect(() => {
-    const hydrated = {};
     const synced = {};
     Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('completed_')) {
+      if (key.startsWith('synced_')) {
         const parts = key.split('_');
         if (parts.length >= 3) {
           const cid = parts[1];
           const lid = parts[2];
           if (localStorage.getItem(key) === 'true') {
-            if (!hydrated[cid]) hydrated[cid] = [];
-            hydrated[cid].push(lid);
-            
-            // Check if it was ever successfully synced to backend
-            if (localStorage.getItem(`synced_${cid}_${lid}`) === 'true') {
-              if (!synced[cid]) synced[cid] = [];
-              synced[cid].push(lid);
-            }
+            if (!synced[cid]) synced[cid] = [];
+            synced[cid].push(lid);
           }
         }
       }
     });
-    setCompletedLessons(hydrated);
     setSyncedLessons(synced);
   }, []);
 
@@ -55,7 +51,16 @@ export const EnrollmentProvider = ({ children }) => {
 
   useEffect(() => {
     localStorage.setItem('_gt_sync_queue', JSON.stringify(syncQueue));
-    if (syncQueue.length > 0 && navigator.onLine && !isSyncing.current) {
+    
+    // 🚀 CLEANUP: Auto-remove any "submit-assessment" from the queue. 
+    // Assessments should never be background synced as they are sensitive to time and state.
+    const hasAssessments = syncQueue.some(item => item.endpoint === 'submit-assessment');
+    if (hasAssessments) {
+      console.warn("🧹 Purging assessments from sync queue to prevent loops.");
+      setSyncQueue(prev => prev.filter(item => item.endpoint !== 'submit-assessment'));
+    }
+
+    if (syncQueue.length > 0 && user?.user_id && navigator.onLine && !isSyncing.current) {
       const timer = setTimeout(() => {
         processSyncQueue();
       }, 5000); // Attempt sync every 5 seconds
@@ -64,10 +69,19 @@ export const EnrollmentProvider = ({ children }) => {
   }, [syncQueue]);
 
   const processSyncQueue = async () => {
-    if (syncQueue.length === 0 || !navigator.onLine || isSyncing.current) return;
+    if (syncQueue.length === 0 || !user?.user_id || !navigator.onLine || isSyncing.current) return;
     isSyncing.current = true;
     
     const item = syncQueue[0];
+
+    // 🚀 CLEANUP: Remove any legacy "note" syncs from the queue
+    if (item.payload?.video_id?.startsWith('NOTES-') || item.endpoint === 'mark-note-progress') {
+      console.log("🧹 Cleaning up legacy note sync from queue...");
+      setSyncQueue(prev => prev.slice(1));
+      isSyncing.current = false;
+      return;
+    }
+
     try {
       console.log(`🚀 Retrying sync for ${item.endpoint}...`);
       await triggerProgressUpdate(item.endpoint, item.payload, item.courseId, true);
@@ -177,8 +191,7 @@ export const EnrollmentProvider = ({ children }) => {
     const cid = norm(courseId);
     const lid = norm(lessonId);
     if (!cid || !lid) return false;
-    if (completedLessons[cid]?.includes(lid)) return true;
-    return localStorage.getItem(`completed_${cid}_${lid}`) === 'true';
+    return (completedLessons[cid] || []).includes(lid);
   }, [completedLessons]);
 
   const isLessonSynced = useCallback((courseId, lessonId) => {
@@ -200,8 +213,6 @@ export const EnrollmentProvider = ({ children }) => {
     const cid = norm(courseId);
     const lid = norm(lessonId);
     if (!cid || !lid) return;
-
-    localStorage.setItem(`completed_${cid}_${lid}`, 'true');
     
     if (isSynced) {
       localStorage.setItem(`synced_${cid}_${lid}`, 'true');
@@ -219,7 +230,9 @@ export const EnrollmentProvider = ({ children }) => {
     setCompletedLessons(prev => {
       const current = prev[cid] || [];
       if (current.includes(lid)) return prev;
-      return { ...prev, [cid]: [...current, lid] };
+      const next = { ...prev, [cid]: [...current, lid] };
+      localStorage.setItem('_gt_completed', JSON.stringify(next));
+      return next;
     });
   }, []);
 
@@ -273,17 +286,50 @@ export const EnrollmentProvider = ({ children }) => {
         : c
       ));
 
+      // 🚀 Sync all types of lesson completions from server
+      const passedLids = [];
+      
+      // A. Assessments
       const assessmentsData = data.assessments_progress || data.assessments;
       if (assessmentsData && Array.isArray(assessmentsData)) {
         const stats = {};
         assessmentsData.forEach(asm => {
-          stats[norm(asm.assessment_id).toLowerCase()] = {
+          const lid = norm(asm.assessment_id);
+          stats[lid.toLowerCase()] = {
             attempts_used: asm.attempts_used || 0,
             best_score: asm.best_score || 0,
             passed: asm.passed || false
           };
+          if (asm.passed) passedLids.push(lid);
         });
         setAssessmentStats(prev => ({ ...prev, ...stats }));
+      }
+
+      // B. Videos / Lessons (Extract from common progress field names)
+      const lessonProgress = data.lessons_progress || data.videos_progress || data.videos || [];
+      if (Array.isArray(lessonProgress)) {
+        lessonProgress.forEach(l => {
+          const lid = norm(l.video_id || l.lesson_id || l.id);
+          if (l.status === 'Completed' || l.completed || l.passed) passedLids.push(lid);
+        });
+      }
+
+      // C. Modules (If the server says a module is done, maybe it has list of lessons?)
+      // (For now we rely on explicit lesson/assessment lists)
+
+      // Sync to completedLessons for sidebar checkmarks (only if missing)
+      if (passedLids.length > 0) {
+        setCompletedLessons(prev => {
+          const current = prev[cid] || [];
+          const needsUpdate = passedLids.some(lid => !current.includes(lid));
+          if (!needsUpdate) return prev;
+          const next = {
+            ...prev,
+            [cid]: Array.from(new Set([...current, ...passedLids]))
+          };
+          localStorage.setItem('_gt_completed', JSON.stringify(next));
+          return next;
+        });
       }
     }
     return data;
@@ -314,7 +360,8 @@ export const EnrollmentProvider = ({ children }) => {
       return data;
     } catch (err) {
       console.error(`Failed ${endpoint}:`, err);
-      if (!fromQueue) {
+      // 🚫 CRITICAL: Never background sync assessments. They must fail-fast.
+      if (!fromQueue && endpoint !== 'submit-assessment') {
         addToSyncQueue(endpoint, payload, courseId);
       }
       throw err;
@@ -323,6 +370,7 @@ export const EnrollmentProvider = ({ children }) => {
 
   const markLiveAttendance = (courseId, liveClassId, moduleId, attendedLive, watchedRecording) => {
     return triggerProgressUpdate('mark-live-attendance', {
+      course_id: String(courseId),
       live_class_id: String(liveClassId), module_id: String(moduleId),
       attended_live: !!attendedLive, watched_recording: !!watchedRecording
     }, courseId);
@@ -342,9 +390,8 @@ export const EnrollmentProvider = ({ children }) => {
   };
 
   const markNoteProgress = (courseId, moduleId, noteId) => {
-    return triggerProgressUpdate('mark-video-progress', {
-      course_id: String(courseId), module_id: String(moduleId), video_id: String(noteId)
-    }, courseId);
+    // 🛑 Note progress is explicitly excluded as per requirements
+    return Promise.resolve({ status: 'ignored' });
   };
 
   return (

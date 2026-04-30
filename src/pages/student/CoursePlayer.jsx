@@ -6,7 +6,7 @@ import {
   PlayCircle, ChevronRight, ChevronLeft, Award,
   Layers, Video, Monitor, Loader2, AlertCircle, ArrowLeft,
   ChevronDown, BookOpen, ExternalLink, CheckCircle, Menu, Check, Star, X,
-  FileText, CheckCircle2, ShieldAlert
+  FileText, CheckCircle2, ShieldAlert, Clock, RefreshCcw
 } from 'lucide-react';
 import { useEnrollment } from '../../shared/EnrollmentContext';
 import { useAuth } from '../../shared/AuthContext'; // <-- ADD THIS
@@ -357,7 +357,7 @@ function NotePanel({ lesson }) {
 }
 
 function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChange }) {
-  const { user } = useAuth();
+  const { user, authFetch, smartFetch, clearCache } = useAuth();
   const [toast, setToast] = useState(null);
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -368,6 +368,10 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
   const [score, setScore] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetReason, setResetReason] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetRequestStatus, setResetRequestStatus] = useState(null); // 'sent'
 
   const stats = assessmentStats[norm(lesson.id)?.toLowerCase()] || { attempts_used: 0, passed: false };
   const limit = (lesson.attemptLimit !== undefined && lesson.attemptLimit !== null) ? Number(lesson.attemptLimit) : 3;
@@ -526,93 +530,177 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
     };
   }, [isStarted, handleSubmit, showToast, lesson.id]);
 
+  const handleRequestReset = async () => {
+    if (!resetReason.trim()) return showToast('Please provide a reason', 'error');
+    setResetLoading(true);
+    try {
+      const res = await authFetch(`${USER_API}/assessment/${lesson.id}/reset-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: resetReason })
+      });
+      
+      if (res.ok) {
+        showToast('Reset request sent successfully');
+        setResetRequestStatus('sent');
+        setShowResetModal(false);
+        clearCache(`resets_${user.user_id}_${lesson.id}`);
+      } else {
+        const d = await res.json();
+        showToast(d.detail || 'Request failed', 'error');
+      }
+    } catch (err) {
+      showToast('Connection error', 'error');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   const passed = score >= (lesson.passingMark || 0) || alreadyPassed;
 
-  if (!isStarted && !submitted) {
-    return (
-      <div style={{ background: 'white', borderRadius: '24px', padding: '3.5rem 2rem', textAlign: 'center', border: '1px solid #f1f5f9', boxShadow: '0 20px 50px rgba(0,0,0,0.04)' }}>
-        <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'rgba(99,102,241,0.1)', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
-          <Award size={40} />
-        </div>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', marginBottom: '0.75rem' }}>{lesson.title}</h2>
-        <p style={{ color: '#64748b', fontSize: '1rem', maxWidth: '500px', margin: '0 auto 2.5rem', lineHeight: 1.6 }}>
-          This is a timed evaluation. Once started, you cannot pause the timer. Please ensure you have a stable connection.
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '3rem' }}>
-          <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Duration</div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>{lesson.duration}m</div>
-          </div>
-          <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Questions</div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>{lesson.questions?.length}</div>
-          </div>
-          <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Attempts Used</div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>{stats.attempts_used} / {limit}</div>
-          </div>
-        </div>
-
-        {alreadyPassed ? (
-          <div style={{ padding: '1.5rem', background: '#f0fdf4', borderRadius: '16px', border: '1px solid #bbf7d0', color: '#166534', fontWeight: 800 }}>
-            ✓ You have already passed this assessment.
-          </div>
-        ) : isBlocked ? (
-          <div style={{ padding: '1.5rem', background: '#fef2f2', borderRadius: '16px', border: '1px solid #fecaca', color: '#991b1b', fontWeight: 800 }}>
-            ✕ Attempt limit reached. Please contact your instructor.
-          </div>
-        ) : (
-          <button
-            onClick={handleStart}
-            style={{ background: 'linear-gradient(135deg, #6366f1, #4338ca)', color: 'white', border: 'none', padding: '1.25rem 3rem', borderRadius: '16px', fontSize: '1.1rem', fontWeight: 900, cursor: 'pointer', boxShadow: '0 10px 25px rgba(99,102,241,0.3)' }}
-          >
-            Start Assessment
-          </button>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', position: 'relative' }}>
-      {/* Sticky Header with Timer */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'linear-gradient(135deg, #0f172a, #1e1b4b)', borderRadius: '16px', padding: '1.25rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Award size={20} color="white" /></div>
-          <div>
-            <h3 style={{ color: 'white', margin: 0, fontSize: '0.95rem', fontWeight: 800 }}>{lesson.title}</h3>
-            <p style={{ color: '#94a3b8', margin: 0, fontSize: '0.75rem', fontWeight: 600 }}>{Object.keys(selected).length} of {lesson.questions?.length} Answered</p>
+    <div style={{ position: 'relative' }}>
+      {!isStarted && !submitted ? (
+        <div style={{ background: 'white', borderRadius: '24px', padding: '3.5rem 2rem', textAlign: 'center', border: '1px solid #f1f5f9', boxShadow: '0 20px 50px rgba(0,0,0,0.04)' }}>
+          <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'rgba(99,102,241,0.1)', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+            <Award size={40} />
           </div>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', marginBottom: '0.75rem' }}>{lesson.title}</h2>
+          <p style={{ color: '#64748b', fontSize: '1rem', maxWidth: '500px', margin: '0 auto 2.5rem', lineHeight: 1.6 }}>
+            This is a timed evaluation. Once started, you cannot pause the timer. Please ensure you have a stable connection.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '3rem' }}>
+            <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Duration</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>{lesson.duration}m</div>
+            </div>
+            <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Questions</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>{lesson.questions?.length}</div>
+            </div>
+            <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Attempts Used</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>{stats.attempts_used} / {limit}</div>
+            </div>
+          </div>
+
+          {alreadyPassed ? (
+            <div style={{ padding: '1.5rem', background: '#f0fdf4', borderRadius: '16px', border: '1px solid #bbf7d0', color: '#166534', fontWeight: 800 }}>
+              ✓ You have already passed this assessment.
+            </div>
+          ) : isBlocked ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', alignItems: 'center' }}>
+              <div style={{ padding: '1.5rem', width: '100%', background: '#fef2f2', borderRadius: '16px', border: '1px solid #fecaca', color: '#991b1b', fontWeight: 800 }}>
+                ✕ Attempt limit reached.
+              </div>
+              {resetRequestStatus === 'sent' ? (
+                <div style={{ padding: '1rem 2rem', borderRadius: '12px', background: '#fef3c7', color: '#92400e', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Clock size={16} /> Reset request pending approval.
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setShowResetModal(true)}
+                  style={{ padding: '1rem 2.5rem', borderRadius: '12px', background: 'var(--color-surface)', border: '2px solid var(--color-primary)', color: 'var(--color-primary)', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+                >
+                  <RefreshCcw size={18} /> Request Attempt Reset
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={handleStart}
+              style={{ background: 'linear-gradient(135deg, #6366f1, #4338ca)', color: 'white', border: 'none', padding: '1.25rem 3rem', borderRadius: '16px', fontSize: '1.1rem', fontWeight: 900, cursor: 'pointer', boxShadow: '0 10px 25px rgba(99,102,241,0.3)' }}
+            >
+              Start Assessment
+            </button>
+          )}
         </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Sticky Header with Timer */}
+          <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'linear-gradient(135deg, #0f172a, #1e1b4b)', borderRadius: '16px', padding: '1.25rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Award size={20} color="white" /></div>
+              <div>
+                <h3 style={{ color: 'white', margin: 0, fontSize: '0.95rem', fontWeight: 800 }}>{lesson.title}</h3>
+                <p style={{ color: '#94a3b8', margin: 0, fontSize: '0.75rem', fontWeight: 600 }}>{Object.keys(selected).length} of {lesson.questions?.length} Answered</p>
+              </div>
+            </div>
 
-        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-          {strikes > 0 && <div style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 900, background: 'rgba(239,68,68,0.1)', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.2)' }}>⚠️ Security Warning ({strikes})</div>}
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>Time Remaining</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: timeLeft < 60 ? '#ef4444' : 'white', fontFamily: 'monospace' }}>{formatTime(timeLeft)}</div>
+            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+              {strikes > 0 && <div style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 900, background: 'rgba(239,68,68,0.1)', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.2)' }}>⚠️ Security Warning ({strikes})</div>}
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>Time Remaining</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: timeLeft < 60 ? '#ef4444' : 'white', fontFamily: 'monospace' }}>{formatTime(timeLeft)}</div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {submitted && (
-        <div style={{ background: passed ? '#f0fdf4' : '#fef2f2', border: `2px solid ${passed ? '#10b981' : '#ef4444'}`, borderRadius: '24px', padding: '3.5rem 2rem', textAlign: 'center', animation: 'zoomIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: passed ? '#065f46' : '#991b1b', marginBottom: '0.5rem' }}>{passed ? 'Assessment Passed' : 'Assessment Failed'}</div>
-          <h3 style={{ fontSize: '1.75rem', fontWeight: 900, color: passed ? '#065f46' : '#991b1b', marginBottom: '0.5rem' }}>{passed ? 'Excellent Work!' : 'Please Review and Try Again'}</h3>
-          <p style={{ color: passed ? '#047857' : '#b91c1c', fontSize: '1.1rem', marginBottom: '2.5rem' }}>Your Final Score: <strong>{score} / {lesson.totalMark}</strong></p>
+          {submitted ? (
+            <div style={{ background: passed ? '#f0fdf4' : '#fef2f2', border: `2px solid ${passed ? '#10b981' : '#ef4444'}`, borderRadius: '24px', padding: '3.5rem 2rem', textAlign: 'center', animation: 'zoomIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: passed ? '#065f46' : '#991b1b', marginBottom: '0.5rem' }}>{passed ? 'Assessment Passed' : 'Assessment Failed'}</div>
+              <h3 style={{ fontSize: '1.75rem', fontWeight: 900, color: passed ? '#065f46' : '#991b1b', marginBottom: '0.5rem' }}>{passed ? 'Excellent Work!' : 'Please Review and Try Again'}</h3>
+              <p style={{ color: passed ? '#047857' : '#b91c1c', fontSize: '1.1rem', marginBottom: '2.5rem' }}>Your Final Score: <strong>{score} / {lesson.totalMark}</strong></p>
 
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
-            {!passed && attemptsLeft > 0 && (
-              <button onClick={() => {
-                setSubmitted(false); setSelected({}); setScore(0); setTimeLeft(lesson.duration * 60); setStrikes(0);
-                if (user?.user_id) {
-                  localStorage.removeItem(`asm_start_${user.user_id}_${lesson.id}`);
-                  localStorage.removeItem(`asm_strikes_${user.user_id}_${lesson.id}`);
-                }
-              }} style={{ background: '#6366f1', color: 'white', border: 'none', borderRadius: '12px', padding: '1rem 2.5rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 8px 20px rgba(99,102,241,0.2)' }}>Retake Assessment</button>
-            )}
-            <button onClick={() => window.location.reload()} style={{ background: 'white', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem 2.5rem', fontWeight: 800, cursor: 'pointer' }}>Back to Course</button>
-          </div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+                {!passed && attemptsLeft > 0 && (
+                  <button onClick={() => {
+                    setSubmitted(false); setSelected({}); setScore(0); setTimeLeft(lesson.duration * 60); setStrikes(0);
+                    if (user?.user_id) {
+                      localStorage.removeItem(`asm_start_${user.user_id}_${lesson.id}`);
+                      localStorage.removeItem(`asm_strikes_${user.user_id}_${lesson.id}`);
+                    }
+                  }} style={{ background: '#6366f1', color: 'white', border: 'none', borderRadius: '12px', padding: '1rem 2.5rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 8px 20px rgba(99,102,241,0.3)' }}>Retake Assessment</button>
+                )}
+                <button onClick={() => window.location.reload()} style={{ background: 'white', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem 2.5rem', fontWeight: 800, cursor: 'pointer' }}>Back to Course</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {(lesson.questions || []).map((q, qi) => (
+                <div key={q.question_id} style={{ background: 'white', borderRadius: '20px', padding: '2rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 15px rgba(0,0,0,0.02)' }}>
+                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <span style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', fontSize: '0.9rem', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{qi + 1}</span>
+                    <p style={{ fontWeight: 800, fontSize: '1.1rem', lineHeight: 1.5, margin: 0, color: '#1e293b' }}>{q.question_text}</p>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginLeft: '3rem' }}>
+                    {(q.options || []).map(opt => {
+                      const isSel = selected[q.question_id] === opt.option_id;
+                      return (
+                        <button key={opt.option_id} onClick={() => setSelected(p => ({ ...p, [q.question_id]: opt.option_id }))} style={{ textAlign: 'left', padding: '1rem 1.25rem', borderRadius: '12px', cursor: 'pointer', border: `2px solid ${isSel ? '#6366f1' : '#f1f5f9'}`, background: isSel ? '#f5f3ff' : 'white', color: isSel ? '#4338ca' : '#475569', display: 'flex', alignItems: 'center', gap: '1rem', transition: 'all 0.2s' }}>
+                          <div style={{ width: '20px', height: '20px', borderRadius: '6px', border: `2px solid ${isSel ? '#6366f1' : '#d1d5db'}`, background: isSel ? '#6366f1' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
+                            {isSel && <Check size={14} color="white" />}
+                          </div>
+                          <span style={{ fontWeight: 700 }}>{opt.text}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ padding: '2rem', background: '#f8fafc', borderRadius: '20px', border: '1px dashed #cbd5e1', textAlign: 'center', marginTop: '1rem' }}>
+                <button
+                  onClick={() => handleSubmit(false)}
+                  disabled={submitting}
+                  style={{ background: 'linear-gradient(135deg,#10b981,#059669)', color: 'white', border: 'none', borderRadius: '14px', padding: '1.25rem 4rem', fontSize: '1.1rem', fontWeight: 900, cursor: submitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', opacity: submitting ? 0.7 : 1, margin: '0 auto', boxShadow: '0 10px 25px rgba(16,185,129,0.2)' }}
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 size={22} className="animate-spin" />
+                      {retryCount > 0 ? `Retrying (${retryCount}/3)...` : 'Finalizing...'}
+                    </>
+                  ) : (
+                    <>
+                      <Award size={22} /> Submit Evaluation
+                    </>
+                  )}
+                </button>
+                <p style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 700, marginTop: '1rem' }}>Ensure all questions are answered before submitting.</p>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -631,49 +719,45 @@ function AssessmentPanel({ lesson, onComplete, assessmentStats = {}, onStateChan
         )}
       </AnimatePresence>
 
-      {!submitted && isStarted && (lesson.questions || []).map((q, qi) => (
-        <div key={q.question_id} style={{ background: 'white', borderRadius: '20px', padding: '2rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 15px rgba(0,0,0,0.02)' }}>
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-            <span style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', fontSize: '0.9rem', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{qi + 1}</span>
-            <p style={{ fontWeight: 800, fontSize: '1.1rem', lineHeight: 1.5, margin: 0, color: '#1e293b' }}>{q.question_text}</p>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginLeft: '3rem' }}>
-            {(q.options || []).map(opt => {
-              const isSel = selected[q.question_id] === opt.option_id;
-              return (
-                <button key={opt.option_id} onClick={() => setSelected(p => ({ ...p, [q.question_id]: opt.option_id }))} style={{ textAlign: 'left', padding: '1rem 1.25rem', borderRadius: '12px', cursor: 'pointer', border: `2px solid ${isSel ? '#6366f1' : '#f1f5f9'}`, background: isSel ? '#f5f3ff' : 'white', color: isSel ? '#4338ca' : '#475569', display: 'flex', alignItems: 'center', gap: '1rem', transition: 'all 0.2s' }}>
-                  <div style={{ width: '20px', height: '20px', borderRadius: '6px', border: `2px solid ${isSel ? '#6366f1' : '#d1d5db'}`, background: isSel ? '#6366f1' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
-                    {isSel && <Check size={14} color="white" />}
-                  </div>
-                  <span style={{ fontWeight: 700 }}>{opt.text}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+      {/* Reset Request Modal */}
+      <AnimatePresence>
+        {showResetModal && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => !resetLoading && setShowResetModal(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }} />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              style={{ position: 'relative', width: '100%', maxWidth: '450px', background: 'white', borderRadius: '24px', padding: '2rem', boxShadow: '0 25px 50px rgba(0,0,0,0.2)' }}
+            >
+              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: 900 }}>Request Attempt Reset</h3>
+              <p style={{ margin: '0 0 1.5rem 0', color: '#64748b', fontSize: '0.9rem' }}>Please explain why you need an additional attempt for this assessment.</p>
+              
+              <textarea 
+                value={resetReason}
+                onChange={(e) => setResetReason(e.target.value)}
+                placeholder="Ex: My internet disconnected during the last attempt..."
+                style={{ width: '100%', height: '120px', padding: '1rem', borderRadius: '16px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '0.9rem', fontWeight: 600, outline: 'none', resize: 'none', marginBottom: '1.5rem', color: '#1e293b' }}
+              />
 
-      {!submitted && isStarted && (
-        <div style={{ padding: '2rem', background: '#f8fafc', borderRadius: '20px', border: '1px dashed #cbd5e1', textAlign: 'center', marginTop: '1rem' }}>
-          <button
-            onClick={() => handleSubmit(false)}
-            disabled={submitting}
-            style={{ background: 'linear-gradient(135deg,#10b981,#059669)', color: 'white', border: 'none', borderRadius: '14px', padding: '1.25rem 4rem', fontSize: '1.1rem', fontWeight: 900, cursor: submitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', opacity: submitting ? 0.7 : 1, margin: '0 auto', boxShadow: '0 10px 25px rgba(16,185,129,0.2)' }}
-          >
-            {submitting ? (
-              <>
-                <Loader2 size={22} className="animate-spin" />
-                {retryCount > 0 ? `Retrying (${retryCount}/3)...` : 'Finalizing...'}
-              </>
-            ) : (
-              <>
-                <Award size={22} /> Submit Evaluation
-              </>
-            )}
-          </button>
-          <p style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 700, marginTop: '1rem' }}>Ensure all questions are answered before submitting.</p>
-        </div>
-      )}
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button 
+                  onClick={() => setShowResetModal(false)} 
+                  disabled={resetLoading}
+                  style={{ flex: 1, padding: '0.85rem', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleRequestReset} 
+                  disabled={resetLoading}
+                  style={{ flex: 1.5, padding: '0.85rem', borderRadius: '12px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                >
+                  {resetLoading ? <Loader2 size={18} className="animate-spin" /> : 'Send Request'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -863,14 +947,15 @@ const CoursePlayer = ({ isTrainer = false }) => {
       } catch (e) { setError(e.message); }
       finally { setLoading(false); }
     })();
-  }, [id, isTrainer, authFetch, smartFetch, fetchCourseProgress, registerLessonCount, cacheSyncToken]);
+  }, [id, isTrainer, authFetch, smartFetch, registerLessonCount, cacheSyncToken]);
 
-  // Sync progress when function is available or course changes
+  // Sync progress when course changes
   useEffect(() => {
     if (!isTrainer && id && fetchCourseProgress) {
       fetchCourseProgress(id);
     }
-  }, [id, isTrainer, fetchCourseProgress]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isTrainer]);
 
   // Reset just-completed animation when lesson changes
   useEffect(() => { setJustCompleted(false); }, [currentIdx]);

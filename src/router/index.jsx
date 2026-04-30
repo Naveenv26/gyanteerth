@@ -35,6 +35,7 @@ import AdminAssessments from '../pages/admin/Assessments';
 import AdminCurriculum from '../pages/admin/Curriculum';
 import AdminFeedbacks from '../pages/admin/Feedbacks';
 import AdminStudents from '../pages/admin/Students';
+import ResetRequests from '../pages/admin/ResetRequests';
 
 // Shared
 import Profile from '../pages/shared/Profile';
@@ -124,6 +125,7 @@ export const router = createBrowserRouter([
           { path: 'students', element: <AdminStudents /> },
           { path: 'assessments', element: <AdminAssessments /> },
           { path: 'feedbacks', element: <AdminFeedbacks /> },
+          { path: 'reset-requests', element: <ResetRequests /> },
         ]
       }
     ]
