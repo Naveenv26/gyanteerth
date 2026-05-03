@@ -370,7 +370,6 @@ export const EnrollmentProvider = ({ children }) => {
 
   const markLiveAttendance = (courseId, liveClassId, moduleId, attendedLive, watchedRecording) => {
     return triggerProgressUpdate('mark-live-attendance', {
-      course_id: String(courseId),
       live_class_id: String(liveClassId), module_id: String(moduleId),
       attended_live: !!attendedLive, watched_recording: !!watchedRecording
     }, courseId);
