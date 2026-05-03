@@ -104,14 +104,14 @@ export default function Courses() {
                 </div>
                 <h2 className="text-3xl font-extrabold text-slate-900 mb-4 tracking-tight">{topSeller.title}</h2>
                 <p className="text-slate-600 mb-8 leading-relaxed">Master the skills you need to succeed with our most popular comprehensive bootcamp. Perfect for beginners and intermediate learners who want to build real-world projects.</p>
-                 <div className="flex items-center justify-between mt-auto">
+                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mt-auto">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-slate-900">₹{topSeller.price?.discount || topSeller.price?.original}</span>
+                    <span className="text-2xl md:text-3xl font-black text-slate-900">₹{topSeller.price?.discount || topSeller.price?.original}</span>
                     {topSeller.price?.discount && (
-                      <span className="text-lg text-slate-400 line-through">₹{topSeller.price?.original}</span>
+                      <span className="text-sm md:text-lg text-slate-400 line-through">₹{topSeller.price?.original}</span>
                     )}
                   </div>
-                  <Link to={`/signup`} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 !text-white px-6 py-3.5 rounded-xl font-bold transition-all shadow-[0_4px_14px_0_rgba(5,150,105,0.39)] hover:shadow-[0_6px_20px_rgba(5,150,105,0.23)] hover:-translate-y-0.5">
+                  <Link to={`/signup`} className="w-full sm:w-auto text-center flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 !text-white px-6 py-3.5 rounded-xl font-bold transition-all shadow-[0_4px_14px_0_rgba(5,150,105,0.39)] hover:shadow-[0_6px_20px_rgba(5,150,105,0.23)] hover:-translate-y-0.5">
                     Enroll Now <ArrowRight className="w-5 h-5" />
                   </Link>
                 </div>
@@ -134,7 +134,7 @@ export default function Courses() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`relative px-6 py-2.5 text-sm font-semibold rounded-xl transition-all duration-300 flex items-center gap-2 outline-none ${isActive ? 'text-emerald-800' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
+                  className={`relative px-3 md:px-6 py-2 md:py-2.5 text-[10px] md:text-sm font-semibold rounded-xl transition-all duration-300 flex items-center gap-2 outline-none ${isActive ? 'text-emerald-800' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
                 >
                   {isActive && (
                     <motion.div layoutId="courseTab" className="absolute inset-0 bg-emerald-50 rounded-xl border border-emerald-100 shadow-sm" transition={{ type: "spring", stiffness: 400, damping: 25 }} />
@@ -168,14 +168,14 @@ export default function Courses() {
                   <span className="flex items-center gap-1 ml-auto"><Clock className="w-4 h-4"/> {course.duration}</span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-3 line-clamp-2 leading-tight group-hover:text-emerald-700 transition-colors">{course.title}</h3>
-                 <div className="mt-auto pt-4 flex items-center justify-between">
+                 <div className="mt-auto pt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-black text-emerald-600">₹{course.price?.discount || course.price?.original}</span>
                     {course.price?.discount && (
-                      <span className="text-sm text-slate-400 line-through">₹{course.price?.original}</span>
+                      <span className="text-xs text-slate-400 line-through">₹{course.price?.original}</span>
                     )}
                   </div>
-                  <Link to="/signup" className="!text-white font-bold text-sm bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded-lg transition-all shadow-md hover:shadow-lg">
+                  <Link to="/signup" className="w-full sm:w-auto text-center !text-white font-bold text-sm bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded-lg transition-all shadow-md hover:shadow-lg">
                     Enroll Now
                   </Link>
                 </div>

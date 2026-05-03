@@ -1,13 +1,14 @@
 import {
   BookOpen, PlayCircle, Clock, Award, Compass,
   CheckCircle, Layers, Video, Monitor, BarChart2,
-  Zap, Star, X, Loader2, MessageSquare
+  Zap, Star, X, Loader2, MessageSquare, ArrowRight
 } from 'lucide-react';
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useEnrollment } from '../../shared/EnrollmentContext';
 import { useAuth } from '../../shared/AuthContext';
+import { useTheme } from '../../shared/ThemeContext';
 import { USER_API } from '../../config';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -18,6 +19,7 @@ const StudentCourses = () => {
   const navigate                        = useNavigate();
   const { enrolledCourses, getCourseProgress } = useEnrollment();
   const { authFetch }                   = useAuth();
+  const { isDark }                      = useTheme();
 
 
   // ── Feedback state ────────────────────────────────────────────────────────
@@ -25,6 +27,9 @@ const StudentCourses = () => {
   const [feedbackForm,      setFeedbackForm]      = useState({ Course_rating: '5', Instructor_rating: '5', Review: '' });
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [feedbackSuccess,   setFeedbackSuccess]   = useState(false);
+
+  // ── Certificate state ──────────────────────────────────────────────────
+  const [viewingCertificate, setViewingCertificate] = useState(null);
 
   // Reset form whenever a new course is selected for feedback
   useEffect(() => {
@@ -62,7 +67,7 @@ const StudentCourses = () => {
     }
   }, [feedbackCourse, feedbackForm, authFetch]);
 
-  // ── Derived course lists (uses calculated progress) ───────────────────────
+  // ── Derived course lists (Strictly Backend-Driven) ───────────────────────
   const { ongoingCourses, completedCourses, inProgressCount, completedCount } = useMemo(() => {
     const ongoing   = [];
     const completed = [];
@@ -70,8 +75,8 @@ const StudentCourses = () => {
     let done        = 0;
 
     enrolledCourses.forEach(course => {
-      const backendProg = course.progress || 0;
-      const prog = Math.max(backendProg, getCourseProgress(course.id || course.course_id));
+      // Strictly trust the progress reported by the backend API
+      const prog = course.progress || 0;
       
       if (prog === 100) {
         completed.push({ ...course, progress: prog });
@@ -83,7 +88,7 @@ const StudentCourses = () => {
     });
 
     return { ongoingCourses: ongoing, completedCourses: completed, inProgressCount: inProgress, completedCount: done };
-  }, [enrolledCourses, getCourseProgress]);
+  }, [enrolledCourses]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const tabs = [
@@ -106,67 +111,62 @@ const StudentCourses = () => {
     <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
 
       {/* ── Page Header ───────────────────────────────────────────────────── */}
-      <div style={{
-        background: 'linear-gradient(135deg, #065f46 0%, #059669 100%)',
-        borderRadius: '2rem', padding: '3rem 2.5rem', marginBottom: '3rem',
+      <div className="p-6 md:p-14 mb-8 md:mb-10" style={{
+        background: isDark ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : 'linear-gradient(135deg, #065f46 0%, #059669 100%)',
+        borderRadius: '2.5rem',
         position: 'relative', overflow: 'hidden',
-        boxShadow: '0 20px 50px rgba(16, 185, 129, 0.15)'
+        boxShadow: isDark ? '0 25px 50px -12px rgba(0,0,0,0.5)' : '0 20px 50px rgba(16, 185, 129, 0.15)',
+        border: isDark ? '1px solid rgba(255,255,255,0.05)' : 'none'
       }}>
-        <div style={{ position: 'absolute', top: '-10%', right: '-5%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(249, 115, 22, 0.2) 0%, transparent 70%)', borderRadius: '50%' }} />
+        <div style={{ position: 'absolute', top: '-10%', right: '-5%', width: '400px', height: '400px', background: isDark ? 'radial-gradient(circle, rgba(255, 255, 255, 0.03) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(249, 115, 22, 0.2) 0%, transparent 70%)', borderRadius: '50%' }} />
 
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: 'white', letterSpacing: '-0.03em', marginBottom: '0.75rem' }}>
+          <h1 className="text-2xl md:text-5xl" style={{ fontWeight: 950, color: 'white', letterSpacing: '-0.04em', marginBottom: '0.75rem' }}>
             My Learning <span style={{ color: '#fbbf24', marginLeft: '0.5rem' }}>Journey</span>
           </h1>
-          <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '1.1rem', fontWeight: 500, maxWidth: '600px', lineHeight: 1.5 }}>
+          <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '1.1rem', fontWeight: 600, maxWidth: '600px', lineHeight: 1.5 }}>
             {enrolledCourses.length > 0
-              ? `Empower your future. You have ${enrolledCourses.length} active course${enrolledCourses.length === 1 ? '' : 's'} in your portfolio.`
-              : 'Kickstart your professional growth by browsing our world-class courses.'}
+              ? `You have ${enrolledCourses.length} active programs in your expertise portfolio.`
+              : 'Start your professional transformation by exploring our catalog.'}
           </p>
 
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '2.5rem' }}>
             <button
               onClick={() => navigate('/student/browse')}
               style={{
                 background: '#f97316', color: 'white', border: 'none',
-                padding: '0.85rem 2rem', borderRadius: '1rem', fontWeight: 800, fontSize: '0.95rem',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.6rem',
-                boxShadow: '0 8px 25px rgba(249, 115, 22, 0.4)', transition: 'all 0.2s'
+                padding: '1rem 2.5rem', borderRadius: '1.25rem', fontWeight: 900, fontSize: '1rem',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem',
+                boxShadow: '0 12px 30px rgba(249, 115, 22, 0.3)', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
               }}
-              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-              onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 15px 40px rgba(249, 115, 22, 0.4)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 12px 30px rgba(249, 115, 22, 0.3)'; }}
             >
-              <Compass size={19} /> Explore Catalog
+              <Compass size={22} /> Discover New Courses
             </button>
           </div>
         </div>
       </div>
 
       {/* ── Tabs + summary ────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '2rem' }}>
+      <div className="flex flex-col gap-6 md:gap-10">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
 
-          <div style={{ display: 'flex', background: 'rgba(226, 232, 240, 0.4)', padding: '0.4rem', borderRadius: '1.25rem', border: '1px solid #e2e8f0' }}>
+          <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}` }} className="flex p-1.5 rounded-2xl w-full sm:w-auto">
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                style={{
-                  padding: '0.6rem 1.75rem', borderRadius: '0.9rem', border: 'none',
-                  background: activeTab === tab.id ? 'white' : 'transparent',
-                  color: activeTab === tab.id ? '#0f172a' : '#64748b',
-                  fontWeight: activeTab === tab.id ? 800 : 600, fontSize: '0.9rem',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.6rem',
-                  boxShadow: activeTab === tab.id ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
-                  transition: 'all 0.2s'
-                }}
+                className={`flex-1 sm:flex-none px-4 md:px-7 py-2.5 rounded-xl border-none transition-all flex items-center justify-center gap-2 text-sm font-black ${
+                  activeTab === tab.id 
+                  ? (isDark ? 'bg-white text-slate-900 shadow-xl' : 'bg-white text-slate-900 shadow-sm') 
+                  : 'bg-transparent text-slate-500'
+                }`}
               >
                 {tab.label}
-                <span style={{
-                  background: activeTab === tab.id ? '#10b981' : '#cbd5e1',
-                  color: 'white', fontSize: '0.7rem', padding: '0.1rem 0.5rem',
-                  borderRadius: '1rem', fontWeight: 900
-                }}>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                  activeTab === tab.id ? 'bg-emerald-500 text-white' : (isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-300 text-white')
+                }`}>
                   {tab.count}
                 </span>
               </button>
@@ -190,15 +190,14 @@ const StudentCourses = () => {
           {activeTab === 'ongoing' ? (
             <motion.div
               key="ongoing"
-              initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.3 }}
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}
+              initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}
+              className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6"
             >
               {ongoingCourses.length === 0 ? (
-                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '6rem 2rem', background: '#f8fafc', borderRadius: '2rem', border: '2px dashed #e2e8f0' }}>
-                  <Zap size={48} color="#cbd5e1" style={{ marginBottom: '1.5rem' }} />
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1e293b' }}>Ignite Your Curiosity</h3>
-                  <p style={{ color: '#94a3b8', marginTop: '0.5rem' }}>You haven't started any courses yet. Our top instructors are waiting for you!</p>
+                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '6rem 2rem', background: isDark ? '#1e293b' : '#f8fafc', borderRadius: '2.5rem', border: `2px dashed ${isDark ? '#334155' : '#e2e8f0'}` }}>
+                  <Zap size={48} color={isDark ? '#475569' : '#cbd5e1'} style={{ marginBottom: '1.5rem' }} />
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: 950, color: isDark ? 'white' : '#1e293b' }}>Ignite Your Curiosity</h3>
+                  <p style={{ color: '#94a3b8', marginTop: '0.5rem', fontWeight: 600 }}>Your learning list is empty. Ready to start something new?</p>
                 </div>
               ) : (
                 ongoingCourses.map(course => {
@@ -208,74 +207,66 @@ const StudentCourses = () => {
 
                   return (
                     <motion.div
-                      key={cid} layout whileHover={{ y: -8 }}
+                      key={cid} layout
                       style={{
-                        background: 'white', borderRadius: '1.75rem', overflow: 'hidden',
-                        border: '1px solid #f1f5f9', boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-                        display: 'flex', flexDirection: 'column', cursor: 'pointer'
+                        background: isDark ? '#1e293b' : 'white', 
+                        borderRadius: '2rem', 
+                        overflow: 'hidden',
+                        border: `1px solid ${isDark ? '#334155' : '#f1f5f9'}`,
+                        boxShadow: isDark ? 'none' : '0 10px 30px -5px rgba(0,0,0,0.05)',
+                        display: 'flex', 
+                        alignItems: 'center',
+                        cursor: 'pointer'
                       }}
+                      className="group p-2 md:p-4 gap-3 md:gap-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
                       onClick={() => navigate(`/student/course/${cid}`)}
                     >
-                      <div style={{ height: '160px', position: 'relative' }}>
+                      {/* Compact Thumbnail - Optimized for 320px */}
+                      <div className="w-16 h-16 sm:w-36 sm:h-36 rounded-2xl overflow-hidden flex-shrink-0 bg-slate-900 shadow-sm">
                         <img
                           src={course.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800'}
                           alt={course.title}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          loading="lazy"   // ← lazy-load thumbnails
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                          loading="lazy"
                         />
-                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 70%)' }} />
-
-                        <div style={{ position: 'absolute', top: '12px', left: '12px', background: status.bg, color: status.color, padding: '0.3rem 0.8rem', borderRadius: '0.75rem', fontSize: '0.65rem', fontWeight: 900, backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)' }}>
-                          {status.label}
-                        </div>
-
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setFeedbackCourse(course); }}
-                          style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.15)', backdropFilter: 'blur(4px)', color: '#64748b', transition: 'all 0.2s' }}
-                          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.background = 'white'; e.currentTarget.style.color = '#334155'; }}
-                          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.95)'; e.currentTarget.style.color = '#64748b'; }}
-                          title="Rate Course"
-                        >
-                          <Star size={16} />
-                        </button>
-
                       </div>
 
-                      <div style={{ padding: '1.25rem 1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
-                          <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#10b981', background: '#dcfce7', padding: '0.1rem 0.5rem', borderRadius: '1rem' }}>
-                            {course.level || 'Beginner'}
+                      <div className="flex-1 min-w-0 pr-2 md:pr-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span style={{ fontSize: '0.65rem', fontWeight: 950, color: status.color, background: `${status.color}15`, padding: '0.2rem 0.6rem', borderRadius: '0.6rem', textTransform: 'uppercase' }}>
+                            {status.label}
                           </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setFeedbackCourse(course); }}
+                            className="text-slate-400 hover:text-orange-500 transition-colors p-1"
+                          >
+                            <Star size={16} />
+                          </button>
                         </div>
 
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', marginBottom: '1rem', lineHeight: 1.3, height: '2.6em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        <h3 className="text-sm md:text-lg font-black leading-tight mb-3 line-clamp-2" style={{ color: isDark ? 'white' : '#1e293b' }}>
                           {course.title || course.course_title}
                         </h3>
 
-                        <div style={{ marginTop: 'auto' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0.4rem' }}>
-                            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Overall Progress</span>
-                            <span style={{ fontSize: '0.95rem', fontWeight: 900, color: '#10b981' }}>{progress}%</span>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                            <span style={{ color: '#94a3b8' }}>Progress</span>
+                            <span style={{ color: '#10b981' }}>{progress}%</span>
                           </div>
-                          <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '10px', overflow: 'hidden', marginBottom: '1.25rem', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)' }}>
+                          <div className="h-2 w-full bg-white dark:bg-white/10 rounded-full overflow-hidden border border-slate-100 dark:border-white/5 shadow-inner">
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${progress}%` }}
-                              style={{ height: '100%', background: 'linear-gradient(90deg, #10b981, #34d399)', borderRadius: '10px', boxShadow: '0 0 10px rgba(16,185,129,0.4)' }}
+                              style={{ height: '100%', background: 'linear-gradient(90deg, #3b82f6, #10b981)' }}
+                              className="rounded-full shadow-[0_0_12px_rgba(59,130,246,0.3)]"
                             />
                           </div>
-
-                          <div style={{ display: 'flex', gap: '0.75rem' }}>
-                            <button style={{
-                              flex: 1, background: '#f97316', color: 'white', border: 'none',
-                              padding: '0.75rem', borderRadius: '1rem', fontWeight: 800, fontSize: '0.85rem',
-                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              gap: '0.5rem', boxShadow: '0 4px 15px rgba(249, 115, 22, 0.2)'
-                            }}>
-                              <PlayCircle size={18} /> {progress === 0 ? 'Start' : 'Resume'}
-                            </button>
-                          </div>
                         </div>
+                      </div>
+
+                      {/* Compact Action Icon */}
+                      <div className="hidden sm:flex w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800/50 items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                        <ArrowRight size={18} />
                       </div>
                     </motion.div>
                   );
@@ -286,20 +277,46 @@ const StudentCourses = () => {
             <motion.div
               key="completed"
               initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem' }}
+              className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6"
             >
               {completedCourses.map(course => (
-                <div key={course.id || course.course_id} style={{ background: 'white', borderRadius: '2rem', padding: '1.5rem', border: '1px solid #f1f5f9', display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-                  <div style={{ width: '64px', height: '64px', background: '#ecfdf5', borderRadius: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Award size={32} color="#10b981" />
+                <div 
+                  key={course.id || course.course_id} 
+                  style={{ 
+                    background: isDark ? '#1e293b' : 'white', 
+                    borderRadius: '2rem', 
+                    border: `1px solid ${isDark ? '#334155' : '#f1f5f9'}`, 
+                    display: 'flex', 
+                    alignItems: 'center' 
+                  }}
+                  className="p-3 md:p-5 gap-3 md:gap-5"
+                >
+                  <div 
+                    className="w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: isDark ? 'rgba(16,185,129,0.1)' : '#ecfdf5' }}
+                  >
+                    <Award className="w-6 h-6 md:w-8 md:h-8" color="#10b981" />
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{course.title}</h4>
-                    <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.2rem' }}>Graduate · {course.level || 'Program'}</p>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                      <button onClick={() => navigate(`/student/course/${course.id || course.course_id}`)} style={{ background: 'transparent', border: 'none', color: '#10b981', fontWeight: 800, fontSize: '0.75rem', cursor: 'pointer', padding: 0 }}>Review Content</button>
-                      <span style={{ color: '#e2e8f0' }}>|</span>
-                      <button style={{ background: 'transparent', border: 'none', color: '#f97316', fontWeight: 800, fontSize: '0.75rem', cursor: 'pointer', padding: 0 }}>Certificate</button>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm md:text-lg font-black truncate" style={{ color: isDark ? 'white' : '#1e293b' }}>
+                      {course.title}
+                    </h4>
+                    <p className="text-[10px] md:text-xs text-slate-500 mt-0.5 font-bold">
+                      Program Graduate · {course.level || 'Expert'}
+                    </p>
+                    <div className="flex flex-wrap gap-3 md:gap-4 mt-3">
+                      <button 
+                        onClick={() => navigate(`/student/course/${course.id || course.course_id}`)} 
+                        className="bg-transparent border-none text-emerald-500 font-black text-[10px] md:text-xs cursor-pointer p-0"
+                      >
+                        Review Module
+                      </button>
+                      <button 
+                        onClick={() => setViewingCertificate(course)}
+                        className="bg-transparent border-none text-orange-500 font-black text-[10px] md:text-xs cursor-pointer p-0"
+                      >
+                        Download Certificate
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -391,6 +408,91 @@ const StudentCourses = () => {
                     </form>
                   )}
                 </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* ── Certificate Preview Modal ────────────────────────────────────── */}
+      {createPortal(
+        <AnimatePresence>
+          {viewingCertificate && (
+            <div
+              style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(16px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem md:padding-2rem' }}
+              onClick={() => setViewingCertificate(null)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 30 }}
+                style={{ 
+                  position: 'relative', 
+                  width: 'min(92vw, 420px)', 
+                  backgroundColor: isDark ? '#1e293b' : 'white', 
+                  borderRadius: '2.5rem', 
+                  overflow: 'hidden', 
+                  boxShadow: '0 50px 100px -20px rgba(0,0,0,0.6)', 
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'}` 
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="relative h-48 md:h-64 overflow-hidden">
+                  <img 
+                    src={viewingCertificate.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800'} 
+                    alt="Certificate Banner" 
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+                  
+                  <div className="absolute bottom-5 left-5 right-5">
+                    <span className="text-[9px] font-black tracking-[0.25em] text-white/60 uppercase mb-2 block">
+                      Technical Certification
+                    </span>
+                    <h2 className="text-lg md:text-2xl font-black text-white leading-tight">
+                      {viewingCertificate.title}
+                    </h2>
+                  </div>
+
+                  <div className="absolute top-5 right-5 w-11 h-11 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-center">
+                    <CheckCircle size={22} className="text-emerald-500" />
+                  </div>
+                </div>
+
+                <div className="p-6 md:p-10">
+                  <div className="mb-8">
+                    <span className="text-[9px] font-black tracking-widest text-slate-400 uppercase block mb-2">
+                      Issued Date
+                    </span>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className={`text-lg md:text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        May 2026
+                      </span>
+                      <span className="text-slate-400 font-bold text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">5628-GT</span>
+                    </div>
+                  </div>
+
+                  <button
+                    className="w-full py-4 mb-8 bg-[#0f172a] dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black flex items-center justify-center gap-3 shadow-2xl active:scale-95 transition-all text-xs md:text-sm"
+                  >
+                    View & Download <ArrowRight size={18} />
+                  </button>
+
+                  <div className="bg-emerald-50 dark:bg-emerald-500/5 rounded-xl py-3 px-4 flex items-center gap-2.5 border border-emerald-100/50 dark:border-emerald-500/10">
+                    <Award size={16} className="text-emerald-500" />
+                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                      Verified Asset
+                    </span>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setViewingCertificate(null)}
+                  className="absolute top-4 left-4 w-7 h-7 bg-black/30 backdrop-blur text-white rounded-full flex items-center justify-center"
+                >
+                  <X size={14} />
+                </button>
               </motion.div>
             </div>
           )}

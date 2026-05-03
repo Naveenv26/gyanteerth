@@ -130,7 +130,7 @@ const AdminDashboard = () => {
     <div style={{ padding: 'var(--page-padding)', maxWidth: '1600px', margin: '0 auto' }} className="animate-fade-in">
       
       {/* HEADER COMMAND SECTION */}
-      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '1.5rem', flexWrap: 'wrap' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-6 lg:gap-10 items-start" style={{ marginBottom: '2rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-primary)', marginBottom: '0.5rem' }}>
             <Activity size={12} />
@@ -163,7 +163,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* MAIN LAYOUT SPLIT */}
-      <div className="grid" style={{ gridTemplateColumns: '1fr 300px', gap: '2rem', alignItems: 'start' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 lg:gap-8 items-start">
         
         {/* LEFT COLUMN: ARCADE CONTAINER */}
         <div className="arcade-container" style={{ padding: '1.5rem' }}>

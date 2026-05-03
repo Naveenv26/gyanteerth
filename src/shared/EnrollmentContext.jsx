@@ -11,33 +11,11 @@ export const EnrollmentProvider = ({ children }) => {
   const { user, authFetch, smartFetch, clearCache, cacheSyncToken } = useAuth();
 
   const [enrolledCourses, setEnrolledCourses] = useState([]);
-  const [completedLessons, setCompletedLessons] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('_gt_completed') || '{}');
-    } catch(e) { return {}; }
-  });
+  const [completedLessons, setCompletedLessons] = useState({});
   const [syncedLessons, setSyncedLessons] = useState({}); // 🚀 Backend-confirmed completions
   const [assessmentStats, setAssessmentStats] = useState({}); 
   const [lessonCounts, setLessonCounts] = useState({});
 
-  // 1. Hydrate completions & sync status from localStorage on mount
-  useEffect(() => {
-    const synced = {};
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('synced_')) {
-        const parts = key.split('_');
-        if (parts.length >= 3) {
-          const cid = parts[1];
-          const lid = parts[2];
-          if (localStorage.getItem(key) === 'true') {
-            if (!synced[cid]) synced[cid] = [];
-            synced[cid].push(lid);
-          }
-        }
-      }
-    });
-    setSyncedLessons(synced);
-  }, []);
 
 
   /* 🚀 BACKGROUND SYNC MANAGER 🚀 */
@@ -144,6 +122,14 @@ export const EnrollmentProvider = ({ children }) => {
         const d = details?.course || details?.data || details || {};
         const p = progressData || {};
 
+        // 🚨 ASSESSMENT GATE: Check for failed assessments
+        let prog = p.progress_percentage !== undefined ? Number(p.progress_percentage) : (Number(p.progress) || c.progress || 0);
+        const assessments = p.assessments_progress || p.assessments;
+        if (Array.isArray(assessments) && prog >= 100) {
+          const hasFailed = assessments.some(a => a.passed !== true && a.status !== 'Passed');
+          if (hasFailed) prog = 99;
+        }
+
         return {
           ...c,
           title: d.course_title || d.Course_Title || d.title || d.Title || c.title,
@@ -151,13 +137,19 @@ export const EnrollmentProvider = ({ children }) => {
           type: (d.course_type || d.type || c.type).toLowerCase(),
           level: d.level || d.course_level || c.level,
           category_name: d.category_name || d.Category || c.category_name,
-          progress: p.progress_percentage !== undefined ? p.progress_percentage : (p.progress || c.progress),
+          progress: prog,
           total_modules: p.total_modules || c.total_modules,
           completed_modules: p.completed_modules || c.completed_modules
         };
       }));
 
-      if (isMounted) setEnrolledCourses(enrichedData);
+      if (isMounted) {
+        setEnrolledCourses(enrichedData);
+        // Populate syncedLessons for each course via fetchCourseProgress
+        enrichedData.forEach(c => {
+          if (c.id) fetchCourseProgress(c.id);
+        });
+      }
     };
 
     syncEnrollments();
@@ -171,16 +163,8 @@ export const EnrollmentProvider = ({ children }) => {
     if (!sid) return 0;
     
     const c = enrolledCourses.find(course => norm(course.id || course.course_id) === sid);
-    const backendProgress = c?.progress || 0;
-
-    const total = lessonCounts[sid];
-    const done = (completedLessons[sid] || []).length;
-
-    if (!total) return backendProgress;
-    
-    const localProgress = Math.round((done / total) * 100);
-    return Math.max(localProgress, backendProgress);
-  }, [enrolledCourses, completedLessons, lessonCounts]);
+    return c?.progress || 0;
+  }, [enrolledCourses]);
 
   const isEnrolled = useCallback((courseId) => {
     const cid = norm(courseId);
@@ -191,22 +175,22 @@ export const EnrollmentProvider = ({ children }) => {
     const cid = norm(courseId);
     const lid = norm(lessonId);
     if (!cid || !lid) return false;
-    return (completedLessons[cid] || []).includes(lid);
-  }, [completedLessons]);
+    // Strictly trust what the backend has confirmed (synced)
+    return (syncedLessons[cid] || []).includes(lid);
+  }, [syncedLessons]);
 
   const isLessonSynced = useCallback((courseId, lessonId) => {
     const cid = norm(courseId);
     const lid = norm(lessonId);
     if (!cid || !lid) return false;
-    if (syncedLessons[cid]?.includes(lid)) return true;
-    return localStorage.getItem(`synced_${cid}_${lid}`) === 'true';
+    return (syncedLessons[cid] || []).includes(lid);
   }, [syncedLessons]);
 
   const getCompletedCount = useCallback((courseId) => {
     const cid = norm(courseId);
     if (!cid) return 0;
-    return (completedLessons[cid] || []).length;
-  }, [completedLessons]);
+    return (syncedLessons[cid] || []).length;
+  }, [syncedLessons]);
 
   /* ── Local Mutators ── */
   const markLessonComplete = useCallback((courseId, lessonId, totalLessons, isSynced = false) => {
@@ -215,7 +199,6 @@ export const EnrollmentProvider = ({ children }) => {
     if (!cid || !lid) return;
     
     if (isSynced) {
-      localStorage.setItem(`synced_${cid}_${lid}`, 'true');
       setSyncedLessons(prev => {
         const current = prev[cid] || [];
         if (current.includes(lid)) return prev;
@@ -230,9 +213,7 @@ export const EnrollmentProvider = ({ children }) => {
     setCompletedLessons(prev => {
       const current = prev[cid] || [];
       if (current.includes(lid)) return prev;
-      const next = { ...prev, [cid]: [...current, lid] };
-      localStorage.setItem('_gt_completed', JSON.stringify(next));
-      return next;
+      return { ...prev, [cid]: [...current, lid] };
     });
   }, []);
 
@@ -267,71 +248,87 @@ export const EnrollmentProvider = ({ children }) => {
 
   const fetchCourseProgress = useCallback(async (courseId, force = false) => {
     const cid = norm(courseId);
-    if (!cid) return;
+    if (!cid) return null;
     
-    const data = await smartFetch(`${USER_API}/course/${cid}/progress`, {
-      cacheKey: `progress_${cid}`,
-      forceRefresh: force
-    });
-    
-    if (data) {
-      setEnrolledCourses(prev => prev.map(c => 
-        norm(c.id || c.course_id) === cid 
-        ? { 
-            ...c, 
-            progress: data.progress_percentage !== undefined ? data.progress_percentage : (data.progress || 0),
-            total_modules: data.total_modules || c.total_modules,
-            completed_modules: data.completed_modules || c.completed_modules
-          } 
-        : c
-      ));
-
-      // 🚀 Sync all types of lesson completions from server
-      const passedLids = [];
-      
-      // A. Assessments
-      const assessmentsData = data.assessments_progress || data.assessments;
-      if (assessmentsData && Array.isArray(assessmentsData)) {
-        const stats = {};
-        assessmentsData.forEach(asm => {
-          const lid = norm(asm.assessment_id);
-          stats[lid.toLowerCase()] = {
-            attempts_used: asm.attempts_used || 0,
-            best_score: asm.best_score || 0,
-            passed: asm.passed || false
-          };
-          if (asm.passed) passedLids.push(lid);
-        });
-        setAssessmentStats(prev => ({ ...prev, ...stats }));
-      }
-
-      // B. Videos / Lessons (Extract from common progress field names)
-      const lessonProgress = data.lessons_progress || data.videos_progress || data.videos || [];
-      if (Array.isArray(lessonProgress)) {
-        lessonProgress.forEach(l => {
-          const lid = norm(l.video_id || l.lesson_id || l.id);
-          if (l.status === 'Completed' || l.completed || l.passed) passedLids.push(lid);
-        });
-      }
-
-      // C. Modules (If the server says a module is done, maybe it has list of lessons?)
-      // (For now we rely on explicit lesson/assessment lists)
-
-      // Sync to completedLessons for sidebar checkmarks (only if missing)
-      if (passedLids.length > 0) {
-        setCompletedLessons(prev => {
-          const current = prev[cid] || [];
-          const needsUpdate = passedLids.some(lid => !current.includes(lid));
-          if (!needsUpdate) return prev;
-          const next = {
-            ...prev,
-            [cid]: Array.from(new Set([...current, ...passedLids]))
-          };
-          localStorage.setItem('_gt_completed', JSON.stringify(next));
-          return next;
-        });
-      }
+    let data;
+    try {
+      data = await smartFetch(`${USER_API}/course/${cid}/progress`, {
+        cacheKey: `progress_${cid}`,
+        forceRefresh: force
+      });
+    } catch (err) {
+      console.error(`Failed to fetch progress for ${cid}:`, err);
+      return null;
     }
+    
+    if (!data || typeof data !== 'object') return null;
+
+    // 🚀 Rebuild lesson completions strictly from server data
+    const passedLids = [];
+    let hasFailedAssessment = false;
+    let totalAssessments = 0;
+    
+    // A. Assessments — ONLY count if explicitly PASSED
+    const assessmentsData = data.assessments_progress || data.assessments;
+    if (Array.isArray(assessmentsData)) {
+      const stats = {};
+      assessmentsData.forEach(asm => {
+        const lid = norm(asm.assessment_id);
+        if (!lid) return;
+        const key = lid.toLowerCase();
+        const passed = asm.passed === true || asm.status === 'Passed';
+        stats[key] = {
+          attempts_used: Number(asm.attempts_used) || 0,
+          best_score: Number(asm.best_score) || 0,
+          passed: passed
+        };
+        totalAssessments++;
+        if (passed) {
+          passedLids.push(lid);
+        } else {
+          hasFailedAssessment = true;
+        }
+      });
+      setAssessmentStats(prev => ({ ...prev, ...stats }));
+    }
+
+    // B. Videos / Lessons
+    const lessonProgress = data.lessons_progress || data.videos_progress || data.videos;
+    if (Array.isArray(lessonProgress)) {
+      lessonProgress.forEach(l => {
+        const lid = norm(l.video_id || l.lesson_id || l.id);
+        if (!lid) return;
+        if (l.status === 'Completed' || l.completed === true) passedLids.push(lid);
+      });
+    }
+
+    // 🚨 ASSESSMENT GATE: Backend may say 100% but if ANY assessment is failed,
+    // the course is NOT truly complete. Cap progress at 99% max.
+    let backendProgress = data.progress_percentage !== undefined 
+      ? Number(data.progress_percentage) 
+      : (Number(data.progress) || 0);
+
+    if (backendProgress >= 100 && hasFailedAssessment) {
+      console.warn(`⚠️ Course ${cid}: Backend says 100% but ${totalAssessments > 0 ? 'has failed assessments' : 'assessments pending'}. Capping at 99%.`);
+      backendProgress = 99;
+    }
+
+    // Update enrolled course with VERIFIED progress
+    setEnrolledCourses(prev => prev.map(c => 
+      norm(c.id || c.course_id) === cid 
+      ? { 
+          ...c, 
+          progress: backendProgress,
+          total_modules: data.total_modules || c.total_modules,
+          completed_modules: data.completed_modules || c.completed_modules
+        } 
+      : c
+    ));
+
+    // 🚀 STRICT OVERWRITE — backend is the single source of truth
+    setSyncedLessons(prev => ({ ...prev, [cid]: passedLids }));
+    setCompletedLessons(prev => ({ ...prev, [cid]: passedLids }));
+
     return data;
   }, [smartFetch]);
 
@@ -348,19 +345,22 @@ export const EnrollmentProvider = ({ children }) => {
         throw new Error(data?.message || data?.error || 'Sync failed');
       }
 
-      // Mark as synced locally
-      let lessonId = payload.video_id || payload.live_class_id || payload.assessment_id || payload.note_id;
-      if (lessonId) {
-        markLessonComplete(courseId, lessonId, null, true);
+      // 🚫 For assessments: NEVER auto-mark as complete here.
+      // The student may have submitted but FAILED. Let fetchCourseProgress decide.
+      if (endpoint !== 'submit-assessment') {
+        const lessonId = payload.video_id || payload.live_class_id || payload.note_id;
+        if (lessonId) {
+          markLessonComplete(courseId, lessonId, null, true);
+        }
       }
 
+      // Always re-fetch progress from backend to get the truth
       clearCache(`progress_${courseId}`);
       await fetchCourseProgress(courseId, true); 
       
       return data;
     } catch (err) {
       console.error(`Failed ${endpoint}:`, err);
-      // 🚫 CRITICAL: Never background sync assessments. They must fail-fast.
       if (!fromQueue && endpoint !== 'submit-assessment') {
         addToSyncQueue(endpoint, payload, courseId);
       }

@@ -104,11 +104,11 @@ body, html, #root {
 * { box-sizing: border-box; }
 
 /* Fluid Typography - Compact Scales */
-h1 { font-size: clamp(1.5rem, 4vw, 2.25rem); letter-spacing: -0.03em; font-weight: 950; line-height: 1.1; }
-h2 { font-size: clamp(1.2rem, 3vw, 1.75rem); letter-spacing: -0.02em; font-weight: 900; line-height: 1.2; }
-h3 { font-size: clamp(1rem, 2vw, 1.25rem); letter-spacing: -0.01em; font-weight: 800; }
+h1 { font-size: clamp(1.25rem, 5vw, 2.25rem); letter-spacing: -0.03em; font-weight: 950; line-height: 1.1; }
+h2 { font-size: clamp(1.1rem, 4vw, 1.75rem); letter-spacing: -0.02em; font-weight: 900; line-height: 1.2; }
+h3 { font-size: clamp(0.9rem, 3vw, 1.25rem); letter-spacing: -0.01em; font-weight: 800; }
 
-p { color: var(--color-text-muted); line-height: 1.6; font-weight: 500; font-size: clamp(0.75rem, 0.9vw, 0.85rem); }
+p { color: var(--color-text-muted); line-height: 1.6; font-weight: 500; font-size: clamp(0.7rem, 2vw, 0.85rem); }
 
 /* Premium Utility Classes */
 .glass {
@@ -230,9 +230,15 @@ p { color: var(--color-text-muted); line-height: 1.6; font-weight: 500; font-siz
 
 @media (max-width: 768px) {
   :root {
-    --page-padding: 1.5rem;
-    --radius-xl: 1.5rem;
-    --space-lg: 1.5rem;
+    --page-padding: 1rem;
+    --radius-xl: 1.25rem;
+    --space-lg: 1rem;
+  }
+}
+
+@media (max-width: 380px) {
+  :root {
+    --page-padding: 0.75rem;
   }
 }
 /* Premium "Inner Arcade" - Compact Editions */

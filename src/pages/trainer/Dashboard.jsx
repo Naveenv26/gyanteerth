@@ -176,9 +176,9 @@ const TrainerDashboard = () => {
     <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
       
       {/* ── Command Center Hero ── */}
-      <div style={{ 
+      <div className="p-6 md:p-14 mb-8 md:mb-10" style={{ 
         background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', 
-        borderRadius: '2.5rem', padding: '3.5rem 3rem', marginBottom: '2.5rem',
+        borderRadius: '2.5rem',
         position: 'relative', overflow: 'hidden', color: 'white',
         boxShadow: '0 25px 50px -12px rgba(30, 27, 75, 0.25)'
       }}>
@@ -189,7 +189,7 @@ const TrainerDashboard = () => {
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.1)', padding: '0.4rem 1rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1.5rem', border: '1px solid rgba(255, 255, 255, 0.15)' }}>
               <Shield size={14} color="#818cf8" /> Instructor Console
             </div>
-            <h1 style={{ fontSize: '3.25rem', fontWeight: 900, marginBottom: '0.75rem', letterSpacing: '-0.03em' }}>
+            <h1 className="text-2xl md:text-5xl" style={{ fontWeight: 900, marginBottom: '0.75rem', letterSpacing: '-0.03em' }}>
               Welcome back, <span style={{ color: '#818cf8' }}>Professor {user?.name?.split(' ')[0] || 'Trainer'}</span>
             </h1>
             <p style={{ fontSize: '1.1rem', color: 'rgba(255, 255, 255, 0.8)', fontWeight: 500, maxWidth: '600px', lineHeight: 1.6 }}>
@@ -219,7 +219,7 @@ const TrainerDashboard = () => {
             <StatCard title="Avg Engagement" value={`${avgOverallProgress}%`} icon={<Activity />} color="#f59e0b" delay={0.3} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '2.5rem', alignItems: 'start' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-6 lg:gap-10 items-start">
             
             {/* LEFT COLUMN: ASSIGNED COURSES */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>

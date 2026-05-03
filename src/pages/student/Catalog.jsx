@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useEnrollment } from '../../shared/EnrollmentContext';
 import { useAuth } from '../../shared/AuthContext';
+import { useTheme } from '../../shared/ThemeContext';
 import { ADMIN_API } from '../../config';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -53,39 +54,39 @@ function EnrollModal({ course, onConfirm, onCancel }) {
       {/* Optimized Backdrop */}
       <div onClick={onCancel} style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.7)', backdropFilter: 'blur(5px)', willChange: 'transform' }} />
 
-      <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} style={{ position: 'relative', zIndex: 1, background: 'white', borderRadius: '2.5rem', width: '100%', maxWidth: '500px', boxShadow: '0 32px 80px rgba(0,0,0,0.4)', overflow: 'hidden', border: '1px solid #f1f5f9' }}>
-        <div style={{ background: 'linear-gradient(135deg, #065f46 0%, #059669 100%)', padding: '2.5rem 2rem', position: 'relative', color: 'white' }}>
-          <button onClick={onCancel} style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}><X size={16} /></button>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(255,255,255,0.2)', padding: '0.3rem 0.8rem', borderRadius: '2rem', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '1rem' }}>{isLive ? '🔴 Live Program' : '🎬 Pro Course'}</div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 900, lineHeight: 1.3, margin: 0 }}>{course.title}</h2>
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} style={{ position: 'relative', zIndex: 1, background: 'white', borderRadius: '2.5rem', width: 'min(95vw, 500px)', boxShadow: '0 32px 80px rgba(0,0,0,0.4)', overflow: 'hidden', border: '1px solid #f1f5f9' }}>
+        <div style={{ background: 'linear-gradient(135deg, #065f46 0%, #059669 100%)', padding: '1.75rem 1.5rem md:padding:2.5rem 2rem', position: 'relative', color: 'white' }}>
+          <button onClick={onCancel} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(255,255,255,0.2)', padding: '0.25rem 0.7rem', borderRadius: '2rem', fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.75rem' }}>{isLive ? '🔴 Live Program' : '🎬 Pro Course'}</div>
+          <h2 style={{ fontSize: '1.25rem md:fontSize:1.5rem', fontWeight: 900, lineHeight: 1.3, margin: 0 }}>{course.title}</h2>
         </div>
 
-        <div style={{ padding: '2rem' }}>
-          <div style={{ background: '#f8fafc', borderRadius: '1.5rem', padding: '1.5rem', marginBottom: '2rem', border: '1px solid #f1f5f9' }}>
-            <p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#059669', textTransform: 'uppercase', marginBottom: '1rem', letterSpacing: '0.05em' }}>Inclusions</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ padding: '1.25rem md:padding:2rem' }}>
+          <div style={{ background: '#f8fafc', borderRadius: '1.25rem', padding: '1.25rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9' }}>
+            <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#059669', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>Inclusions</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
               {[
-                { icon: <Layers size={16} color="#059669" />, text: 'Full curriculum access' },
-                { icon: <Video size={16} color="#059669" />, text: isLive ? 'Live interactive sessions' : 'Recorded masterclasses' },
-                { icon: <Award size={16} color="#059669" />, text: 'Industry recognized certificate' },
-                { icon: <Zap size={16} color="#059669" />, text: 'Lifetime platform access' },
+                { icon: <Layers size={14} color="#059669" />, text: 'Full curriculum access' },
+                { icon: <Video size={14} color="#059669" />, text: isLive ? 'Live interactive sessions' : 'Recorded masterclasses' },
+                { icon: <Award size={14} color="#059669" />, text: 'Industry recognized certificate' },
+                { icon: <Zap size={14} color="#059669" />, text: 'Lifetime platform access' },
               ].map((item, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.95rem', color: '#1e293b', fontWeight: 600 }}>{item.icon} {item.text}</div>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', color: '#1e293b', fontWeight: 600 }}>{item.icon} {item.text}</div>
               ))}
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
             <div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a' }}>{formatPrice()}</div>
-              {course.price?.original && <div style={{ fontSize: '0.85rem', color: '#94a3b8', textDecoration: 'line-through' }}>₹{course.price.original}</div>}
+              <div style={{ fontSize: '1.5rem md:fontSize:1.75rem', fontWeight: 900, color: '#0f172a' }}>{formatPrice()}</div>
+              {course.price?.original && <div style={{ fontSize: '0.8rem', color: '#94a3b8', textDecoration: 'line-through' }}>₹{course.price.original}</div>}
             </div>
-            <div style={{ padding: '0.5rem 1rem', background: '#f1f5f9', borderRadius: '1rem', fontSize: '0.85rem', fontWeight: 700, color: '#64748b' }}>{course.level || 'Advanced'}</div>
+            <div style={{ padding: '0.4rem 0.8rem', background: '#f1f5f9', borderRadius: '0.8rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>{course.level || 'Advanced'}</div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <button onClick={onConfirm} style={{ width: '100%', background: '#f97316', color: 'white', border: 'none', borderRadius: '1.25rem', padding: '1.1rem', fontWeight: 900, fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', boxShadow: '0 10px 25px rgba(249, 115, 22, 0.3)', transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'} onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}>Confirm Enrollment <ArrowRight size={20} /></button>
-            <button onClick={onCancel} style={{ width: '100%', background: 'white', color: '#64748b', border: '1.5px solid #f1f5f9', borderRadius: '1.25rem', padding: '1rem', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer' }}>I'll decide later</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <button onClick={onConfirm} style={{ width: '100%', background: '#f97316', color: 'white', border: 'none', borderRadius: '1rem', padding: '1rem', fontWeight: 900, fontSize: '0.95rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', boxShadow: '0 8px 20px rgba(249, 115, 22, 0.25)' }}>Confirm Enrollment <ArrowRight size={18} /></button>
+            <button onClick={onCancel} style={{ width: '100%', background: 'white', color: '#64748b', border: '1.5px solid #f1f5f9', borderRadius: '1rem', padding: '0.85rem', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer' }}>I'll decide later</button>
           </div>
         </div>
       </motion.div>
@@ -117,6 +118,7 @@ const Catalog = () => {
   const navigate = useNavigate();
   const { enroll, isEnrolled } = useEnrollment();
   const { user, authFetch } = useAuth();
+  const { isDark } = useTheme();
 
   const [activeCategory, setActiveCategory] = useState('All');
   const [courses, setCourses] = useState([]);
@@ -218,12 +220,15 @@ const Catalog = () => {
   // Memoize filtering for performance
   const filteredCourses = useMemo(() => {
     return courses.filter(c => {
+      // 1. Filter out already enrolled courses
+      if (isEnrolled(c.id)) return false;
+
       const normalize = (s) => (s || '').trim().toLowerCase();
       const matCat = activeCategory === 'All' || normalize(c.category_name) === normalize(activeCategory);
       const matSch = (c.title || '').toLowerCase().includes(searchQuery.toLowerCase());
       return matCat && matSch;
     });
-  }, [courses, activeCategory, searchQuery]);
+  }, [courses, activeCategory, searchQuery, isEnrolled]);
 
   const handleEnrollClick = (e, course) => {
     e?.stopPropagation();
@@ -262,39 +267,68 @@ const Catalog = () => {
       </AnimatePresence>
 
       {/* ── Page Header ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3.5rem', flexWrap: 'wrap', gap: '2rem' }}>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4 md:gap-8">
         <div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.02em', marginBottom: '0.75rem' }}>
+          <h1 className="text-xl md:text-3xl" style={{ fontWeight: 950, color: isDark ? 'white' : '#0f172a', letterSpacing: '-0.03em', marginBottom: '0.4rem' }}>
             Elevate Your <span style={{ color: '#059669' }}>Horizon</span> 🚀
           </h1>
-          <p style={{ color: '#64748b', fontSize: '1.1rem', fontWeight: 500, maxWidth: '600px' }}>
-            Discover industry-expert programs tailored for your professional growth.
+          <p className="text-xs md:text-sm" style={{ color: isDark ? '#64748b' : '#64748b', fontWeight: 600, maxWidth: '500px' }}>
+            Expert programs tailored for your professional growth.
           </p>
         </div>
-        <div style={{ position: 'relative', width: '360px' }}>
-          <Search size={20} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-          <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ width: '100%', padding: '1.1rem 1.1rem 1.1rem 3.5rem', borderRadius: '1.5rem', border: '2px solid #e2e8f0', background: 'white', fontSize: '1rem', fontWeight: 600, outline: 'none', transition: 'border-color 0.2s' }} onFocus={e => e.target.style.borderColor = '#059669'} onBlur={e => e.target.style.borderColor = '#e2e8f0'} placeholder="Search expertise..." />
+        <div className="relative w-full md:w-[280px]">
+          <Search size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+          <input 
+            type="text" 
+            value={searchQuery} 
+            onChange={e => setSearchQuery(e.target.value)} 
+            style={{ 
+              width: '100%', 
+              padding: '0.7rem 0.8rem 0.7rem 2.75rem', 
+              borderRadius: '1rem', 
+              border: `2px solid ${isDark ? '#334155' : '#e2e8f0'}`, 
+              background: isDark ? '#1e293b' : 'white', 
+              color: isDark ? 'white' : '#0f172a',
+              fontSize: '0.85rem', 
+              fontWeight: 700, 
+              outline: 'none', 
+              transition: 'all 0.2s' 
+            }} 
+            onFocus={e => e.target.style.borderColor = '#059669'} 
+            onBlur={e => e.target.style.borderColor = isDark ? '#334155' : '#e2e8f0'} 
+            placeholder="Search expertise..." 
+          />
         </div>
       </div>
 
       {/* Categories */}
-      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '3rem', overflowX: 'auto', paddingBottom: '1rem', scrollbarWidth: 'none' }}>
+      <div className="flex gap-2 md:gap-2.5 mb-6 md:mb-10 overflow-x-auto no-scrollbar pb-1">
         {categories.map(cat => (
-          <button key={cat} onClick={() => setActiveCategory(cat)} style={{ padding: '0.85rem 2rem', borderRadius: '1.25rem', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', backgroundColor: activeCategory === cat ? '#111827' : 'white', color: activeCategory === cat ? 'white' : '#64748b', border: activeCategory === cat ? 'none' : '2px solid #f1f5f9', transition: 'all 0.2s', whiteSpace: 'nowrap', boxShadow: activeCategory === cat ? '0 10px 20px rgba(0,0,0,0.1)' : 'none' }}>{cat}</button>
+          <button 
+            key={cat} 
+            onClick={() => setActiveCategory(cat)} 
+            className={`px-4 md:px-6 py-1.5 md:py-2.5 rounded-lg md:rounded-xl font-black text-xs md:text-[13px] transition-all whitespace-nowrap ${
+              activeCategory === cat 
+              ? (isDark ? 'bg-white text-slate-900 shadow-xl' : 'bg-slate-900 text-white shadow-lg') 
+              : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-white text-slate-500 border border-slate-100')
+            }`}
+          >
+            {cat}
+          </button>
         ))}
       </div>
 
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '2.5rem' }}>
-          {[...Array(6)].map((_, i) => <CourseSkeleton key={i} />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-8">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} style={{ height: '400px', background: isDark ? '#1e293b' : 'white', borderRadius: '2.5rem', border: `1px solid ${isDark ? '#334155' : '#f1f5f9'}`, animation: 'pulse 1.5s infinite ease-in-out' }} />
+          ))}
         </div>
       ) : (
-        <motion.div layout style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '2.5rem' }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-8">
           <AnimatePresence>
             {filteredCourses.map((course, index) => {
               const st = getStatusStyle(course.type);
-              const enr = isEnrolled(course.id);
-              const isH = hoveredId === course.id;
               
               return (
                 <motion.div 
@@ -303,43 +337,81 @@ const Catalog = () => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ delay: index * 0.05 }}
-                  onMouseEnter={() => setHoveredId(course.id)} 
-                  onMouseLeave={() => setHoveredId(null)} 
                   onClick={() => handleEnrollClick(null, course)} 
-                  style={{ background: 'white', borderRadius: '2.5rem', overflow: 'hidden', cursor: 'pointer', border: '1px solid #f1f5f9', boxShadow: isH ? '0 30px 60px rgba(0,0,0,0.1)' : '0 4px 20px rgba(0,0,0,0.02)', transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)', transform: isH ? 'translateY(-8px)' : 'none', display: 'flex', flexDirection: 'column' }}
+                  style={{ 
+                    background: isDark ? '#1e293b' : 'white', 
+                    borderRadius: '2.5rem',
+                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'}`,
+                    boxShadow: isDark ? 'none' : '0 15px 30px -5px rgba(0,0,0,0.05)',
+                  }}
+                  className="group flex flex-col cursor-pointer transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 h-full"
                 >
-                  <div style={{ height: '200px', position: 'relative', overflow: 'hidden', background: '#f8fafc' }}>
-                    <img src={course.thumbnail} alt={course.title} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', transform: isH ? 'scale(1.05)' : 'scale(1)', transition: 'transform 0.6s' }} />
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 70%)' }} />
-                    <div style={{ position: 'absolute', top: '20px', left: '20px', background: st.bg, color: st.color, padding: '0.4rem 0.8rem', borderRadius: '1rem', fontSize: '0.65rem', fontWeight: 950, letterSpacing: '0.05em', backdropFilter: 'blur(4px)' }}>{st.label}</div>
-                    {enr && <div style={{ position: 'absolute', top: '20px', right: '20px', background: '#10b981', color: 'white', padding: '0.4rem 0.8rem', borderRadius: '1rem', fontSize: '0.65rem', fontWeight: 950, display: 'flex', alignItems: 'center', gap: '0.3rem', boxShadow: '0 4px 10px rgba(16,185,129,0.3)' }}><CheckCircle size={12} /> ENROLLED</div>}
+                  {/* Image Section - Reduced Height for Square Look */}
+                  <div className="relative h-48 rounded-[2rem] m-2 overflow-hidden shadow-sm">
+                    <img 
+                      src={course.thumbnail} 
+                      alt={course.title} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
+                    />
+                    
+                    {/* Status Badge */}
+                    <div className={`absolute top-3 left-3 px-3 py-1 rounded-xl shadow-lg backdrop-blur-md ${course.type === 'live' ? 'bg-rose-100/90 text-rose-600' : 'bg-white/90 text-emerald-600'}`}>
+                      <span className="text-[9px] font-black tracking-widest uppercase">
+                        {st.label}
+                      </span>
+                    </div>
                   </div>
                   
-                  <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 900, color: '#059669', background: '#ecfdf5', padding: '0.3rem 0.8rem', borderRadius: '0.6rem' }}>{course.category_name || 'Mastery'}</span>
-                      <div style={{ color: '#f59e0b', fontSize: '0.8rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '0.2rem', marginLeft: 'auto' }}><Star size={14} fill="#f59e0b" /> 4.9+</div>
+                  {/* Content Section - Compacted Padding */}
+                  <div className="p-6 pt-2 flex-1 flex flex-col">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="px-3 py-1 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 rounded-lg text-[10px] font-black tracking-wider uppercase">
+                        {course.category_name || 'Expert'}
+                      </span>
+                      <div className="flex items-center gap-1 text-orange-500 font-black text-xs">
+                        <Star size={14} fill="currentColor" /> 4.9+
+                      </div>
                     </div>
                     
-                    <h3 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#0f172a', marginBottom: '1.5rem', lineHeight: 1.3, height: '2.6em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{course.title}</h3>
+                    <h3 style={{ color: isDark ? 'white' : '#0f172a' }} className="text-lg font-black leading-tight mb-4 line-clamp-2">
+                      {course.title}
+                    </h3>
                     
-                    <div style={{ display: 'flex', gap: '1.25rem', color: '#64748b', fontSize: '0.85rem', fontWeight: 700, marginBottom: '2rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Clock size={16} /> {course.duration || 'Unlimited'}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Award size={16} /> {course.level || 'Intermediate'}</div>
+                    <div className="flex items-center gap-4 mb-6 mt-auto">
+                      <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-bold text-[11px]">
+                        <Clock size={16} className="text-slate-400" /> 
+                        <span>Unlimited</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-bold text-[11px]">
+                        <Award size={16} className="text-slate-400" /> 
+                        <span>Advanced</span>
+                      </div>
                     </div>
-                    
-                    <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1.5rem', borderTop: '1.5px solid #f8fafc' }}>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 950, color: '#0f172a' }}>{formatPrice(course)}</div>
-                      <button onClick={e => handleEnrollClick(e, course)} style={{ background: enr ? '#111827' : '#f97316', color: 'white', border: 'none', padding: '0.9rem 1.75rem', borderRadius: '1.25rem', fontWeight: 950, fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.2s', boxShadow: enr ? '0 10px 20px rgba(17,24,39,0.2)' : '0 10px 20px rgba(249,115,22,0.3)' }}>{enr ? 'Continue' : 'Enroll'}</button>
+
+                    {/* Bottom Action Section */}
+                    <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800/50">
+                      <div style={{ color: isDark ? 'white' : '#0f172a' }} className="text-xl font-black">
+                        {formatPrice(course)}
+                      </div>
+                      <button 
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleEnrollClick(e, course);
+                        }}
+                        className="px-6 py-3 bg-[#ff7a1a] hover:bg-[#e66a12] text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-orange-500/20 active:scale-95"
+                      >
+                        Enroll
+                      </button>
                     </div>
                   </div>
                 </motion.div>
               );
             })}
           </AnimatePresence>
-        </motion.div>
+        </div>
       )}
     </div>
   );
 };
+
 export default Catalog;

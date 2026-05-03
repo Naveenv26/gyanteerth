@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useAuth } from '../../shared/AuthContext';
+import { useTheme } from '../../shared/ThemeContext';
 import { useEnrollment } from '../../shared/EnrollmentContext';
 import { BookOpen, Award, Clock, PlayCircle, ChevronRight, Zap, Video, ArrowRight, User } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -8,6 +9,7 @@ import LiveSessionTracker from '../../components/student/LiveSessionTracker';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { isDark } = useTheme();
   const navigate = useNavigate();
   const { enrolledCourses, getCourseProgress } = useEnrollment();
 
@@ -17,7 +19,7 @@ const Dashboard = () => {
 
     const mapped = rawCourses.map(c => ({
       ...c,
-      currentProgress: getCourseProgress(c.id || c.course_id)
+      currentProgress: c.progress || 0
     }));
 
     // Smart Sorting: Active/Ongoing courses (1-99%) first, then Not Started (0%), then Completed (100%)
@@ -33,17 +35,15 @@ const Dashboard = () => {
     const ongoing = mapped.filter(c => (c.currentProgress || 0) < 100).length;
 
     return { enrolledWithProgress: sorted, totalCompleted: completed, inProgress: ongoing };
-  }, [enrolledCourses, getCourseProgress]);
+  }, [enrolledCourses]);
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '3rem' }}>
 
       {/* ── Welcome Hero ── */}
-      <div style={{
+      <div className="p-6 md:p-14 mb-8 md:mb-12" style={{
         background: 'linear-gradient(135deg, #065f46 0%, #059669 100%)',
         borderRadius: '2.5rem',
-        padding: '3.5rem 3rem',
-        marginBottom: '3rem',
         position: 'relative',
         overflow: 'hidden',
         color: 'white',
@@ -51,69 +51,62 @@ const Dashboard = () => {
       }}>
         <div style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(249, 115, 22, 0.15) 0%, transparent 70%)', borderRadius: '50%' }} />
 
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '2rem' }}>
-          <div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.15)', padding: '0.4rem 1rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1.5rem', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.2)' }}>
-              <Zap size={14} fill="#fbbf24" color="#fbbf24" /> Success Focused
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+          <div className="w-full md:w-auto">
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.15)', padding: '0.4rem 1rem', borderRadius: '1rem', fontSize: '0.7rem md:fontSize:0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1.25rem md:marginBottom:1.5rem', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.2)' }}>
+              <Zap size={12} fill="#fbbf24" color="#fbbf24" /> Success Focused
             </div>
 
-            {/* Added User Avatar to the Welcome Heading */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '0.75rem' }}>
-              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'white', border: '3px solid rgba(255,255,255,0.3)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#065f46', flexShrink: 0 }}>
+            <div className="flex items-center gap-3 md:gap-5 mb-4 md:mb-6">
+              <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white border-2 md:border-3 border-white/30 overflow-hidden flex items-center justify-center text-emerald-800 flex-shrink-0">
                 {user?.pic ? (
-                  <img src={user.pic} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={user.pic} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                  <span style={{ fontSize: '1.5rem', fontWeight: 900 }}>{(user?.firstName || user?.name || 'S').charAt(0).toUpperCase()}</span>
+                  <span className="text-xl md:text-2xl font-black">{(user?.firstName || user?.name || 'S').charAt(0).toUpperCase()}</span>
                 )}
               </div>
-              <h1 style={{ fontSize: '3.25rem', fontWeight: 900, margin: 0, letterSpacing: '-0.03em', color: 'white' }}>
-                Welcome back, <span style={{ color: '#fbbf24' }}>{user?.firstName || user?.name?.split(' ')[0] || 'Learner'}</span>! 👋
+              <h1 className="text-xl md:text-5xl font-black leading-tight tracking-tight text-white">
+                Welcome back, <span className="text-amber-400">{user?.firstName || user?.name?.split(' ')[0] || 'Learner'}</span>! 👋
               </h1>
             </div>
 
-            <p style={{ fontSize: '1.2rem', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 500, maxWidth: '550px', lineHeight: 1.6 }}>
+            <p className="text-base md:text-xl font-medium opacity-90 max-w-[550px] leading-relaxed">
               You're making great progress. Continue your learning journey and unlock new professional opportunities.
             </p>
 
-            <div style={{ display: 'flex', gap: '1.25rem', marginTop: '2.5rem' }}>
+            <div className="mt-8 md:mt-10">
               <button
                 onClick={() => navigate('/student/courses')}
-                style={{
-                  background: '#f97316', color: 'white', border: 'none', padding: '1.1rem 2.5rem', borderRadius: '1.25rem',
-                  fontWeight: 900, fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem',
-                  boxShadow: '0 12px 30px rgba(249, 115, 22, 0.35)', transition: 'all 0.2s'
-                }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-black px-8 md:px-10 py-4 md:py-4.5 rounded-2xl shadow-xl shadow-orange-500/30 transition-all flex items-center justify-center gap-3"
               >
                 Resume Learning <ArrowRight size={20} />
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <div style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(20px)', borderRadius: '1.5rem', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.15)', textAlign: 'center', minWidth: '140px' }}>
-              <div style={{ fontSize: '2rem', fontWeight: 900, color: '#fbbf24' }}>{totalCompleted}</div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Completed</div>
+          <div className="grid grid-cols-2 gap-3 md:gap-4 w-full md:w-auto">
+            <div className="bg-white/10 backdrop-blur-xl rounded-2xl md:rounded-[1.5rem] p-4 md:p-6 border border-white/10 text-center min-w-[120px] md:min-w-[140px]">
+              <div className="text-2xl md:text-4xl font-black text-amber-400">{totalCompleted}</div>
+              <div className="text-[10px] md:text-xs font-black uppercase tracking-widest opacity-70">Completed</div>
             </div>
-            <div style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(20px)', borderRadius: '1.5rem', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.15)', textAlign: 'center', minWidth: '140px' }}>
-              <div style={{ fontSize: '2rem', fontWeight: 900 }}>{inProgress}</div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>In Progress</div>
+            <div className="bg-white/10 backdrop-blur-xl rounded-2xl md:rounded-[1.5rem] p-4 md:p-6 border border-white/10 text-center min-w-[120px] md:min-w-[140px]">
+              <div className="text-2xl md:text-4xl font-black text-white">{inProgress}</div>
+              <div className="text-[10px] md:text-xs font-black uppercase tracking-widest opacity-70">Ongoing</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* ── Main Dashboard Content ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '2.5rem', flexWrap: 'wrap' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-6 lg:gap-10">
 
         {/* Left Column: Learning Continuity */}
         <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: isDark ? 'white' : '#0f172a', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <PlayCircle size={26} color="#f97316" /> Pick up where you left off
             </h2>
-            <Link to="/student/courses" style={{ fontSize: '0.9rem', color: '#059669', fontWeight: 800, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.3rem', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#047857'} onMouseLeave={e => e.currentTarget.style.color = '#059669'}>
+            <Link to="/student/courses" style={{ fontSize: '0.9rem', color: isDark ? '#34d399' : '#059669', fontWeight: 800, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.3rem', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#047857'} onMouseLeave={e => e.currentTarget.style.color = isDark ? '#34d399' : '#059669'}>
               View All <ChevronRight size={16} />
             </Link>
           </div>
@@ -135,18 +128,33 @@ const Dashboard = () => {
                   key={course.course_id || course.id}
                   onClick={() => navigate(`/student/course/${course.id || course.course_id}`)}
                   style={{
-                    padding: '1.5rem', background: 'white', borderRadius: '2rem', display: 'flex', alignItems: 'center', gap: '1.5rem',
-                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', border: '1px solid #f1f5f9',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.02)'
+                    padding: '1.5rem', 
+                    background: isDark ? 'rgba(255,255,255,0.03)' : 'white', 
+                    borderRadius: '2rem', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '1.5rem',
+                    cursor: 'pointer', 
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
+                    boxShadow: isDark ? 'none' : '0 10px 30px -5px rgba(0,0,0,0.1), 0 4px 10px -2px rgba(0,0,0,0.05)'
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = '#10b98122'; e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.06)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = '#f1f5f9'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.02)'; }}
+                  onMouseEnter={e => { 
+                    e.currentTarget.style.transform = 'translateY(-4px)'; 
+                    e.currentTarget.style.borderColor = isDark ? '#10b98144' : '#10b98122'; 
+                    e.currentTarget.style.boxShadow = isDark ? '0 12px 30px rgba(0,0,0,0.3)' : '0 20px 40px -10px rgba(0,0,0,0.15)'; 
+                  }}
+                  onMouseLeave={e => { 
+                    e.currentTarget.style.transform = 'none'; 
+                    e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'; 
+                    e.currentTarget.style.boxShadow = isDark ? 'none' : '0 10px 30px -5px rgba(0,0,0,0.1), 0 4px 10px -2px rgba(0,0,0,0.05)'; 
+                  }}
                 >
-                  <div style={{ width: '100px', height: '65px', borderRadius: '1rem', background: '#0f172a', overflow: 'hidden', flexShrink: 0 }}>
-                    <img src={course.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=200'} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Course Thumbnail" />
+                  <div className="w-16 h-10 md:w-[100px] md:h-[65px] rounded-lg md:rounded-2xl bg-slate-900 overflow-hidden flex-shrink-0">
+                    <img src={course.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=200'} loading="lazy" className="w-full h-full object-cover" alt="Course Thumbnail" />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{course.title || 'Course Module'}</h4>
+                    <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: isDark ? 'white' : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{course.title || 'Course Module'}</h4>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginTop: '0.75rem' }}>
                       <div style={{ flex: 1, background: '#f1f5f9', height: '6px', borderRadius: '10px', overflow: 'hidden' }}>
                         <motion.div initial={{ width: 0 }} animate={{ width: `${course.currentProgress || 0}%` }} transition={{ duration: 1, ease: "easeOut" }} style={{ width: `${course.currentProgress || 0}%`, background: 'linear-gradient(90deg, #10b981, #34d399)', height: '100%', borderRadius: '10px' }} />
@@ -154,8 +162,8 @@ const Dashboard = () => {
                       <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#10b981' }}>{course.currentProgress || 0}%</span>
                     </div>
                   </div>
-                  <div style={{ width: '48px', height: '48px', background: '#f8fafc', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f1f5f9', color: '#f97316' }}>
-                    <ArrowRight size={20} />
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 text-orange-500 flex-shrink-0">
+                    <ArrowRight size={18} />
                   </div>
                 </motion.div>
               ))
@@ -169,23 +177,64 @@ const Dashboard = () => {
           {/* Live Session Tracker Section */}
           <LiveSessionTracker limit={3} />
 
-          {/* Quick Stats Card */}
-          <div style={{ background: '#f8fafc', borderRadius: '2.5rem', padding: '2.5rem', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1e293b' }}>Learning Activity</h3>
+          {/* Stunning Achievement Card */}
+          <div style={{ 
+            background: isDark ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : 'white', 
+            borderRadius: '2.5rem', 
+            padding: '2.5rem', 
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
+            boxShadow: isDark ? '0 25px 50px -12px rgba(0,0,0,0.5)' : '0 20px 40px -15px rgba(0,0,0,0.05)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Decorative background element */}
+            <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(245, 158, 11, 0.1) 0%, transparent 70%)', borderRadius: '50%' }} />
 
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <div style={{ width: '44px', height: '44px', background: 'white', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #f1f5f9' }}><Clock size={20} color="#6366f1" /></div>
-              <div>
-                <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>Learning Hours</div>
-                <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0f172a' }}>0.0 hrs</div>
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 950, color: isDark ? 'white' : '#0f172a', margin: 0 }}>Achievements</h3>
+                <div style={{ padding: '0.4rem 0.8rem', background: isDark ? 'rgba(255,255,255,0.05)' : '#f8fafc', borderRadius: '1rem', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
+                  Verified
+                </div>
               </div>
-            </div>
 
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <div style={{ width: '44px', height: '44px', background: 'white', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #f1f5f9' }}><Award size={20} color="#f59e0b" /></div>
-              <div>
-                <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>Certificates</div>
-                <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0f172a' }}>{totalCompleted} Earned</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div style={{ 
+                  display: 'flex', alignItems: 'center', gap: '1.5rem', 
+                  background: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc', 
+                  padding: '1.5rem', borderRadius: '2rem',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'transparent'}`
+                }}>
+                  <div style={{ 
+                    width: '60px', height: '60px', 
+                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', 
+                    borderRadius: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 10px 20px rgba(245, 158, 11, 0.3)'
+                  }}>
+                    <Award size={28} color="white" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.85rem', color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b', fontWeight: 700, marginBottom: '0.25rem' }}>Digital Certificates</div>
+                    <div style={{ fontSize: '1.75rem', fontWeight: 950, color: isDark ? 'white' : '#0f172a', lineHeight: 1 }}>
+                      {totalCompleted} <span style={{ fontSize: '1rem', color: isDark ? 'rgba(255,255,255,0.3)' : '#cbd5e1', fontWeight: 700 }}>Earned</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Link to="/student/certificates" style={{ 
+                  display: 'flex', alignItems: 'center', justifyCenter: 'center', gap: '0.75rem',
+                  width: '100%', padding: '1.1rem', borderRadius: '1.25rem',
+                  background: isDark ? 'rgba(255,255,255,0.05)' : '#0f172a',
+                  color: 'white', fontWeight: 800, fontSize: '0.9rem',
+                  textDecoration: 'none', transition: 'all 0.2s', textAlign: 'center',
+                  border: isDark ? '1px solid rgba(255,255,255,0.1)' : 'none'
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
+                  <div style={{ margin: '0 auto', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    View All Certificates <ChevronRight size={18} />
+                  </div>
+                </Link>
               </div>
             </div>
           </div>

@@ -820,7 +820,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
   const { isEnrolled } = enrollment || {};
   const { user, authFetch, smartFetch, cacheSyncToken } = useAuth(); // <-- Inject Secure Wrapper
   const [isExamInProgress, setIsExamInProgress] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 1024);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -828,6 +828,17 @@ const CoursePlayer = ({ isTrainer = false }) => {
   const [justCompleted, setJustCompleted] = useState(false);
   const enrolled = isTrainer || (id && isEnrolled && isEnrolled(id));
   const [showReview, setShowReview] = useState(false);
+
+  // Auto-close sidebar on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 1024 && sidebarOpen) {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [sidebarOpen]);
 
   // Anti-Cheat: Prevent navigation while exam is in progress
   useEffect(() => {
@@ -969,41 +980,36 @@ const CoursePlayer = ({ isTrainer = false }) => {
   const activeTotal = lessons.filter(l => l.type !== 'note' && l.type !== 'resource').length;
   const progressPct = activeTotal > 0 ? Math.round((completedCount / activeTotal) * 100) : 0;
 
-  /* Check if current lesson is done */
+  /* Check if current lesson is done and synced with backend */
   const currentDone = currentLesson
-    ? isLessonComplete(courseId, currentLesson.id)
+    ? isLessonSynced(courseId, currentLesson.id)
     : false;
 
-  /* Mark current lesson complete */
+  /* Mark current lesson complete — only for video/live */
   const handleMarkComplete = useCallback(async () => {
     if (isTrainer || !currentLesson) return;
+    // 🚫 Assessments are completed via submission flow, not manual marking
+    if (currentLesson.type === 'assessment' || currentLesson.type === 'note') return;
+    
     const sId = courseId;
     const lId = currentLesson.id;
     const mid = currentLesson.moduleId;
-    const isCurrentlyDone = isLessonComplete(sId, lId);
-    const isCurrentlySynced = isLessonSynced(sId, lId);
 
-    // Short circuit only if already done AND synced
-    if (isCurrentlyDone && isCurrentlySynced) return;
+    if (isLessonSynced(sId, lId)) return;
 
-    // 1. Sync Backend
-    if (currentLesson.type === 'video') {
-      await markVideoProgress(sId, mid, lId);
-    } else if (currentLesson.type === 'live') {
-      // Attendance logic: Manual completion implies they attended/watched
-      await markLiveAttendance(sId, lId, mid, true, true);
-    } else if (currentLesson.type === 'note') {
-      await markNoteProgress(sId, mid, lId);
-    } else if (currentLesson.type === 'assessment') {
-      // Assessment completion is usually handled inside the AssessmentPanel,
-      // but if they click the header button on a passed exam, we sync it.
-      await fetchCourseProgress(sId);
+    try {
+      if (currentLesson.type === 'video') {
+        await markVideoProgress(sId, mid, lId);
+      } else if (currentLesson.type === 'live') {
+        await markLiveAttendance(sId, lId, mid, true, true);
+      }
+      // Success animation
+      setJustCompleted(true);
+    } catch (err) {
+      console.error("Failed to mark lesson as complete:", err);
+      // Don't fake-complete on failure — keep button as "Mark as Complete"
     }
-
-    // 2. Update Local UI
-    markLessonComplete(sId, lId, totalLessons);
-    setJustCompleted(true);
-  }, [currentLesson, courseId, totalLessons, markLessonComplete, isLessonComplete, markVideoProgress, markLiveAttendance, fetchCourseProgress, isTrainer]);
+  }, [currentLesson, courseId, markVideoProgress, markLiveAttendance, isLessonSynced, isTrainer]);
 
   const go = idx => setCurrentIdx(Math.max(0, Math.min(lessons.length - 1, idx)));
   const toggleModule = mid => setExpandedModules(p => ({ ...p, [mid]: !p[mid] }));
@@ -1060,65 +1066,81 @@ const CoursePlayer = ({ isTrainer = false }) => {
       {!isExamInProgress && (
         <header style={{ height: '60px', flexShrink: 0, background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', zIndex: 50, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
 
+          {/* Sidebar Toggle */}
+          {!isExamInProgress && currentLesson?.type !== 'assessment' && (
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="h-full px-4 md:px-6 border-r border-slate-200 hover:bg-slate-50 transition-colors flex items-center justify-center cursor-pointer"
+              style={{ color: sidebarOpen ? 'var(--color-primary)' : '#64748b' }}
+            >
+              <Menu size={20} />
+            </button>
+          )}
+
           {/* Back */}
           <button
             onClick={() => navigate(isTrainer ? '/trainer/courses' : '/student/courses')}
-            style={{ height: '100%', padding: '0 1.25rem', background: 'none', border: 'none', borderRight: '1px solid var(--color-border)', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#0f172a'; e.currentTarget.style.background = 'rgba(0,0,0,0.03)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.background = 'none'; }}
+            className="h-full px-4 md:px-6 border-r border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap"
+            style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 700 }}
           >
-            <ArrowLeft size={18} /> {isTrainer ? 'Exit Preview' : 'My Learning'}
+            <ArrowLeft size={18} /> <span className="hidden sm:inline">{isTrainer ? 'Exit' : 'My Learning'}</span>
           </button>
 
 
-          <div style={{ flex: 1, padding: '0 1.25rem', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
-              <span style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{course.title}</span>
+          {/* Middle Title Section - Visible on Laptop+ */}
+          <div className="hidden lg:flex flex-1 px-6 overflow-hidden">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <span className="text-slate-500 font-semibold text-[0.85rem] truncate max-w-[200px]">{course.title}</span>
               {currentLesson && (
                 <>
-                  <ChevronRight size={14} color="#94a3b8" style={{ flexShrink: 0 }} />
-                  <span style={{ color: '#0f172a', fontSize: '0.85rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentLesson.title}</span>
+                  <ChevronRight size={14} className="text-slate-300 flex-shrink-0" />
+                  <span className="text-slate-900 font-bold text-[0.85rem] truncate">{currentLesson.title}</span>
                 </>
               )}
             </div>
           </div>
 
-          {/* Progress pill - HIDDEN for trainers */}
+          {/* Progress Section */}
           {!isTrainer && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 1.5rem', flexShrink: 0 }}>
+            <div className="flex flex-1 lg:flex-none items-center justify-end gap-4 md:gap-8 px-4 md:px-10 h-full">
               {progressPct === 100 && (
                 <button
                   onClick={() => { setReviewSuccess(false); setShowReview(true); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#f97316', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 10px rgba(249,115,22,0.3)', marginRight: '0.5rem' }}
-                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                  className="hidden md:flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-[0.7rem] font-black transition-all shadow-sm active:scale-95"
                 >
-                  <Star size={14} /> Rate Course
+                  <Star size={14} /> RATE
                 </button>
               )}
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.68rem', color: '#475569', fontWeight: 600 }}>PROGRESS</div>
-                <div style={{ fontSize: '0.78rem', color: progressPct === 100 ? '#10b981' : '#a5b4fc', fontWeight: 800 }}>
-                  {completedCount}/{totalLessons} · {progressPct}%
+              <div className="text-right min-w-fit">
+                <div className="hidden sm:block text-[0.6rem] text-slate-500 font-black uppercase tracking-wider mb-0.5">Progress</div>
+                <div className={`text-[0.8rem] font-black ${progressPct === 100 ? 'text-emerald-500' : 'text-indigo-600'}`}>
+                  {completedCount}/{activeTotal} · {progressPct}%
                 </div>
               </div>
-              <div style={{ width: '80px', height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '99px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', background: progressPct === 100 ? 'linear-gradient(90deg,#10b981,#059669)' : 'linear-gradient(90deg,#6366f1,#8b5cf6)', width: `${progressPct}%`, borderRadius: '99px', transition: 'width 0.5s ease' }} />
+              <div className="hidden sm:block w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-500 ease-out ${progressPct === 100 ? 'bg-emerald-500' : 'bg-indigo-600'}`} 
+                  style={{ width: `${progressPct}%` }} 
+                />
               </div>
             </div>
           )}
 
-          {/* Prev / Next */}
-          <div style={{ display: 'flex', alignItems: 'center', height: '100%', borderLeft: '1px solid var(--color-border)', flexShrink: 0 }}>
-            <button onClick={() => go(currentIdx - 1)} disabled={currentIdx === 0} style={{ height: '100%', padding: '0 1.25rem', background: 'none', border: 'none', borderRight: '1px solid var(--color-border)', cursor: currentIdx === 0 ? 'not-allowed' : 'pointer', color: currentIdx === 0 ? '#cbd5e1' : '#64748b', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 700, transition: 'all 0.15s' }}
-              onMouseEnter={e => { if (currentIdx > 0) { e.currentTarget.style.color = '#0f172a'; e.currentTarget.style.background = 'rgba(0,0,0,0.03)'; } }}
-              onMouseLeave={e => { if (currentIdx > 0) { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.background = 'none'; } }}>
-              <ChevronLeft size={16} /> Prev
+          {/* Prev / Next buttons */}
+          <div className="flex items-center h-full border-l border-slate-200">
+            <button 
+              onClick={() => go(currentIdx - 1)} 
+              disabled={currentIdx === 0} 
+              className="h-full px-5 md:px-8 flex items-center gap-2 font-bold text-[0.85rem] border-r border-slate-200 transition-all hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed text-slate-500 hover:text-slate-900"
+            >
+              <ChevronLeft size={18} /> <span className="hidden sm:inline">Prev</span>
             </button>
-            <button onClick={() => go(currentIdx + 1)} disabled={currentIdx >= lessons.length - 1} style={{ height: '100%', padding: '0 1.25rem', background: (currentIdx < lessons.length - 1) ? 'rgba(5,150,105,0.05)' : 'none', border: 'none', cursor: currentIdx >= lessons.length - 1 ? 'not-allowed' : 'pointer', color: currentIdx >= lessons.length - 1 ? '#cbd5e1' : '#059669', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 800, transition: 'all 0.15s' }}
-              onMouseEnter={e => { if (currentIdx < lessons.length - 1) { e.currentTarget.style.background = 'rgba(5,150,105,0.1)'; } }}
-              onMouseLeave={e => { if (currentIdx < lessons.length - 1) { e.currentTarget.style.background = 'rgba(5,150,105,0.05)'; } }}>
-              Next <ChevronRight size={16} />
+            <button 
+              onClick={() => go(currentIdx + 1)} 
+              disabled={currentIdx >= lessons.length - 1} 
+              className="h-full px-5 md:px-8 flex items-center gap-2 font-black text-[0.85rem] transition-all bg-emerald-50/50 hover:bg-emerald-50 disabled:opacity-30 disabled:cursor-not-allowed text-emerald-600"
+            >
+              <span className="hidden sm:inline">Next</span> <ChevronRight size={18} />
             </button>
           </div>
         </header>
@@ -1127,38 +1149,27 @@ const CoursePlayer = ({ isTrainer = false }) => {
       {/* ═══════════ BODY ═══════════ */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
-        {/* Floating Sidebar Toggle */}
-        {!sidebarOpen && !isExamInProgress && currentLesson?.type !== 'assessment' && (
-          <button
-            onClick={() => setSidebarOpen(true)}
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: '1.5rem',
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderLeft: 'none',
-              padding: '0.6rem 0.8rem',
-              borderRadius: '0 12px 12px 0',
-              cursor: 'pointer',
-              boxShadow: '4px 4px 15px rgba(0,0,0,0.05)',
-              zIndex: 45,
-              color: 'var(--color-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={e => e.currentTarget.style.transform = 'translateX(2px)'}
-            onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-          >
-            <Menu size={20} />
-          </button>
-        )}
+
 
         {/* ── Sidebar ── */}
         {!isExamInProgress && currentLesson?.type !== 'assessment' && (
-          <aside style={{ width: sidebarOpen ? '260px' : '0', minWidth: sidebarOpen ? '260px' : '0', background: 'var(--color-surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)', borderRight: '1px solid var(--color-border)', zIndex: 40 }}>
+          <aside 
+            className="course-sidebar"
+            style={{ 
+              width: sidebarOpen ? '280px' : '0', 
+              minWidth: sidebarOpen ? '280px' : '0', 
+              background: 'var(--color-surface)', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              overflow: 'hidden', 
+              transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)', 
+              borderRight: '1px solid var(--color-border)', 
+              zIndex: 100,
+              position: window.innerWidth <= 1024 && sidebarOpen ? 'fixed' : 'relative',
+              height: window.innerWidth <= 1024 && sidebarOpen ? '100%' : 'auto',
+              boxShadow: window.innerWidth <= 1024 && sidebarOpen ? '20px 0 50px rgba(0,0,0,0.1)' : 'none'
+            }}
+          >
 
             {/* Sidebar header */}
             <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
@@ -1203,7 +1214,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
                           </div>
                         </div>
                         {/* Module completion ring */}
-                        {doneCount === modLessons.length && modLessons.length > 0 && (
+                        {totalM > 0 && doneCount === totalM && (
                           <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} />
                         )}
                         <ChevronDown size={14} color="var(--color-text-light)" style={{ transform: isExp ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)', flexShrink: 0 }} />
@@ -1258,7 +1269,7 @@ const CoursePlayer = ({ isTrainer = false }) => {
 
         {/* ── Main Content ── */}
         <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--color-bg)' }}>
-          <div style={{ flex: 1, overflowY: 'auto', padding: isExamInProgress ? '0' : '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="p-4 md:p-8 lg:p-12" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ maxWidth: isExamInProgress ? '100%' : '900px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', height: isExamInProgress ? '100%' : 'auto' }}>
 
               {lessons.length === 0 && (

@@ -106,9 +106,9 @@ const Home = () => {
                 World's #1 Learning Community
               </div>
 
-              <h1 className="text-6xl md:text-7xl xl:text-8xl font-black text-[var(--color-text)] leading-[1.05] mb-8 tracking-tighter">
+              <h1 className="text-4xl md:text-7xl xl:text-8xl font-black text-[var(--color-text)] leading-[1.05] mb-8 tracking-tighter">
                 Level Up your <span className="gradient-text">Learning</span> <br />
-                <span className="text-[var(--color-text-light)] font-medium tracking-normal italic text-5xl xl:text-6xl">With</span> <span className="relative">Gyanteerth
+                <span className="text-[var(--color-text-light)] font-medium tracking-normal italic text-3xl md:text-5xl xl:text-6xl">With</span> <span className="relative">Gyanteerth
                   <motion.div
                     initial={{ width: 0 }} animate={{ width: "100%" }} transition={{ delay: 1, duration: 1 }}
                     className="absolute bottom-2 left-0 h-3 bg-[var(--color-accent)] -z-10 opacity-30 rounded-full"

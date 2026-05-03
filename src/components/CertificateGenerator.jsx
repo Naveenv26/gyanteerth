@@ -100,7 +100,13 @@ const CertificateGenerator = ({
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1rem' }}>
+    <div className="certificate-scale-wrapper" style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      width: '100%',
+      overflow: 'visible'
+    }}>
 
       {/* CERTIFICATE PREVIEW CONTAINER */}
       <div 
@@ -117,11 +123,11 @@ const CertificateGenerator = ({
           flexDirection: 'column',
           alignItems: 'center',
           padding: '60px',
-          transform: 'scale(0.65)',
           transformOrigin: 'top center',
-          marginBottom: '-393px',
-          boxShadow: '0 40px 100px rgba(0,0,0,0.4)'
+          boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
+          // The scale is now handled by the CSS below
         }}
+        className="certificate-render-target"
       >
         {/* TOP DECORATIVE BLOB */}
         <div style={{ 
@@ -232,6 +238,30 @@ const CertificateGenerator = ({
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playball&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
+        /* 🎓 SMART DYNAMIC SCALING 🎓 */
+        .certificate-scale-wrapper {
+          --cert-original-width: 794px;
+          --cert-original-height: 1123px;
+          --available-width: min(100vw - 64px, 1200px);
+          --scale-factor: min(0.95, calc(var(--available-width) / var(--cert-original-width)));
+          padding-top: 2rem;
+          padding-bottom: 2rem;
+        }
+
+        .certificate-render-target {
+          transform: scale(var(--scale-factor)) !important;
+          margin-bottom: calc((var(--cert-original-height) * (1 - var(--scale-factor))) * -1 - 20px) !important;
+        }
+
+        @media (max-width: 480px) {
+          .certificate-scale-wrapper {
+            --available-width: calc(100vw - 32px);
+          }
+          .certificate-render-target {
+            margin-bottom: calc((var(--cert-original-height) * (1 - var(--scale-factor))) * -1 - 10px) !important;
+          }
+        }
       `}</style>
     </div>
   );

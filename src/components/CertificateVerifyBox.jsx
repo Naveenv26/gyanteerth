@@ -46,23 +46,25 @@ const CertificateVerifyBox = () => {
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleVerify} className="relative group">
-        <input 
-          type="text" 
-          value={uuid}
-          onChange={(e) => setUuid(e.target.value)}
-          placeholder="Paste Certificate UUID (e.g. GT-ABCD-1234)"
-          className="w-full pl-14 pr-36 py-5 bg-[var(--color-surface-muted)] border-2 border-[var(--color-border)] rounded-2xl text-[var(--color-text)] font-semibold placeholder-[var(--color-text-light)] focus:outline-none focus:border-[var(--color-primary)] transition-all shadow-sm"
-        />
-        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-[var(--color-text-light)] group-focus-within:text-[var(--color-primary)] transition-colors">
-          <Search size={22} />
+      <form onSubmit={handleVerify} className="flex flex-col md:block relative group gap-4">
+        <div className="relative">
+          <input 
+            type="text" 
+            value={uuid}
+            onChange={(e) => setUuid(e.target.value)}
+            placeholder="Paste Certificate UUID"
+            className="w-full pl-14 md:pr-36 py-4 md:py-5 bg-[var(--color-surface-muted)] border-2 border-[var(--color-border)] rounded-2xl text-[var(--color-text)] font-semibold placeholder-[var(--color-text-light)] focus:outline-none focus:border-[var(--color-primary)] transition-all shadow-sm"
+          />
+          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-[var(--color-text-light)] group-focus-within:text-[var(--color-primary)] transition-colors">
+            <Search size={22} />
+          </div>
         </div>
         <button 
           type="submit"
           disabled={loading || !uuid.trim()}
-          className="absolute right-3 top-1/2 -translate-y-1/2 px-8 py-3 bg-[var(--color-primary)] text-white font-black rounded-xl hover:bg-[var(--color-primary-dark)] transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg"
+          className="md:absolute md:right-3 md:top-1/2 md:-translate-y-1/2 w-full md:w-auto px-8 py-4 md:py-3 bg-[var(--color-primary)] text-white font-black rounded-xl hover:bg-[var(--color-primary-dark)] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
         >
-          {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Verify'}
+          {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Verify Credentials'}
         </button>
       </form>
 

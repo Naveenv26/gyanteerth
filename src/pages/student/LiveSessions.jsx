@@ -110,16 +110,19 @@ const StudentLiveSessions = () => {
         style={{ 
           background: 'white', 
           borderRadius: '1.5rem', 
-          padding: '1.5rem 2rem', 
+          padding: '1.25rem 1.5rem', 
           border: `1px solid ${isLive ? 'rgba(239,68,68,0.15)' : '#f1f5f9'}`,
           display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: '2rem',
+          flexDirection: 'column',
+          md: { flexDirection: 'row' }, // This is not tailwind, I'll use class instead
+          alignItems: 'stretch',
+          md: { alignItems: 'center' },
+          gap: '1.5rem',
           boxShadow: isLive ? '0 10px 30px rgba(239,68,68,0.08)' : '0 4px 20px rgba(0,0,0,0.02)',
           position: 'relative',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
+        className="flex-col md:flex-row md:items-center md:gap-8"
         onMouseEnter={e => {
             e.currentTarget.style.transform = 'translateY(-4px)';
             e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.06)';
@@ -129,7 +132,7 @@ const StudentLiveSessions = () => {
             e.currentTarget.style.boxShadow = isLive ? '0 10px 30px rgba(239,68,68,0.08)' : '0 4px 20px rgba(0,0,0,0.02)';
         }}
       >
-        <div style={{ flex: '2 1 300px' }}>
+        <div className="flex-1 min-w-0">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem' }}>
             <span style={{ 
               padding: '0.2rem 0.6rem', borderRadius: '99px', fontSize: '0.65rem', fontWeight: 900,
@@ -144,7 +147,7 @@ const StudentLiveSessions = () => {
           <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 900, color: '#0f172a' }}>{session.title}</h3>
         </div>
 
-        <div style={{ flex: '1 1 200px', display: 'flex', alignItems: 'center', gap: '2rem' }}>
+        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-12">
           <div>
             <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
               <Calendar size={15} color={accent} /> {new Date(session.start_time).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
@@ -155,7 +158,7 @@ const StudentLiveSessions = () => {
           </div>
         </div>
 
-        <div style={{ flex: '0 0 auto', textAlign: 'right' }}>
+        <div className="mt-2 md:mt-0">
            <button 
              onClick={() => navigate(`/student/course/${session.course_id}`)}
              style={{ 
@@ -187,51 +190,41 @@ const StudentLiveSessions = () => {
     <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
       
       {/* ── Page Header ── */}
-      <div style={{ marginBottom: '3rem' }}>
-        <h1 style={{ fontSize: '2.5rem', fontWeight: 950, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: '0.75rem' }}>
+      <div className="mb-8 md:mb-12">
+        <h1 className="text-3xl md:text-5xl" style={{ fontWeight: 950, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: '0.75rem' }}>
           Live <span style={{ color: '#ef4444' }}>Broadcasts</span>
         </h1>
-        <p style={{ margin: 0, maxWidth: '600px', fontSize: '1.1rem', color: '#64748b', fontWeight: 500, lineHeight: 1.6 }}>
+        <p style={{ margin: 0, maxWidth: '600px', fontSize: '1.05rem', color: '#64748b', fontWeight: 500, lineHeight: 1.6 }}>
           Experience the classroom from anywhere. Join interactive sessions, participate in real-time, and catch up on missed discussions.
         </p>
       </div>
 
       {/* ── Tab Navigation ── */}
-      <div style={{ 
-        display: 'flex', gap: '1rem', marginBottom: '2.5rem', 
-        background: 'rgba(226, 232, 240, 0.4)', padding: '0.5rem', 
-        borderRadius: '1.5rem', width: 'fit-content', border: '1px solid #e2e8f0' 
-      }}>
-        {[
-          { id: 'live', label: 'Live Now', count: liveSessions.length, color: '#ef4444' },
-          { id: 'upcoming', label: 'Upcoming', count: upcomingSessions.length, color: '#6366f1' },
-          { id: 'history', label: 'Past Sessions', count: passedSessions.length, color: '#64748b' }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: '0.75rem 1.75rem', borderRadius: '1.1rem', border: 'none',
-              background: activeTab === tab.id ? 'white' : 'transparent',
-              color: activeTab === tab.id ? '#0f172a' : '#64748b',
-              fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: '0.6rem',
-              transition: 'all 0.2s',
-              boxShadow: activeTab === tab.id ? '0 4px 12px rgba(0,0,0,0.05)' : 'none'
-            }}
-          >
-            {tab.label}
-            {tab.count > 0 && (
-              <span style={{ 
-                background: tab.id === 'live' ? '#ef4444' : (activeTab === tab.id ? '#0f172a' : '#cbd5e1'), 
-                color: 'white', fontSize: '0.7rem', padding: '0.1rem 0.5rem', borderRadius: '1rem',
-                animation: tab.id === 'live' ? 'pulse 1.5s infinite' : 'none'
-              }}>
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
+      <div className="flex bg-slate-200/40 p-1.5 rounded-2xl border border-slate-200 overflow-x-auto no-scrollbar w-full sm:w-auto mb-10">
+        <div className="flex gap-2 min-w-max w-full">
+          {[
+            { id: 'live', label: 'Live Now', count: liveSessions.length, color: '#ef4444' },
+            { id: 'upcoming', label: 'Upcoming', count: upcomingSessions.length, color: '#6366f1' },
+            { id: 'history', label: 'Past Sessions', count: passedSessions.length, color: '#64748b' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 sm:flex-none px-4 md:px-7 py-3 rounded-xl border-none transition-all flex items-center justify-center gap-2 text-sm font-bold ${
+                activeTab === tab.id ? 'bg-white text-slate-900 shadow-sm' : 'bg-transparent text-slate-500'
+              }`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-black text-white ${
+                  tab.id === 'live' ? 'bg-red-500 animate-pulse' : (activeTab === tab.id ? 'bg-slate-900' : 'bg-slate-300')
+                }`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Content Area ── */}

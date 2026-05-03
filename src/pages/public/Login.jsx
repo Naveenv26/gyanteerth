@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '../../shared/AuthContext';
+import { useTheme } from '../../shared/ThemeContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, BookOpen, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
@@ -15,6 +16,7 @@ const Login = () => {
 
   // Pull in login and the secure authFetch
   const { login, authFetch } = useAuth();
+  const { isDark } = useTheme();
   const navigate = useNavigate();
 
   const handleAuthSuccess = useCallback(async (data) => {
@@ -137,28 +139,28 @@ const Login = () => {
 
         <motion.div
           initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5, staggerChildren: 0.1 }}
-          className="w-full max-w-xl mx-auto bg-[var(--color-surface)] p-8 sm:p-12 rounded-[2.5rem] shadow-2xl border border-[var(--color-border)]"
+          className="w-full max-w-xl mx-auto bg-[var(--color-surface)] p-6 sm:p-10 rounded-2xl shadow-2xl border border-[var(--color-border)]"
         >
-          <div className="mb-10 text-center lg:text-left">
-            <div className="inline-flex items-center justify-center bg-[var(--color-primary-bg)] text-[var(--color-primary)] w-14 h-14 rounded-2xl mb-6 shadow-sm border border-[var(--color-primary)]/10">
-              <Lock className="w-7 h-7" />
+          <div className="mb-6 text-center lg:text-left">
+            <div className="inline-flex items-center justify-center bg-[var(--color-primary-bg)] text-[var(--color-primary)] w-12 h-12 rounded-xl mb-4 shadow-sm border border-[var(--color-primary)]/10">
+              <Lock className="w-6 h-6" />
             </div>
-            <h2 className="text-3xl font-extrabold text-[var(--color-text)] tracking-tight">Sign In</h2>
-            <p className="text-[var(--color-text-muted)] mt-2 font-medium">Enter your credentials to access your account</p>
+            <h2 className="text-2xl font-extrabold text-[var(--color-text)] tracking-tight">Sign In</h2>
+            <p className="text-[var(--color-text-muted)] mt-1 font-medium text-sm">Enter your credentials to access your account</p>
           </div>
 
           {error && (
             <motion.div
               initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3 text-red-700"
+              className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 flex items-start gap-3 text-red-700"
             >
               <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
               <p className="text-sm font-medium">{error}</p>
             </motion.div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-5 pt-2">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-4 pt-1">
               <div className="relative group">
                 <label className="text-sm font-semibold text-[var(--color-text)] mb-1 block">Email Address</label>
                 <div className="relative flex items-center">
@@ -168,7 +170,7 @@ const Login = () => {
                   <input
                     type="email" name="email" required placeholder="you@example.com"
                     value={email} onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3.5 bg-[var(--color-surface-muted)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-light)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all shadow-sm"
+                    className="w-full pl-10 pr-4 py-3.5 bg-[var(--color-surface-muted)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder-[var(--color-text-light)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all shadow-sm"
                   />
                 </div>
               </div>
@@ -185,7 +187,7 @@ const Login = () => {
                   <input
                     type={showPassword ? 'text' : 'password'} name="password" required placeholder="••••••••"
                     value={password} onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-12 py-3.5 bg-[var(--color-surface-muted)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-light)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all shadow-sm"
+                    className="w-full pl-10 pr-12 py-3.5 bg-[var(--color-surface-muted)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder-[var(--color-text-light)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all shadow-sm"
                   />
                   <button
                     type="button"
@@ -198,11 +200,16 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="pt-4 space-y-4">
+            <div className="pt-2">
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-4 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-[0_4px_14px_0_rgba(15,23,42,0.39)] hover:shadow-[0_6px_20px_rgba(15,23,42,0.23)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:hover:translate-y-0"
+                style={{
+                  background: isDark ? 'white' : '#0f172a',
+                  color: isDark ? '#0f172a' : 'white',
+                  boxShadow: isDark ? 'none' : '0 4px 14px 0 rgba(15,23,42,0.39)'
+                }}
+                className="w-full flex items-center justify-center gap-2 py-4 px-4 font-bold rounded-lg hover:opacity-90 hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:hover:translate-y-0"
               >
                 {loading ? 'Authenticating...' : (
                   <>Secure Sign In <ArrowRight className="w-5 h-5" /></>

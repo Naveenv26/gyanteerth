@@ -20,6 +20,28 @@ import ThemeToggle from '../components/ThemeToggle';
 import { motion, AnimatePresence } from 'framer-motion';
 import CertificateVerifyBox from '../components/CertificateVerifyBox';
 
+const InstagramIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+  </svg>
+);
+
+const TwitterIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path>
+  </svg>
+);
+
+const LinkedinIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+    <rect x="2" y="9" width="4" height="12"></rect>
+    <circle cx="4" cy="4" r="2"></circle>
+  </svg>
+);
+
 const MainLayout = () => {
   const { user, logout, revalidateAll } = useAuth();
   const { isDark } = useTheme();
@@ -27,6 +49,7 @@ const MainLayout = () => {
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // 🚀 SWR: Revalidate all background caches when navigating to a new section
   useEffect(() => {
@@ -73,7 +96,7 @@ const MainLayout = () => {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-2xl bg-[var(--color-surface)] p-8 md:p-12 rounded-[3rem] shadow-2xl border border-[var(--color-border)] overflow-hidden"
+              className="relative w-full max-w-2xl bg-[var(--color-surface)] p-6 md:p-12 rounded-[2rem] md:rounded-[3rem] shadow-2xl border border-[var(--color-border)] overflow-hidden"
             >
               <button 
                 onClick={() => setIsVerifyModalOpen(false)}
@@ -107,11 +130,11 @@ const MainLayout = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between relative">
             
-            {/* ⬅️ Left Section: Logo + Navigation Links */}
-            <div className="flex-1 flex items-center gap-12">
-              <div className="flex-shrink-0 hover:scale-105 transition-transform">
+            {/* ⬅️ Left Section: Logo */}
+            <div className="flex items-center gap-2 md:gap-12 flex-shrink-0">
+              <div className="hover:scale-105 transition-transform">
                 <Link to="/">
-                  <Logo scale={0.75} showTagline={false} />
+                  <Logo scale={window.innerWidth < 400 ? 0.5 : 0.65} showTagline={false} />
                 </Link>
               </div>
               <nav className="hidden xl:flex items-center gap-8">
@@ -132,23 +155,27 @@ const MainLayout = () => {
               </nav>
             </div>
 
-            {/* 🎯 Center Section: Verification Button */}
-            <div className="flex items-center justify-center flex-shrink-0">
+            {/* 🎯 Center Section: Verification Button (Icon only on mobile) */}
+            <div className="flex items-center justify-center">
               <button 
                 onClick={() => setIsVerifyModalOpen(true)}
-                className="flex items-center gap-2 px-8 py-3 bg-white border-2 border-emerald-500/20 text-emerald-800 text-sm font-black rounded-2xl hover:bg-emerald-50 hover:border-emerald-500/50 transition-all shadow-sm transform hover:-translate-y-0.5 active:scale-95"
+                className="flex items-center gap-2 p-2 md:px-8 md:py-3 bg-white border-2 border-emerald-500/20 text-emerald-800 text-sm font-black rounded-2xl hover:bg-emerald-50 hover:border-emerald-500/50 transition-all shadow-sm transform hover:-translate-y-0.5 active:scale-95"
+                title="Verify Credential"
               >
-                <ShieldCheck size={20} className="text-emerald-600" /> 
-                <span className="tracking-tight">Verify Credential</span>
+                <ShieldCheck size={18} className="text-emerald-600" /> 
+                <span className="hidden md:inline tracking-tight">Verify Credential</span>
               </button>
             </div>
 
-            {/* ➡️ Right Section: Theme Toggle + User Actions */}
-            <div className="flex-1 flex items-center justify-end gap-5">
-              <ThemeToggle />
-              <div className="flex items-center gap-4 border-l border-[var(--color-border)] pl-5">
+            {/* ➡️ Right Section: Theme Toggle + User Actions + Hamburger */}
+            <div className="flex items-center justify-end gap-1 md:gap-5">
+              <div className="hidden sm:block">
+                <ThemeToggle />
+              </div>
+              
+              <div className="flex items-center gap-1 md:gap-4 border-l border-[var(--color-border)] pl-1 md:pl-5">
                 {user ? (
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1 md:gap-4">
                     <Link 
                       to={`/${user.role}`} 
                       className="hidden md:flex items-center gap-2 text-sm font-bold text-slate-700 bg-white border-2 border-slate-100 hover:border-emerald-500/30 hover:bg-emerald-50 px-5 py-2.5 rounded-2xl transition-all shadow-sm"
@@ -157,26 +184,74 @@ const MainLayout = () => {
                     </Link>
                     <button 
                       onClick={logout} 
-                      className="flex items-center gap-2 text-sm font-bold text-white bg-slate-900 hover:bg-rose-600 px-5 py-2.5 rounded-2xl transition-all hover:-translate-y-0.5"
+                      className="p-2 md:px-5 md:py-2.5 flex items-center gap-1 text-xs md:text-sm font-bold text-white bg-slate-900 hover:bg-rose-600 rounded-xl md:rounded-2xl transition-all"
                     >
-                      <LogOut className="w-4 h-4" /> Logout
+                      <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Logout</span>
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-4">
-                    <Link 
-                      to="/login" 
-                      className="group flex items-center gap-2 text-sm font-black bg-gradient-to-r from-emerald-600 via-emerald-700 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 px-7 py-3 rounded-2xl shadow-xl shadow-emerald-500/20 transition-all"
-                    >
-                      <span className="text-white group-hover:text-orange-400 transition-colors">Sign In</span>
-                      <LogIn className="w-4 h-4 text-white group-hover:text-orange-400 group-hover:translate-x-0.5 transition-all" />
-                    </Link>
-                  </div>
+                  <Link 
+                    to="/login" 
+                    className="group flex items-center gap-1 text-[10px] md:text-sm font-black bg-gradient-to-r from-emerald-600 to-emerald-800 px-2.5 md:px-7 py-2 md:py-3 rounded-xl md:rounded-2xl shadow-xl shadow-emerald-500/20 transition-all"
+                  >
+                    <span className="text-white hidden min-[380px]:inline">Sign In</span>
+                    <LogIn className="w-4 h-4 text-white" />
+                  </Link>
                 )}
+
+                {/* Mobile Menu Toggle */}
+                <button 
+                  className="xl:hidden p-1 md:p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-primary-bg)] rounded-lg transition-all"
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                >
+                  <div className="w-5 h-4 md:w-6 md:h-5 flex flex-col justify-between">
+                    <span className={`w-full h-0.5 bg-current transition-all ${isMobileMenuOpen ? 'rotate-45 translate-y-2' : ''}`} />
+                    <span className={`w-full h-0.5 bg-current transition-all ${isMobileMenuOpen ? 'opacity-0' : ''}`} />
+                    <span className={`w-full h-0.5 bg-current transition-all ${isMobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+                  </div>
+                </button>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Mobile Dropdown Menu */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="xl:hidden border-t border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden"
+            >
+              <div className="p-6 flex flex-col gap-4">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.name}
+                    to={link.path}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-lg font-bold text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-all"
+                  >
+                    {link.name}
+                  </Link>
+                ))}
+                <div className="flex items-center justify-between pt-4 border-t border-[var(--color-border)]">
+                  <span className="font-bold">Appearance</span>
+                  <ThemeToggle />
+                </div>
+                {user && (
+                   <Link 
+                   to={`/${user.role}`} 
+                   onClick={() => setIsMobileMenuOpen(false)}
+                   className="flex items-center justify-center gap-2 p-4 text-sm font-bold text-[var(--color-primary)] bg-[var(--color-primary-bg)] rounded-2xl transition-all"
+                 >
+                   <LayoutDashboard className="w-4 h-4" /> Go to Dashboard
+                 </Link>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* Main Content Area */}
@@ -197,36 +272,43 @@ const MainLayout = () => {
                 Elevating the educational journey through high-impact interactive sessions and premium knowledge sharing. Accelerating human potential since inception.
               </p>
               <div className="mt-10 flex gap-4">
-                {['Twitter', 'Instagram', 'LinkedIn'].map(social => (
-                  <div key={social} className="w-12 h-12 bg-white/5 hover:bg-emerald-600 border border-white/10 text-slate-400 hover:text-white rounded-2xl flex items-center justify-center cursor-pointer transition-all hover:-translate-y-1">
-                    <div className="w-5 h-5 bg-current rounded-sm" />
+                {[
+                  { name: 'Twitter', icon: TwitterIcon },
+                  { name: 'Instagram', icon: InstagramIcon },
+                  { name: 'LinkedIn', icon: LinkedinIcon }
+                ].map(({ name, icon: Icon }) => (
+                  <div key={name} className="w-12 h-12 bg-white/5 hover:bg-emerald-600 border border-white/10 text-slate-400 hover:text-white rounded-2xl flex items-center justify-center cursor-pointer transition-all hover:-translate-y-1">
+                    <Icon className="w-5 h-5" />
                   </div>
                 ))}
               </div>
             </div>
-            <div>
-              <h4 className="text-[11px] font-black tracking-[0.3em] text-orange-400 uppercase mb-10">Ecosystem</h4>
-              <ul className="space-y-5">
-                {dummyLinks.slice(0, 3).map(link => (
-                  <li key={link.name}>
-                    <Link to={link.path} className="text-slate-400 hover:text-emerald-400 font-bold text-sm transition-colors flex items-center gap-2">
-                      <ChevronRight className="w-3 h-3" /> {link.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-[11px] font-black tracking-[0.3em] text-orange-400 uppercase mb-10">Support</h4>
-              <ul className="space-y-5">
-                {dummyLinks.slice(3).map(link => (
-                  <li key={link.name}>
-                    <Link to={link.path} className="text-slate-400 hover:text-emerald-400 font-bold text-sm transition-colors flex items-center gap-2">
-                      <ChevronRight className="w-3 h-3" /> {link.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+
+            <div className="grid grid-cols-2 md:col-span-2 gap-8 md:gap-12">
+              <div>
+                <h4 className="text-[11px] font-black tracking-[0.3em] text-orange-400 uppercase mb-10">Ecosystem</h4>
+                <ul className="space-y-5">
+                  {dummyLinks.slice(0, 3).map(link => (
+                    <li key={link.name}>
+                      <Link to={link.path} className="text-slate-400 hover:text-emerald-400 font-bold text-sm transition-colors flex items-center gap-2">
+                        <ChevronRight className="w-3 h-3" /> {link.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h4 className="text-[11px] font-black tracking-[0.3em] text-orange-400 uppercase mb-10">Support</h4>
+                <ul className="space-y-5">
+                  {dummyLinks.slice(3).map(link => (
+                    <li key={link.name}>
+                      <Link to={link.path} className="text-slate-400 hover:text-emerald-400 font-bold text-sm transition-colors flex items-center gap-2">
+                        <ChevronRight className="w-3 h-3" /> {link.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
           
@@ -238,9 +320,7 @@ const MainLayout = () => {
               <p className="text-slate-600 text-[9px] font-bold">ALL RIGHTS RESERVED. EMPOWERING MINDS PERSON BY PERSON.</p>
             </div>
             <div className="flex items-center gap-8 text-slate-500 text-[11px] font-black uppercase tracking-widest">
-              <Link to="/under-construction" className="hover:text-orange-400 transition-colors">Privacy</Link>
-              <Link to="/under-construction" className="hover:text-orange-400 transition-colors">Terms</Link>
-              <Link to="/under-construction" className="hover:text-orange-400 transition-colors">Policies</Link>
+              <Link to="/under-construction" className="hover:text-orange-400 transition-colors">Privacy & Terms Policy</Link>
             </div>
           </div>
         </div>
